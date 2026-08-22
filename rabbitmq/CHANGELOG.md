@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Changed
+
+- Pin the core RabbitMQ Streams module to a published pseudo-version so this
+  adapter resolves outside the repository workspace.
+
 ### Added
 
 - add the initial RabbitMQ-supported Go client transport for confirmed

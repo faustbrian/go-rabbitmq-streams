@@ -4,6 +4,11 @@ All notable changes to this module are documented here.
 
 ## Unreleased
 
+### Changed
+
+- Pin the core RabbitMQ Streams module to a published pseudo-version so this
+  adapter resolves outside the repository workspace.
+
 ### Added
 
 - caller-owned OpenTelemetry metrics for stable payload-free RabbitMQ Streams
