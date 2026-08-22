@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixed
+
+- link the module README to the repository documentation portal
+
 ### Added
 
 - add the initial RabbitMQ-supported Go client transport for confirmed

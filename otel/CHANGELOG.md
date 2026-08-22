@@ -4,6 +4,10 @@ All notable changes to this module are documented here.
 
 ## Unreleased
 
+### Fixed
+
+- link the module README to the repository documentation portal
+
 ### Added
 
 - caller-owned OpenTelemetry metrics for stable payload-free RabbitMQ Streams

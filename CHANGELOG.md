@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixed
+
+- link the module README to the repository documentation portal
+
 ### Added
 
 - establish the pinned RabbitMQ Streams source baseline, Kafka semantic mapping,
