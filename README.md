@@ -357,3 +357,6 @@ pinned source baseline. See [interoperability status](docs/interoperability.md).
 ## Release notes
 
 See [CHANGELOG.md](CHANGELOG.md).
+
+Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
+to choose packages, compose services, and review repository-wide guarantees.

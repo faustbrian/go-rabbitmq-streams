@@ -2,10 +2,12 @@
 
 ## Unreleased
 
-### Changed
+### Fixed
 
-- Pin the core RabbitMQ Streams module to a published pseudo-version so this
-  adapter resolves outside the repository workspace.
+- Make the concurrent consumer reconnect test enforce emitted signal presence,
+  uniqueness, and causal reconnect-before-ready ordering without assuming that
+  concurrent loss and reconnect goroutines are scheduled in one fixed order.
+- link the module README to the repository documentation portal
 
 ### Added
 

@@ -4,10 +4,9 @@ All notable changes to this module are documented here.
 
 ## Unreleased
 
-### Changed
+### Fixed
 
-- Pin the core RabbitMQ Streams module to a published pseudo-version so this
-  adapter resolves outside the repository workspace.
+- link the module README to the repository documentation portal
 
 ### Added
 
