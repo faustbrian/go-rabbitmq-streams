@@ -99,6 +99,45 @@ func (inspector *Inspector) Inspect(
 	return result, nil
 }
 
+// StoredOffset returns the broker-stored consumer offset without opening a
+// temporary end-of-stream consumer or inspecting retained-range metadata.
+// A nil offset means that the consumer has not stored a position.
+func (inspector *Inspector) StoredOffset(
+	ctx context.Context,
+	streamName string,
+	consumerName string,
+) (*uint64, error) {
+	if ctx == nil {
+		return nil, &rabbitstream.OperationError{
+			Operation: rabbitstream.OperationInspect,
+			Category:  rabbitstream.CategoryInvalidConfiguration,
+		}
+	}
+	request := rabbitstream.InspectionRequest{
+		Stream: streamName, ConsumerName: consumerName,
+	}
+	if err := request.Validate(inspector.limits); err != nil {
+		return nil, err
+	}
+	environment, err := inspector.openEnvironment(ctx)
+	if err != nil {
+		return nil, inspectError(err)
+	}
+	defer func() { _ = environment.Close() }()
+	stored, err := environment.QueryOffset(consumerName, streamName)
+	if errors.Is(err, stream.OffsetNotFoundError) {
+		return nil, nil
+	}
+	if err != nil || stored < 0 {
+		if err == nil {
+			err = rabbitstream.ErrOffset
+		}
+		return nil, inspectError(err)
+	}
+	offset := uint64(stored)
+	return &offset, nil
+}
+
 func inspectStream(
 	ctx context.Context,
 	environment rabbitEnvironment,

@@ -956,6 +956,79 @@ func TestStoredOffsetInspectionDistinguishesMissingInvalidAndLaggingOffsets(t *t
 	}
 }
 
+func TestInspectorReadsStoredOffsetWithoutSnapshottingStreamRange(t *testing.T) {
+	t.Parallel()
+
+	stored := int64(41)
+	environment := &fakeRabbitEnvironment{queryOffset: stored}
+	inspector := &Inspector{
+		limits: rabbitstream.DefaultLimits(),
+		openEnvironment: func(context.Context) (rabbitEnvironment, error) {
+			return environment, nil
+		},
+	}
+	offset, err := inspector.StoredOffset(
+		context.Background(), "tracking.events", "delivery-planner",
+	)
+	if err != nil || offset == nil || *offset != uint64(stored) {
+		t.Fatalf("StoredOffset() = %#v, %v", offset, err)
+	}
+	if environment.streamStatsCalls != 0 {
+		t.Fatalf("StoredOffset() snapshotted stream range %d times", environment.streamStatsCalls)
+	}
+	if environment.closeCalls != 1 {
+		t.Fatalf("StoredOffset() closed environment %d times", environment.closeCalls)
+	}
+}
+
+func TestInspectorStoredOffsetRejectsInvalidInputsAndClassifiesBrokerResults(t *testing.T) {
+	t.Parallel()
+
+	inspector := &Inspector{limits: rabbitstream.DefaultLimits()}
+	if offset, err := inspector.StoredOffset(nil, "tracking.events", "consumer"); offset != nil || !errors.Is(err, rabbitstream.ErrInvalidConfiguration) {
+		t.Fatalf("nil-context StoredOffset() = %#v, %v", offset, err)
+	}
+	if offset, err := inspector.StoredOffset(context.Background(), "", "consumer"); offset != nil || !errors.Is(err, rabbitstream.ErrValidation) {
+		t.Fatalf("invalid-request StoredOffset() = %#v, %v", offset, err)
+	}
+	openFailure := errors.New("open environment")
+	inspector.openEnvironment = func(context.Context) (rabbitEnvironment, error) {
+		return nil, openFailure
+	}
+	if offset, err := inspector.StoredOffset(
+		context.Background(), "tracking.events", "consumer",
+	); offset != nil || !errors.Is(err, rabbitstream.ErrConnection) {
+		t.Fatalf("open-failure StoredOffset() = %#v, %v", offset, err)
+	}
+	for name, test := range map[string]struct {
+		stored int64
+		err    error
+		want   error
+	}{
+		"missing":  {err: stream.OffsetNotFoundError},
+		"negative": {stored: -1, want: rabbitstream.ErrOffset},
+		"failure":  {err: errors.New("query offset"), want: rabbitstream.ErrConnection},
+	} {
+		t.Run(name, func(t *testing.T) {
+			environment := &fakeRabbitEnvironment{
+				queryOffset: test.stored, queryOffsetErr: test.err,
+			}
+			inspector.openEnvironment = func(context.Context) (rabbitEnvironment, error) {
+				return environment, nil
+			}
+			offset, err := inspector.StoredOffset(
+				context.Background(), "tracking.events", "consumer",
+			)
+			if offset != nil || !errors.Is(err, test.want) {
+				t.Fatalf("StoredOffset() = %#v, %v", offset, err)
+			}
+			if environment.closeCalls != 1 {
+				t.Fatalf("StoredOffset() closed environment %d times", environment.closeCalls)
+			}
+		})
+	}
+}
+
 func TestStreamStatisticsInspectionIncludesOnlyAvailableNonNegativeChunkIDs(t *testing.T) {
 	base := rabbitstream.StreamInspection{Stream: "tracking.events"}
 	for name, test := range map[string]struct {
@@ -1705,6 +1778,7 @@ type fakeRabbitEnvironment struct {
 	existsErr          error
 	stats              *stream.StreamStats
 	statsErr           error
+	streamStatsCalls   int
 	queryOffset        int64
 	queryOffsetErr     error
 	newConsumerErr     error
@@ -1733,6 +1807,7 @@ func (environment *fakeRabbitEnvironment) StreamExists(string) (bool, error) {
 }
 
 func (environment *fakeRabbitEnvironment) StreamStats(string) (*stream.StreamStats, error) {
+	environment.streamStatsCalls++
 	return environment.stats, environment.statsErr
 }
 

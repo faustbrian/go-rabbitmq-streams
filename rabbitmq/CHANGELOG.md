@@ -9,6 +9,8 @@
 
 ### Added
 
+- add a bounded stored-offset-only inspector query that does not open an
+  unrelated end-of-stream consumer
 - add the initial RabbitMQ-supported Go client transport for confirmed
   single-stream publishing, bounded reconnect recovery, and explicit ambiguous
   outcomes after accepted sends, including connection-ready observations after

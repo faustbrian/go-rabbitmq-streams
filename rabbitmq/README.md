@@ -17,7 +17,9 @@ does not require it.
 - `NewReplayer` creates isolated exact-range replay using fresh environments;
   it never uses a live consumer name or stores offsets.
 - `NewInspector` creates read-only topology, retained-range, offset, lag, and
-  dependency-health inspection using fresh bounded environments.
+  dependency-health inspection using fresh bounded environments. Its
+  `StoredOffset` query avoids range snapshots when only durable consumer
+  progress is required.
 
 All constructors validate policy before connecting. Credential providers are
 resolved for each new environment so reconnect and inspection can observe
