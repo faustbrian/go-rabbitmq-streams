@@ -4,6 +4,9 @@
 
 ### Fixed
 
+- Make the concurrent consumer reconnect test enforce emitted signal presence,
+  uniqueness, and causal reconnect-before-ready ordering without assuming that
+  concurrent loss and reconnect goroutines are scheduled in one fixed order.
 - link the module README to the repository documentation portal
 
 ### Added

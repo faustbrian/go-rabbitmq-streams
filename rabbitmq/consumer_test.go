@@ -144,19 +144,33 @@ func TestConsumerTransportCoalescesConcurrentReconnect(t *testing.T) {
 	if current != second || lastErr != nil || !retryAfter.IsZero() {
 		t.Fatalf("reconnected transport current = %#v, last error = %v, retry after = %v", current, lastErr, retryAfter)
 	}
+	received := make([]rabbitstream.ObservationKind, 0, 3)
+	for range 3 {
+		select {
+		case observation := <-observations:
+			received = append(received, observation.Kind)
+		case <-time.After(time.Second):
+			t.Fatalf("timed out waiting for reconnect observations after %#v", received)
+		}
+	}
+	positions := make(map[rabbitstream.ObservationKind]int, len(received))
+	for index, kind := range received {
+		if _, exists := positions[kind]; exists {
+			t.Fatalf("duplicate reconnect observation %q in %#v", kind, received)
+		}
+		positions[kind] = index
+	}
 	for _, expected := range []rabbitstream.ObservationKind{
 		rabbitstream.ObservationConnectionLost,
 		rabbitstream.ObservationReconnectAttempt,
 		rabbitstream.ObservationConnectionReady,
 	} {
-		select {
-		case observation := <-observations:
-			if observation.Kind != expected {
-				t.Fatalf("reconnect observation = %q, want %q", observation.Kind, expected)
-			}
-		case <-time.After(time.Second):
-			t.Fatalf("timed out waiting for reconnect observation %q", expected)
+		if _, exists := positions[expected]; !exists {
+			t.Fatalf("missing reconnect observation %q in %#v", expected, received)
 		}
+	}
+	if positions[rabbitstream.ObservationReconnectAttempt] > positions[rabbitstream.ObservationConnectionReady] {
+		t.Fatalf("reconnect attempt followed readiness in %#v", received)
 	}
 }
 
