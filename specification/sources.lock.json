@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "verified_at": "2026-08-21",
+  "rabbitmq_server": {
+    "version": "4.3.5",
+    "release_url": "https://github.com/rabbitmq/rabbitmq-server/releases/tag/v4.3.5",
+    "protocol_url": "https://raw.githubusercontent.com/rabbitmq/rabbitmq-server/v4.3.5/deps/rabbitmq_stream/docs/PROTOCOL.adoc",
+    "protocol_sha256": "e43d5f7e926f0313391c0cca4d686fcccb3737b46f509ac2cff5649766303ce4"
+  },
+  "go_client": {
+    "module": "github.com/rabbitmq/rabbitmq-stream-go-client",
+    "version": "v1.8.3",
+    "commit": "e56918bc2858425622a7bd8f569d46daecba289a",
+    "release_url": "https://github.com/rabbitmq/rabbitmq-stream-go-client/releases/tag/v1.8.3",
+    "readme_sha256": "0baac9d04e575ab3e52739597dd09e0de90d59e2294becd6ab16e71f6460b039"
+  },
+  "rabbitmq_documentation": {
+    "series": "4.3",
+    "streams_url": "https://raw.githubusercontent.com/rabbitmq/rabbitmq-website/main/versioned_docs/version-4.3/streams.md",
+    "streams_sha256": "1719c724d9d6877aad0b8830bc935d26644710aa7cd510a9fb554c0a239d99a0"
+  },
+  "container": {
+    "image": "rabbitmq:4.3.5-management",
+    "index_digest": "sha256:397fde82bc04522d88680b57cbf5d70caae715a76c957404e52e3f0fa056b8f3",
+    "linux_amd64_digest": "sha256:7b2ec2404b478a36e507802256c8fffe5bd494d131ce19f9f90efbbdb4425d62",
+    "linux_arm64_digest": "sha256:a58350133d3a075a188aed0c1d3beae6a9e787640a31dcc7f5bc48af335c65c2"
+  },
+  "rolling_upgrade_source": {
+    "version": "4.3.4",
+    "release_url": "https://github.com/rabbitmq/rabbitmq-server/releases/tag/v4.3.4",
+    "image": "rabbitmq:4.3.4-management",
+    "index_digest": "sha256:eb5295d083325da5929a5ade766684d4019ffd2bce8bc7e43d6f9a05cafc8646",
+    "linux_amd64_digest": "sha256:cd4fd60136781671d125ed68ac4b67900c0726b55e2e8b98719daa616a63240b",
+    "linux_arm64_digest": "sha256:94de4824d7697c5f8f31d10cce84d36f63f4edf7a13fc9822246236ec026c30c"
+  },
+  "go": {
+    "version": "1.26.6"
+  }
+}
