@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Changed
+
+- pin the core RabbitMQ Streams module to a published pseudo-version so this
+  adapter resolves outside the repository workspace
+
 ### Fixed
 
 - Make the concurrent consumer reconnect test enforce emitted signal presence,
