@@ -490,9 +490,9 @@ func TestProducerReconnectsAfterBrokerRestart(t *testing.T) {
 	recovered := false
 	var lastResult rabbitstream.DeliveryResult
 	var lastErr error
-	for attempt := range 3 {
+	for attempt := 1; publishCtx.Err() == nil; attempt++ {
 		lastResult, lastErr = producer.Publish(publishCtx, rabbitstream.Message{
-			Stream: streamName, Payload: []byte("after restart probe " + strconv.Itoa(attempt+1)),
+			Stream: streamName, Payload: []byte("after restart probe " + strconv.Itoa(attempt)),
 		})
 		if lastErr == nil && lastResult.State == rabbitstream.DeliveryConfirmed {
 			recovered = true
@@ -501,7 +501,13 @@ func TestProducerReconnectsAfterBrokerRestart(t *testing.T) {
 		if !errors.Is(lastErr, rabbitstream.ErrPublishAmbiguous) &&
 			!errors.Is(lastErr, rabbitstream.ErrConnection) &&
 			!errors.Is(lastErr, rabbitstream.ErrTimeout) {
-			t.Fatalf("publish recovery probe %d = %#v, %v", attempt+1, lastResult, lastErr)
+			t.Fatalf("publish recovery probe %d = %#v, %v", attempt, lastResult, lastErr)
+		}
+		retryTimer := time.NewTimer(100 * time.Millisecond)
+		select {
+		case <-retryTimer.C:
+		case <-publishCtx.Done():
+			stopAndDrainTimer(retryTimer)
 		}
 	}
 	if !recovered {
@@ -696,7 +702,7 @@ func TestConsumerReconnectsFromStoredOffsetAfterBrokerRestart(t *testing.T) {
 	recovered := false
 	var lastResult rabbitstream.DeliveryResult
 	var lastErr error
-	for attempt := range 3 {
+	for attempt := 1; publishCtx.Err() == nil; attempt++ {
 		lastResult, lastErr = producer.Publish(publishCtx, rabbitstream.Message{
 			Stream: streamName, Payload: []byte("after restart"), PublishingID: 2, HasPublishingID: true,
 		})
@@ -707,7 +713,13 @@ func TestConsumerReconnectsFromStoredOffsetAfterBrokerRestart(t *testing.T) {
 		if !errors.Is(lastErr, rabbitstream.ErrPublishAmbiguous) &&
 			!errors.Is(lastErr, rabbitstream.ErrConnection) &&
 			!errors.Is(lastErr, rabbitstream.ErrTimeout) {
-			t.Fatalf("publish recovery probe %d = %#v, %v", attempt+1, lastResult, lastErr)
+			t.Fatalf("publish recovery probe %d = %#v, %v", attempt, lastResult, lastErr)
+		}
+		retryTimer := time.NewTimer(100 * time.Millisecond)
+		select {
+		case <-retryTimer.C:
+		case <-publishCtx.Done():
+			stopAndDrainTimer(retryTimer)
 		}
 	}
 	if !recovered {

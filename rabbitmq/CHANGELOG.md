@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- Make broker-restart recovery tests use their full bounded deadline instead
+  of failing after three otherwise retryable ambiguous confirmations.
 - Assert that broker-stored offset zero remains a valid initial consumer
   position under strict mutation testing.
 - Preserve explicit nil-context rejection coverage while keeping the strict
