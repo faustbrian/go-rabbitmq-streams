@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- Preserve explicit nil-context rejection coverage while keeping the strict
+  static-analysis contract green through a line-local test exception.
 - Make the concurrent consumer reconnect test enforce emitted signal presence,
   uniqueness, and causal reconnect-before-ready ordering without assuming that
   concurrent loss and reconnect goroutines are scheduled in one fixed order.

@@ -985,7 +985,8 @@ func TestInspectorStoredOffsetRejectsInvalidInputsAndClassifiesBrokerResults(t *
 	t.Parallel()
 
 	inspector := &Inspector{limits: rabbitstream.DefaultLimits()}
-	if offset, err := inspector.StoredOffset(nil, "tracking.events", "consumer"); offset != nil || !errors.Is(err, rabbitstream.ErrInvalidConfiguration) {
+	//lint:ignore SA1012 This verifies the public nil-context rejection contract.
+	if offset, err := inspector.StoredOffset(nil, "tracking.events", "consumer"); offset != nil || !errors.Is(err, rabbitstream.ErrInvalidConfiguration) { //nolint:staticcheck // Verifies nil-context rejection.
 		t.Fatalf("nil-context StoredOffset() = %#v, %v", offset, err)
 	}
 	if offset, err := inspector.StoredOffset(context.Background(), "", "consumer"); offset != nil || !errors.Is(err, rabbitstream.ErrValidation) {
