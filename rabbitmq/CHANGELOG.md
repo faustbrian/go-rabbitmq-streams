@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- Accept both immediate connection rejection and deadline expiry from the
+  upstream client when invalid TLS identities are correctly rejected.
 - Make broker-restart recovery tests use their full bounded deadline instead
   of failing after three otherwise retryable ambiguous confirmations.
 - Assert that broker-stored offset zero remains a valid initial consumer

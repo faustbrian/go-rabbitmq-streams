@@ -98,8 +98,9 @@ func TestTLSRejectsMissingUntrustedAndWrongHostCertificates(t *testing.T) {
 			if producer != nil {
 				t.Fatal("OpenProducer() returned a producer for rejected TLS identity")
 			}
-			if !errors.Is(err, rabbitstream.ErrTimeout) {
-				t.Fatalf("OpenProducer() error = %v, want bounded TLS handshake timeout", err)
+			if !errors.Is(err, rabbitstream.ErrConnection) &&
+				!errors.Is(err, rabbitstream.ErrTimeout) {
+				t.Fatalf("OpenProducer() error = %v, want bounded TLS rejection", err)
 			}
 		})
 	}
