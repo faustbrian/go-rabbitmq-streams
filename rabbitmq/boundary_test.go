@@ -959,25 +959,26 @@ func TestStoredOffsetInspectionDistinguishesMissingInvalidAndLaggingOffsets(t *t
 func TestInspectorReadsStoredOffsetWithoutSnapshottingStreamRange(t *testing.T) {
 	t.Parallel()
 
-	stored := int64(41)
-	environment := &fakeRabbitEnvironment{queryOffset: stored}
-	inspector := &Inspector{
-		limits: rabbitstream.DefaultLimits(),
-		openEnvironment: func(context.Context) (rabbitEnvironment, error) {
-			return environment, nil
-		},
-	}
-	offset, err := inspector.StoredOffset(
-		context.Background(), "tracking.events", "delivery-planner",
-	)
-	if err != nil || offset == nil || *offset != uint64(stored) {
-		t.Fatalf("StoredOffset() = %#v, %v", offset, err)
-	}
-	if environment.streamStatsCalls != 0 {
-		t.Fatalf("StoredOffset() snapshotted stream range %d times", environment.streamStatsCalls)
-	}
-	if environment.closeCalls != 1 {
-		t.Fatalf("StoredOffset() closed environment %d times", environment.closeCalls)
+	for _, stored := range []int64{0, 41} {
+		environment := &fakeRabbitEnvironment{queryOffset: stored}
+		inspector := &Inspector{
+			limits: rabbitstream.DefaultLimits(),
+			openEnvironment: func(context.Context) (rabbitEnvironment, error) {
+				return environment, nil
+			},
+		}
+		offset, err := inspector.StoredOffset(
+			context.Background(), "tracking.events", "delivery-planner",
+		)
+		if err != nil || offset == nil || *offset != uint64(stored) {
+			t.Fatalf("StoredOffset(%d) = %#v, %v", stored, offset, err)
+		}
+		if environment.streamStatsCalls != 0 {
+			t.Fatalf("StoredOffset(%d) snapshotted stream range %d times", stored, environment.streamStatsCalls)
+		}
+		if environment.closeCalls != 1 {
+			t.Fatalf("StoredOffset(%d) closed environment %d times", stored, environment.closeCalls)
+		}
 	}
 }
 

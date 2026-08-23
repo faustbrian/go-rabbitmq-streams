@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- Assert that broker-stored offset zero remains a valid initial consumer
+  position under strict mutation testing.
 - Preserve explicit nil-context rejection coverage while keeping the strict
   static-analysis contract green through a line-local test exception.
 - Make the concurrent consumer reconnect test enforce emitted signal presence,
