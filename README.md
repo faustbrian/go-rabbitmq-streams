@@ -15,7 +15,7 @@ Streams workloads. It owns bounded messages, publishing, consumption, replay,
 inspection, errors, lifecycle, and observations. It does not implement the
 RabbitMQ Streams protocol.
 
-This module is intentionally separate from [`queue`](../queue):
+This module is intentionally separate from [`queue`](https://github.com/faustbrian/go-queue):
 
 | Use `rabbitstream` | Use `queue` |
 | --- | --- |

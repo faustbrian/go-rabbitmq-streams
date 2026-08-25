@@ -3,7 +3,7 @@
 ## Reporting
 
 Report suspected vulnerabilities privately through the GitHub security
-advisory for `faustbrian/golib`. Do not open a public issue containing exploit
+advisory for `faustbrian/go-rabbitmq-streams`. Do not open a public issue containing exploit
 details, credentials, private fixtures, or affected deployment information.
 
 Include the affected module and version, impact, reproduction, preconditions,
@@ -12,8 +12,8 @@ timelines depend on severity and verification.
 
 ## Supported Versions
 
-Until modules reach `v1`, only the latest released minor line receives security
-fixes. After `v1`, support windows are documented per module and in
+The latest stable `v1` release line receives security fixes. Support windows
+are documented per module and in
 [`COMPATIBILITY.md`](COMPATIBILITY.md).
 
 ## Security Gates
@@ -28,8 +28,7 @@ details or real secrets. Credentials MUST be redacted from logs and evidence.
 
 ## Repository Assurance
 
-The repository-wide [threat model](docs/security/threat-model.md),
-[security matrix](docs/security/security-matrix.md), and
-[residual-risk register](docs/security/residual-risks.md) define shared trust
-boundaries and open release risks. Package-specific threat models refine those
-rules for their owned boundary; they do not replace the repository model.
+The repository [safety and concurrency policy](AGENTS.md#safety-and-concurrency)
+and [supply-chain policy](AGENTS.md#dependencies-and-supply-chain) define shared
+trust boundaries and release requirements. Package-specific security guidance
+refines those rules for its owned boundary.
