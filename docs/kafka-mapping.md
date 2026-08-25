@@ -36,7 +36,7 @@ implicitly by the root `rabbitstream` module.
 | `pkg/kafka` producer, consumer, replay, inspection, and retained-topic policy | Streams-native or Super Streams-native by configured topic shape | migrate each configured workload to the equivalent explicit stream policy; do not preserve Kafka-shaped APIs |
 | `pkg/kafka` transactional producer and read-process-write transaction processor | unsupported / requires redesign | RabbitMQ Streams has no equivalent atomic source-offset plus target-publish transaction |
 | `pkg/kafka/adapters/golog` | application responsibility | add a stream-specific observer adapter only if the stable root observation seam lacks required logging integration |
-| `pkg/kafka/adapters/gotelemetry` | adapter responsibility | use `pkg/rabbitstream/otel`; separately review Kafka-only spans, attributes, and propagation semantics |
+| `pkg/kafka/adapters/gotelemetry` | adapter responsibility | use `otel`; separately review Kafka-only spans, attributes, and propagation semantics |
 | `pkg/kafka/adapters/mskiam` | unsupported / remove for RabbitMQ | AWS MSK IAM is Kafka-specific; use RabbitMQ TLS and authentication policy instead |
 | `pkg/kafka/kafkaservice` | application/service composition responsibility | no generic `rabbitstreamservice` module is added: the core lifecycle is explicit, and no current adoption contract justifies correlation or service-framework coupling |
 | `pkg/kafka/benchmarks/clients` | validation tooling | replace with equivalent raw-client and policy-wrapper RabbitMQ Streams benchmarks, preserving durability and payloads |

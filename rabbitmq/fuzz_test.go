@@ -3,7 +3,7 @@ package rabbitmq
 import (
 	"testing"
 
-	"github.com/faustbrian/golib/pkg/rabbitstream"
+	"github.com/faustbrian/go-rabbitmq-streams"
 	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/stream"
 )
 

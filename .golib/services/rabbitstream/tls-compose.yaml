@@ -1,0 +1,80 @@
+name: ${COMPOSE_PROJECT_NAME:?set COMPOSE_PROJECT_NAME to a task-owned value}
+
+services:
+  certgen:
+    image: rabbitmq@sha256:397fde82bc04522d88680b57cbf5d70caae715a76c957404e52e3f0fa056b8f3
+    entrypoint: ["/bin/sh", "-eu", "-c"]
+    command:
+      - |
+        openssl req -x509 -newkey rsa:2048 -nodes -days 2 -sha256 \
+          -subj /CN=rabbitstream-test-ca \
+          -keyout /certs/ca-key.pem -out /certs/ca.pem
+        openssl req -newkey rsa:2048 -nodes -sha256 \
+          -subj /CN=localhost -addext subjectAltName=DNS:localhost,IP:127.0.0.1 \
+          -keyout /certs/server-key.pem -out /certs/server.csr
+        openssl x509 -req -days 2 -sha256 -copy_extensions copy \
+          -in /certs/server.csr -CA /certs/ca.pem -CAkey /certs/ca-key.pem \
+          -CAcreateserial -out /certs/server.pem
+        openssl req -newkey rsa:2048 -nodes -sha256 \
+          -subj /CN=rabbitstream-client \
+          -keyout /certs/client-key.pem -out /certs/client.csr
+        openssl x509 -req -days 2 -sha256 \
+          -in /certs/client.csr -CA /certs/ca.pem -CAkey /certs/ca-key.pem \
+          -CAcreateserial -out /certs/client.pem
+        openssl req -x509 -newkey rsa:2048 -nodes -days 2 -sha256 \
+          -subj /CN=untrusted-rabbitstream-client \
+          -keyout /certs/untrusted-client-key.pem -out /certs/untrusted-client.pem
+        chown -R 999:999 /certs
+        chmod 700 /certs
+        chmod 600 /certs/ca-key.pem /certs/server-key.pem /certs/client-key.pem \
+          /certs/untrusted-client-key.pem
+        chmod 644 /certs/ca.pem /certs/server.pem /certs/client.pem \
+          /certs/untrusted-client.pem
+    volumes:
+      - type: volume
+        source: tls-certs
+        target: /certs
+        volume:
+          nocopy: true
+    restart: "no"
+
+  rabbit-tls:
+    image: rabbitmq@sha256:397fde82bc04522d88680b57cbf5d70caae715a76c957404e52e3f0fa056b8f3
+    hostname: rabbit-tls
+    depends_on:
+      certgen:
+        condition: service_completed_successfully
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITSTREAM_USER:?set RABBITSTREAM_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITSTREAM_PASSWORD:?set RABBITSTREAM_PASSWORD}
+      RABBITMQ_ERLANG_COOKIE: ${RABBITSTREAM_ERLANG_COOKIE:?set RABBITSTREAM_ERLANG_COOKIE}
+    ports:
+      - "15571:5551"
+    volumes:
+      - ./enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
+      - ./tls-rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - type: volume
+        source: tls-certs
+        target: /certs
+        read_only: true
+        volume:
+          nocopy: true
+      - type: volume
+        source: tls-data
+        target: /var/lib/rabbitmq/mnesia
+        volume:
+          nocopy: true
+    healthcheck:
+      test: ["CMD", "gosu", "rabbitmq", "rabbitmq-diagnostics", "-q", "check_running"]
+      interval: 1s
+      timeout: 5s
+      retries: 60
+    restart: "no"
+
+volumes:
+  tls-certs:
+    labels:
+      codex.task: rabbitstream-tls
+  tls-data:
+    labels:
+      codex.task: rabbitstream-tls

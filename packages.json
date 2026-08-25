@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "repository": "github.com/faustbrian/go-rabbitmq-streams",
+  "packages": [
+    {
+      "module_directory": ".",
+      "directory": ".",
+      "name": "rabbitstream",
+      "import_path": "github.com/faustbrian/go-rabbitmq-streams",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
+      "module_directory": "otel",
+      "directory": ".",
+      "name": "rabbitstreamotel",
+      "import_path": "github.com/faustbrian/go-rabbitmq-streams/otel",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
+      "module_directory": "rabbitmq",
+      "directory": ".",
+      "name": "rabbitmq",
+      "import_path": "github.com/faustbrian/go-rabbitmq-streams/rabbitmq",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    }
+  ]
+}

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.0.0 - 2026-08-25
+
+### Changed
+
+- Publish the module from its standalone `github.com/faustbrian/go-rabbitmq-streams` identity while preserving its documented API and behavior.
+
 ### Fixed
 
 - link the module README to the repository documentation portal

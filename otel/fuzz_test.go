@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/faustbrian/golib/pkg/rabbitstream"
-	rabbitstreamotel "github.com/faustbrian/golib/pkg/rabbitstream/otel"
+	"github.com/faustbrian/go-rabbitmq-streams"
+	rabbitstreamotel "github.com/faustbrian/go-rabbitmq-streams/otel"
 	metricnoop "go.opentelemetry.io/otel/metric/noop"
 	"go.opentelemetry.io/otel/trace"
 )

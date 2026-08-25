@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.0.0 - 2026-08-25
+
+### Changed
+
+- Publish the module from its standalone `github.com/faustbrian/go-rabbitmq-streams/rabbitmq` identity while preserving its documented API and behavior.
+
 ### Fixed
 
 - Accept both immediate connection rejection and deadline expiry from the

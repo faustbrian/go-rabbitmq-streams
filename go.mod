@@ -1,3 +1,3 @@
-module github.com/faustbrian/golib/pkg/rabbitstream
+module github.com/faustbrian/go-rabbitmq-streams
 
 go 1.26.6

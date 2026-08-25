@@ -12,13 +12,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/faustbrian/golib/pkg/rabbitstream"
+	"github.com/faustbrian/go-rabbitmq-streams"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/propagation"
 )
 
-const instrumentationName = "github.com/faustbrian/golib/pkg/rabbitstream/otel"
+const instrumentationName = "github.com/faustbrian/go-rabbitmq-streams/otel"
 
 // Config supplies a caller-owned meter provider and the same message limits
 // used by producers. The adapter never uses global OpenTelemetry providers.

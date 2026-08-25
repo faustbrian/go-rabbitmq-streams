@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/faustbrian/golib/pkg/rabbitstream"
-	rabbitstreamotel "github.com/faustbrian/golib/pkg/rabbitstream/otel"
+	"github.com/faustbrian/go-rabbitmq-streams"
+	rabbitstreamotel "github.com/faustbrian/go-rabbitmq-streams/otel"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	"go.opentelemetry.io/otel/trace"
