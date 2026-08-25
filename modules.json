@@ -29,7 +29,7 @@
       "family_label": "Integration And Data Movement",
       "family_description": "Bounded external I/O, data movement, provider boundaries, and derived search state.",
       "family_order": 7,
-      "version": "v1.0.0",
+      "version": "1.0.0",
       "tag_prefix": "v",
       "owned_dependencies": [],
       "reverse_owned_dependencies": [
@@ -89,7 +89,7 @@
       "family_label": "Integration And Data Movement",
       "family_description": "Bounded external I/O, data movement, provider boundaries, and derived search state.",
       "family_order": 7,
-      "version": "v1.0.0",
+      "version": "1.0.0",
       "tag_prefix": "otel/v",
       "owned_dependencies": [
         "github.com/faustbrian/go-rabbitmq-streams"
@@ -151,7 +151,7 @@
       "family_label": "Integration And Data Movement",
       "family_description": "Bounded external I/O, data movement, provider boundaries, and derived search state.",
       "family_order": 7,
-      "version": "v1.0.0",
+      "version": "1.0.0",
       "tag_prefix": "rabbitmq/v",
       "owned_dependencies": [
         "github.com/faustbrian/go-rabbitmq-streams"
