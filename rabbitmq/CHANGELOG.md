@@ -4,6 +4,7 @@
 
 ### Documentation
 
+- Add a module documentation index for direct navigation.
 - Link lifecycle and operations guidance to the standalone repository docs and
   remove the superseded timestamped local benchmark report.
 

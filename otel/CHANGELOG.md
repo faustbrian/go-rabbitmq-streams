@@ -6,6 +6,7 @@ All notable changes to this module are documented here.
 
 ### Documentation
 
+- Move detailed module guidance behind a concise README and documentation index.
 - Link adoption and operations guidance to the standalone repository docs.
 
 ## 1.0.0 - 2026-08-25

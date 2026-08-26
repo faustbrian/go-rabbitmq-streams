@@ -28,3 +28,8 @@ Streams, with separate RabbitMQ and OpenTelemetry adapter modules.
 - [Root package](https://pkg.go.dev/github.com/faustbrian/go-rabbitmq-streams)
 - [RabbitMQ adapter](https://pkg.go.dev/github.com/faustbrian/go-rabbitmq-streams/rabbitmq)
 - [OpenTelemetry adapter](https://pkg.go.dev/github.com/faustbrian/go-rabbitmq-streams/otel)
+
+## Module documentation
+
+- [RabbitMQ adapter documentation](../rabbitmq/docs/README.md)
+- [OpenTelemetry adapter documentation](../otel/docs/README.md)
