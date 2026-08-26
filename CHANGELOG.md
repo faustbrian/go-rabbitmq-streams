@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Fixed
+
+- Build CI dependency proxies from their published root tag so nested-module
+  patch releases do not reinterpret changed repository metadata as old module
+  versions.
+
 ## 1.0.0 - 2026-08-25
 
 ### Changed
