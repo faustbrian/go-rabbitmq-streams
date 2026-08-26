@@ -365,6 +365,21 @@ func TestSessionOpeningRejectsLateSuccessAfterConnectionDeadline(t *testing.T) {
 	}
 }
 
+func TestOpenedSessionIsRejectedWhenItsContextHasExpired(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	late := newFakeProducerSession()
+	session, err := acceptOpenedResource(ctx, resourceOpenResult[producerSession]{resource: late})
+	if session != nil || !errors.Is(err, context.Canceled) {
+		t.Fatalf("expired opened session = %#v, %v", session, err)
+	}
+	select {
+	case <-late.closed:
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for expired session cleanup")
+	}
+}
+
 func TestSessionOpeningRetriesBrokerAuthenticationButNotPermanentFailure(t *testing.T) {
 	t.Parallel()
 

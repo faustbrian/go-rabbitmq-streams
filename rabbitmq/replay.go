@@ -521,15 +521,23 @@ func openResourceWithinContext[T closeableResource](
 	}()
 	select {
 	case opened := <-result:
-		if err := ctx.Err(); err != nil {
-			closeLateResource(opened.resource)
-			return zero, err
-		}
-		return opened.resource, opened.err
+		return acceptOpenedResource(ctx, opened)
 	case <-ctx.Done():
 		close(abandoned)
 		return zero, ctx.Err()
 	}
+}
+
+func acceptOpenedResource[T closeableResource](
+	ctx context.Context,
+	opened resourceOpenResult[T],
+) (T, error) {
+	var zero T
+	if err := ctx.Err(); err != nil {
+		closeLateResource(opened.resource)
+		return zero, err
+	}
+	return opened.resource, opened.err
 }
 
 func closeLateResource[T closeableResource](resource T) {
