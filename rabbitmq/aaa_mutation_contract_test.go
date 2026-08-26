@@ -190,6 +190,33 @@ func TestMutationContractConnectionRejectsZeroAttemptTimeout(t *testing.T) {
 	}
 }
 
+func TestMutationContractSessionOpeningStopsOnTerminalContextErrors(t *testing.T) {
+	for name, terminalErr := range map[string]error{
+		"canceled": context.Canceled,
+		"deadline": context.DeadlineExceeded,
+	} {
+		t.Run(name, func(t *testing.T) {
+			calls := 0
+			connection := mutationConnection(
+				rabbitstream.StaticCredentials("user", []byte("credential")),
+				time.Second,
+			)
+			connection.MaxReconnectAttempts = 2
+			session, err := openSessionWithRetries(
+				context.Background(),
+				connection,
+				func(context.Context, rabbitstream.ConnectionConfig) (producerSession, error) {
+					calls++
+					return nil, terminalErr
+				},
+			)
+			if session != nil || !errors.Is(err, terminalErr) || calls != 1 {
+				t.Fatalf("terminal %s open = %#v, %v after %d calls", name, session, err, calls)
+			}
+		})
+	}
+}
+
 func TestMutationContractLateConnectionCleanupOwnsOnlyOpenedResources(t *testing.T) {
 	closeLateEnvironment(nil)
 	environment := &fakeRabbitEnvironment{}
