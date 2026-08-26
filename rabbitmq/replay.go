@@ -439,47 +439,30 @@ func openFreshEnvironmentWith(
 		}
 		endpoint := connection.Endpoints[attempt%len(connection.Endpoints)]
 		remaining := time.Until(operationDeadline(operationCtx, connection.ConnectTimeout))
-		attemptRPCTimeout := boundedAttemptTimeout(
-			remaining, connection.MaxReconnectAttempts, attempt, connection.RPCTimeout,
-		)
-		if attemptRPCTimeout <= 0 {
+		if remaining <= 0 || connection.RPCTimeout <= 0 {
 			if err := operationCtx.Err(); err != nil {
 				return nil, err
 			}
 			return nil, context.DeadlineExceeded
 		}
-		result := make(chan struct {
-			environment producerEnvironment
-			err         error
-		}, 1)
-		go func() {
-			environment, openErr := opener(environmentOptions(connection, endpoint, credentials, attemptRPCTimeout))
-			result <- struct {
-				environment producerEnvironment
-				err         error
-			}{environment: environment, err: openErr}
-		}()
-		select {
-		case opened := <-result:
-			if opened.err == nil {
-				safeObserve(connection.Observer, rabbitstream.Observation{
-					Kind: rabbitstream.ObservationConnectionReady, Count: 1,
-				})
-				return opened.environment, nil
-			}
-			lastErr = classifyBrokerError(opened.err)
-			if brokerErrorCategory(opened.err) == rabbitstream.CategoryAuthentication {
-				safeObserve(connection.Observer, rabbitstream.Observation{
-					Kind: rabbitstream.ObservationAuthenticationError, Count: 1,
-					Category: rabbitstream.CategoryAuthentication,
-				})
-			}
-		case <-operationCtx.Done():
-			go func() {
-				opened := <-result
-				closeLateEnvironment(opened.environment)
-			}()
-			return nil, operationCtx.Err()
+		environment, openErr := openResourceWithinContext(operationCtx, func() (producerEnvironment, error) {
+			return opener(environmentOptions(connection, endpoint, credentials, connection.RPCTimeout))
+		})
+		if openErr == nil {
+			safeObserve(connection.Observer, rabbitstream.Observation{
+				Kind: rabbitstream.ObservationConnectionReady, Count: 1,
+			})
+			return environment, nil
+		}
+		if err := operationCtx.Err(); err != nil {
+			return nil, err
+		}
+		lastErr = classifyBrokerError(openErr)
+		if brokerErrorCategory(openErr) == rabbitstream.CategoryAuthentication {
+			safeObserve(connection.Observer, rabbitstream.Observation{
+				Kind: rabbitstream.ObservationAuthenticationError, Count: 1,
+				Category: rabbitstream.CategoryAuthentication,
+			})
 		}
 	}
 	if lastErr != nil {
@@ -505,6 +488,53 @@ func boundedAttemptTimeout(
 func closeLateEnvironment(environment producerEnvironment) {
 	if environment != nil {
 		_ = environment.Close()
+	}
+}
+
+type closeableResource interface {
+	Close() error
+}
+
+type resourceOpenResult[T closeableResource] struct {
+	resource T
+	err      error
+}
+
+// openResourceWithinContext keeps at most one upstream open in flight. The
+// upstream client has no context-aware dial seam, so the abandoned branch owns
+// a resource that finishes opening after the caller's complete connect budget.
+func openResourceWithinContext[T closeableResource](
+	ctx context.Context,
+	opener func() (T, error),
+) (T, error) {
+	var zero T
+	result := make(chan resourceOpenResult[T])
+	abandoned := make(chan struct{})
+	go func() {
+		resource, err := opener()
+		opened := resourceOpenResult[T]{resource: resource, err: err}
+		select {
+		case result <- opened:
+		case <-abandoned:
+			closeLateResource(resource)
+		}
+	}()
+	select {
+	case opened := <-result:
+		if err := ctx.Err(); err != nil {
+			closeLateResource(opened.resource)
+			return zero, err
+		}
+		return opened.resource, opened.err
+	case <-ctx.Done():
+		close(abandoned)
+		return zero, ctx.Err()
+	}
+}
+
+func closeLateResource[T closeableResource](resource T) {
+	if any(resource) != nil {
+		_ = resource.Close()
 	}
 }
 

@@ -295,6 +295,9 @@ func TestSessionOpeningRetriesWholeSessionAcrossEndpoints(t *testing.T) {
 			if attempt.MaxReconnectAttempts != 1 {
 				t.Fatalf("nested reconnect attempts = %d", attempt.MaxReconnectAttempts)
 			}
+			if attempt.RPCTimeout != connection.RPCTimeout {
+				t.Fatalf("persistent RPC timeout = %v, want %v", attempt.RPCTimeout, connection.RPCTimeout)
+			}
 			if len(endpoints) == 1 {
 				return nil, rabbitstream.ErrConnection
 			}
@@ -306,6 +309,59 @@ func TestSessionOpeningRetriesWholeSessionAcrossEndpoints(t *testing.T) {
 	}
 	if len(endpoints) != 2 || endpoints[0] != "rabbit1" || endpoints[1] != "rabbit2" {
 		t.Fatalf("attempt endpoints = %#v", endpoints)
+	}
+}
+
+func TestSessionOpeningRejectsLateSuccessAfterConnectionDeadline(t *testing.T) {
+	connection := rabbitstream.ConnectionConfig{
+		Endpoints:             []rabbitstream.Endpoint{{Host: "rabbit1", Port: 5552}},
+		ConnectTimeout:        25 * time.Millisecond,
+		RPCTimeout:            time.Second,
+		MaxReconnectAttempts:  1,
+		InitialReconnectDelay: time.Millisecond,
+		MaxReconnectBackoff:   time.Millisecond,
+	}
+	late := newFakeProducerSession()
+	release := make(chan struct{})
+	result := make(chan struct {
+		session producerSession
+		err     error
+	}, 1)
+	go func() {
+		session, err := openSessionWithRetries(
+			context.Background(),
+			connection,
+			func(context.Context, rabbitstream.ConnectionConfig) (producerSession, error) {
+				<-release
+				return late, nil
+			},
+		)
+		result <- struct {
+			session producerSession
+			err     error
+		}{session: session, err: err}
+	}()
+	var opened struct {
+		session producerSession
+		err     error
+	}
+	returnedBeforeRelease := false
+	select {
+	case opened = <-result:
+		returnedBeforeRelease = true
+	case <-time.After(250 * time.Millisecond):
+	}
+	close(release)
+	if !returnedBeforeRelease {
+		opened = <-result
+	}
+	if !returnedBeforeRelease || opened.session != nil || !errors.Is(opened.err, context.DeadlineExceeded) {
+		t.Fatalf("late session open = %#v, %v, returned before release %t", opened.session, opened.err, returnedBeforeRelease)
+	}
+	select {
+	case <-late.closed:
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for late session cleanup")
 	}
 }
 

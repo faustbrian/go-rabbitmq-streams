@@ -118,7 +118,7 @@ func openProducerSession(
 	})
 }
 
-func openSessionWithRetries[T any](
+func openSessionWithRetries[T closeableResource](
 	ctx context.Context,
 	connection rabbitstream.ConnectionConfig,
 	opener func(context.Context, rabbitstream.ConnectionConfig) (T, error),
@@ -156,11 +156,15 @@ func openSessionWithRetries[T any](
 			connection.Endpoints[:endpoint]...,
 		)
 		attemptConnection.ConnectTimeout = attemptTimeout
-		attemptConnection.RPCTimeout = attemptTimeout
 		attemptConnection.MaxReconnectAttempts = 1
-		session, err := opener(operationCtx, attemptConnection)
+		session, err := openResourceWithinContext(operationCtx, func() (T, error) {
+			return opener(operationCtx, attemptConnection)
+		})
 		if err == nil {
 			return session, nil
+		}
+		if operationCtx.Err() != nil || errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+			return zero, err
 		}
 		lastErr = err
 		switch brokerErrorCategory(err) {
