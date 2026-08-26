@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 1.0.1 - 2026-08-26
+
+### Fixed
+
+- Preserve the configured RPC timeout for established environments and
+  sessions without overlapping slow connection attempts.
+
 ## 1.0.0 - 2026-08-25
 
 ### Changed

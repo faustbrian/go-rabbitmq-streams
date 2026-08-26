@@ -50,25 +50,28 @@ func OpenConsumer(
 	defer cancel()
 	transport, err := openConsumerTransport(connectCtx, normalizedConnection, normalizedConsumer)
 	if err != nil {
-		if ctxErr := connectCtx.Err(); ctxErr != nil {
-			category := rabbitstream.CategoryCanceled
-			if errors.Is(ctxErr, context.DeadlineExceeded) {
-				category = rabbitstream.CategoryTimeout
-			}
-			return nil, &rabbitstream.OperationError{
-				Operation: rabbitstream.OperationConnect,
-				Category:  category,
-				Cause:     ctxErr,
-			}
-		}
-		category := brokerErrorCategory(err)
-		return nil, &rabbitstream.OperationError{
-			Operation: rabbitstream.OperationConnect,
-			Category:  category,
-			Cause:     err,
-		}
+		return nil, consumerOpenError(connectCtx, err)
 	}
 	return finishOpenConsumer(normalizedConsumer, transport)
+}
+
+func consumerOpenError(ctx context.Context, err error) error {
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		category := rabbitstream.CategoryCanceled
+		if errors.Is(ctxErr, context.DeadlineExceeded) {
+			category = rabbitstream.CategoryTimeout
+		}
+		return &rabbitstream.OperationError{
+			Operation: rabbitstream.OperationConnect,
+			Category:  category,
+			Cause:     ctxErr,
+		}
+	}
+	return &rabbitstream.OperationError{
+		Operation: rabbitstream.OperationConnect,
+		Category:  brokerErrorCategory(err),
+		Cause:     err,
+	}
 }
 
 func consumerStartOffsetFits(start rabbitstream.StartPosition) bool {

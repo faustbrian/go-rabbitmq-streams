@@ -848,7 +848,11 @@ func TestFreshEnvironmentOpeningCoversBoundedLifecycleOutcomes(t *testing.T) {
 		t.Fatalf("canceled in-flight open error = %v", err)
 	}
 	close(release)
-	<-late.closeCalled
+	select {
+	case <-late.closeCalled:
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("timed out waiting for canceled environment cleanup")
+	}
 
 	backoffStarted := make(chan struct{})
 	cancelBackoff := retrying
@@ -881,6 +885,107 @@ func TestFreshEnvironmentOpeningCoversBoundedLifecycleOutcomes(t *testing.T) {
 	fired := make(chan time.Time, 1)
 	fired <- time.Now()
 	drainStoppedTimer(false, fired)
+}
+
+func TestFreshEnvironmentOpeningRejectsZeroRPCTimeout(t *testing.T) {
+	connection := rabbitstream.ConnectionConfig{
+		Endpoints:             []rabbitstream.Endpoint{{Host: "rabbit", Port: 5552}},
+		Credentials:           rabbitstream.StaticCredentials("user", []byte("credential")),
+		ConnectTimeout:        time.Second,
+		RPCTimeout:            0,
+		MaxReconnectAttempts:  1,
+		InitialReconnectDelay: time.Millisecond,
+		MaxReconnectBackoff:   time.Millisecond,
+	}
+	openerCalls := 0
+	environment, err := openFreshEnvironmentWith(
+		context.Background(),
+		connection,
+		func(*stream.EnvironmentOptions) (producerEnvironment, error) {
+			openerCalls++
+			return &fakeRabbitEnvironment{}, nil
+		},
+	)
+	if environment != nil || !errors.Is(err, context.DeadlineExceeded) || openerCalls != 0 {
+		t.Fatalf("zero RPC timeout open = %#v, %v after %d calls", environment, err, openerCalls)
+	}
+}
+
+func TestFreshEnvironmentPreservesConfiguredRPCTimeoutAfterOpening(t *testing.T) {
+	connection := rabbitstream.ConnectionConfig{
+		Endpoints:             []rabbitstream.Endpoint{{Host: "localhost", Port: 5552}},
+		Credentials:           rabbitstream.StaticCredentials("test", []byte("not-a-real-secret")),
+		Security:              rabbitstream.DevelopmentPlaintextSecurity(),
+		ConnectTimeout:        8 * time.Second,
+		RPCTimeout:            5 * time.Second,
+		MaxReconnectAttempts:  8,
+		InitialReconnectDelay: time.Millisecond,
+		MaxReconnectBackoff:   time.Millisecond,
+	}
+	opened := &fakeRabbitEnvironment{}
+	var openedWith time.Duration
+	environment, err := openFreshEnvironmentWith(
+		context.Background(),
+		connection,
+		func(options *stream.EnvironmentOptions) (producerEnvironment, error) {
+			openedWith = options.RPCTimeout
+			return opened, nil
+		},
+	)
+	if err != nil || environment != opened {
+		t.Fatalf("successful open = %#v, %v", environment, err)
+	}
+	if openedWith != connection.RPCTimeout {
+		t.Fatalf("persistent RPC timeout = %v, want %v", openedWith, connection.RPCTimeout)
+	}
+}
+
+func TestFreshEnvironmentDoesNotOverlapSlowOpeningAttempts(t *testing.T) {
+	connection := rabbitstream.ConnectionConfig{
+		Endpoints:             []rabbitstream.Endpoint{{Host: "localhost", Port: 5552}},
+		Credentials:           rabbitstream.StaticCredentials("test", []byte("not-a-real-secret")),
+		Security:              rabbitstream.DevelopmentPlaintextSecurity(),
+		ConnectTimeout:        100 * time.Millisecond,
+		RPCTimeout:            time.Second,
+		MaxReconnectAttempts:  2,
+		InitialReconnectDelay: time.Millisecond,
+		MaxReconnectBackoff:   time.Millisecond,
+	}
+	release := make(chan struct{})
+	var openMu sync.Mutex
+	openCalls := 0
+	var opened []*fakeRabbitEnvironment
+	environment, err := openFreshEnvironmentWith(
+		context.Background(),
+		connection,
+		func(options *stream.EnvironmentOptions) (producerEnvironment, error) {
+			if options.RPCTimeout != connection.RPCTimeout {
+				return nil, errors.New("unexpected persistent RPC timeout")
+			}
+			openMu.Lock()
+			openCalls++
+			late := &fakeRabbitEnvironment{closeCalled: make(chan struct{})}
+			opened = append(opened, late)
+			openMu.Unlock()
+			<-release
+			return late, nil
+		},
+	)
+	openMu.Lock()
+	calls := openCalls
+	late := append([]*fakeRabbitEnvironment(nil), opened...)
+	openMu.Unlock()
+	close(release)
+	for _, opened := range late {
+		select {
+		case <-opened.closeCalled:
+		case <-time.After(time.Second):
+			t.Fatal("timed out waiting for late environment cleanup")
+		}
+	}
+	if environment != nil || !errors.Is(err, context.DeadlineExceeded) || calls != 1 {
+		t.Fatalf("slow open = %#v, %v after %d concurrent calls", environment, err, calls)
+	}
 }
 
 func TestObserverFailuresCannotAffectDeliveryPolicy(t *testing.T) {

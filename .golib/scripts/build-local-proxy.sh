@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ $# -lt 1 || $# -gt 3 ]]; then
-    printf 'usage: %s <output-directory> [version] [module-directories]\n' \
+if [[ $# -lt 1 || $# -gt 4 ]]; then
+    printf 'usage: %s <output-directory> [version] [module-directories] [source-ref]\n' \
         "$0" >&2
     exit 2
 fi
@@ -11,6 +11,7 @@ root="$(git rev-parse --show-toplevel)"
 output="$1"
 version="${2:-v1.0.0}"
 selected="${3:-}"
+source_ref="${4:-}"
 
 if [[ ! "${version}" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
     printf 'local proxy version must be canonical semantic version: %s\n' \
@@ -34,6 +35,19 @@ cleanup() {
     rm -rf "${temporary}"
 }
 trap cleanup EXIT HUP INT TERM
+
+source_root="${root}"
+if [[ -n "${source_ref}" ]]; then
+    if ! git -C "${root}" rev-parse --verify --quiet \
+        "${source_ref}^{commit}" >/dev/null; then
+        printf 'local proxy source ref does not resolve: %s\n' \
+            "${source_ref}" >&2
+        exit 2
+    fi
+    source_root="${temporary}/source"
+    mkdir -p "${source_root}"
+    git -C "${root}" archive "${source_ref}" | tar -xf - -C "${source_root}"
+fi
 
 rewrite_owned_dependencies() {
     GOLIB_PROXY_VERSION="${version}" perl -pi -e \
@@ -126,7 +140,7 @@ while IFS=$'\t' read -r module_path module_directory; do
         )
     ' "${root}/modules.json" >"${nested_modules}"
 
-    cp "${root}/${module_directory}/go.mod" \
+    cp "${source_root}/${module_directory}/go.mod" \
         "${proxy_directory}/${version}.mod"
     rewrite_owned_dependencies "${proxy_directory}/${version}.mod"
     printf '{"Version":"%s","Time":"2000-01-01T00:00:00Z"}\n' \
@@ -135,7 +149,8 @@ while IFS=$'\t' read -r module_path module_directory; do
 
     : >"${archive_files}"
     while IFS= read -r -d '' source; do
-        if [[ ! -e "${root}/${source}" ]]; then
+        source="${source#./}"
+        if [[ ! -e "${source_root}/${source}" ]]; then
             continue
         fi
         relative="${source#"${module_directory}/"}"
@@ -152,15 +167,20 @@ while IFS=$'\t' read -r module_path module_directory; do
             fi
         done <"${nested_modules}"
         [[ "${nested}" -eq 0 ]] || continue
-        if [[ -L "${root}/${source}" ]]; then
+        if [[ -L "${source_root}/${source}" ]]; then
             continue
         fi
         printf '%s\0' "${relative}" >>"${archive_files}"
     done < <(
-        git -C "${root}" ls-files -z --cached -- "${module_directory}"
+        if [[ -n "${source_ref}" ]]; then
+            cd "${source_root}"
+            find "${module_directory}" -type f -print0
+        else
+            git -C "${root}" ls-files -z --cached -- "${module_directory}"
+        fi
     )
     (
-        cd "${root}/${module_directory}"
+        cd "${source_root}/${module_directory}"
         tar --null -cf "${archive_tar}" -T "${archive_files}"
     )
     tar -xf "${archive_tar}" -C "${archive_root}"

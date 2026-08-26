@@ -190,6 +190,54 @@ func TestMutationContractConnectionRejectsZeroAttemptTimeout(t *testing.T) {
 	}
 }
 
+func TestMutationContractConnectionAttemptBudgetBoundaries(t *testing.T) {
+	for name, test := range map[string]struct {
+		remaining  time.Duration
+		rpcTimeout time.Duration
+		exhausted  bool
+	}{
+		"positive":       {remaining: time.Nanosecond, rpcTimeout: time.Nanosecond},
+		"remaining zero": {remaining: 0, rpcTimeout: time.Nanosecond, exhausted: true},
+		"remaining below": {remaining: -time.Nanosecond, rpcTimeout: time.Nanosecond,
+			exhausted: true},
+		"RPC zero":  {remaining: time.Nanosecond, rpcTimeout: 0, exhausted: true},
+		"RPC below": {remaining: time.Nanosecond, rpcTimeout: -time.Nanosecond, exhausted: true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if got := connectionAttemptBudgetExhausted(test.remaining, test.rpcTimeout); got != test.exhausted {
+				t.Fatalf("connection attempt budget exhausted = %t, want %t", got, test.exhausted)
+			}
+		})
+	}
+}
+
+func TestMutationContractSessionOpeningStopsOnTerminalContextErrors(t *testing.T) {
+	for name, terminalErr := range map[string]error{
+		"canceled": context.Canceled,
+		"deadline": context.DeadlineExceeded,
+	} {
+		t.Run(name, func(t *testing.T) {
+			calls := 0
+			connection := mutationConnection(
+				rabbitstream.StaticCredentials("user", []byte("credential")),
+				time.Second,
+			)
+			connection.MaxReconnectAttempts = 2
+			session, err := openSessionWithRetries(
+				context.Background(),
+				connection,
+				func(context.Context, rabbitstream.ConnectionConfig) (producerSession, error) {
+					calls++
+					return nil, terminalErr
+				},
+			)
+			if session != nil || !errors.Is(err, terminalErr) || calls != 1 {
+				t.Fatalf("terminal %s open = %#v, %v after %d calls", name, session, err, calls)
+			}
+		})
+	}
+}
+
 func TestMutationContractLateConnectionCleanupOwnsOnlyOpenedResources(t *testing.T) {
 	closeLateEnvironment(nil)
 	environment := &fakeRabbitEnvironment{}

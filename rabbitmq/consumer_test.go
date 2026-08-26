@@ -13,6 +13,24 @@ import (
 	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/stream"
 )
 
+func TestConsumerOpenErrorPreservesContextOutcome(t *testing.T) {
+	canceled, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := consumerOpenError(canceled, rabbitstream.ErrConnection); !errors.Is(err, context.Canceled) {
+		t.Fatalf("canceled consumer open error = %v", err)
+	}
+
+	timedOut, cancelTimeout := context.WithTimeout(context.Background(), 0)
+	defer cancelTimeout()
+	if err := consumerOpenError(timedOut, rabbitstream.ErrConnection); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("timed-out consumer open error = %v", err)
+	}
+
+	if err := consumerOpenError(context.Background(), rabbitstream.ErrAuthorization); !errors.Is(err, rabbitstream.ErrAuthorization) {
+		t.Fatalf("broker consumer open error = %v", err)
+	}
+}
+
 func TestStoredStartResolvesTheBrokerOffsetBeforeOpeningTheConsumer(t *testing.T) {
 	t.Parallel()
 

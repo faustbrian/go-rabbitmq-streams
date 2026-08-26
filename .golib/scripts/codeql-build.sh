@@ -11,9 +11,14 @@ trap cleanup EXIT HUP INT TERM
 root_version="$(jq -er '
     .modules[] | select(.directory == ".") | .version
 ' "${root}/modules.json")"
+root_tag="$(jq -er '
+    .modules[]
+    | select(.directory == ".")
+    | .tag_prefix + .version
+' "${root}/modules.json")"
 self_proxy="${task}/self-proxy"
 "${root}/.golib/scripts/build-local-proxy.sh" \
-    "${self_proxy}" "v${root_version}" "."
+    "${self_proxy}" "v${root_version}" "." "${root_tag}"
 upstream_proxy="${GOPROXY:-$(go env GOPROXY)}"
 export GOPROXY="file://${self_proxy},${upstream_proxy}"
 current_no_sum_db="$(go env GONOSUMDB)"
