@@ -439,7 +439,7 @@ func openFreshEnvironmentWith(
 		}
 		endpoint := connection.Endpoints[attempt%len(connection.Endpoints)]
 		remaining := time.Until(operationDeadline(operationCtx, connection.ConnectTimeout))
-		if remaining <= 0 || connection.RPCTimeout <= 0 {
+		if connectionAttemptBudgetExhausted(remaining, connection.RPCTimeout) {
 			if err := operationCtx.Err(); err != nil {
 				return nil, err
 			}
@@ -526,6 +526,10 @@ func openResourceWithinContext[T closeableResource](
 		close(abandoned)
 		return zero, ctx.Err()
 	}
+}
+
+func connectionAttemptBudgetExhausted(remaining time.Duration, rpcTimeout time.Duration) bool {
+	return remaining <= 0 || rpcTimeout <= 0
 }
 
 func acceptOpenedResource[T closeableResource](

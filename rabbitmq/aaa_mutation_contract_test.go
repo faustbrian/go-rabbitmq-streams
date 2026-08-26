@@ -190,6 +190,27 @@ func TestMutationContractConnectionRejectsZeroAttemptTimeout(t *testing.T) {
 	}
 }
 
+func TestMutationContractConnectionAttemptBudgetBoundaries(t *testing.T) {
+	for name, test := range map[string]struct {
+		remaining  time.Duration
+		rpcTimeout time.Duration
+		exhausted  bool
+	}{
+		"positive":       {remaining: time.Nanosecond, rpcTimeout: time.Nanosecond},
+		"remaining zero": {remaining: 0, rpcTimeout: time.Nanosecond, exhausted: true},
+		"remaining below": {remaining: -time.Nanosecond, rpcTimeout: time.Nanosecond,
+			exhausted: true},
+		"RPC zero":  {remaining: time.Nanosecond, rpcTimeout: 0, exhausted: true},
+		"RPC below": {remaining: time.Nanosecond, rpcTimeout: -time.Nanosecond, exhausted: true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if got := connectionAttemptBudgetExhausted(test.remaining, test.rpcTimeout); got != test.exhausted {
+				t.Fatalf("connection attempt budget exhausted = %t, want %t", got, test.exhausted)
+			}
+		})
+	}
+}
+
 func TestMutationContractSessionOpeningStopsOnTerminalContextErrors(t *testing.T) {
 	for name, terminalErr := range map[string]error{
 		"canceled": context.Canceled,
