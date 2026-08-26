@@ -380,6 +380,36 @@ func TestOpenedSessionIsRejectedWhenItsContextHasExpired(t *testing.T) {
 	}
 }
 
+func TestSessionOpeningStopsWhenItsBackoffIsCanceled(t *testing.T) {
+	connection := rabbitstream.ConnectionConfig{
+		Endpoints:             []rabbitstream.Endpoint{{Host: "rabbit1", Port: 5552}},
+		ConnectTimeout:        time.Hour,
+		RPCTimeout:            time.Second,
+		MaxReconnectAttempts:  2,
+		InitialReconnectDelay: time.Hour,
+		MaxReconnectBackoff:   time.Hour,
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	started := make(chan struct{})
+	result := make(chan error, 1)
+	go func() {
+		_, err := openSessionWithRetries(
+			ctx,
+			connection,
+			func(context.Context, rabbitstream.ConnectionConfig) (producerSession, error) {
+				close(started)
+				return nil, rabbitstream.ErrConnection
+			},
+		)
+		result <- err
+	}()
+	<-started
+	cancel()
+	if err := <-result; !errors.Is(err, context.Canceled) {
+		t.Fatalf("canceled session backoff error = %v", err)
+	}
+}
+
 func TestSessionOpeningRetriesBrokerAuthenticationButNotPermanentFailure(t *testing.T) {
 	t.Parallel()
 
