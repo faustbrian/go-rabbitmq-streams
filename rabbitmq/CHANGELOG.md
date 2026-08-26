@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Documentation
+
+- Link lifecycle and operations guidance to the standalone repository docs and
+  remove the superseded timestamped local benchmark report.
+
 ## 1.0.1 - 2026-08-26
 
 ### Fixed
@@ -28,7 +33,7 @@
 - Make the concurrent consumer reconnect test enforce emitted signal presence,
   uniqueness, and causal reconnect-before-ready ordering without assuming that
   concurrent loss and reconnect goroutines are scheduled in one fixed order.
-- link the module README to the repository documentation portal
+- Link the module README to package-owned documentation.
 
 ### Added
 

@@ -46,7 +46,7 @@ if [[ ! -f "${ready}" ]]; then
         mkdir -p "${state}"
         cp "${module_root}/go.mod" "${modfile}"
         if [[ -f "${module_root}/go.sum" ]]; then
-            awk '$1 !~ /^github\.com\/faustbrian\/golib\// { print }' \
+            awk '$1 !~ /^github\.com\/faustbrian\/go-/ { print }' \
                 "${module_root}/go.sum" >"${sumfile}"
         else
             : >"${sumfile}"
@@ -83,12 +83,12 @@ if [[ "${1:-}" == "mod" && "${2:-}" == "tidy" &&
     source_sum="${state}/source-external.sum"
     tidy_sum="${state}/tidy-external.sum"
     if [[ -f "${module_root}/go.sum" ]]; then
-        awk '$1 !~ /^github\.com\/faustbrian\/golib\// { print }' \
+        awk '$1 !~ /^github\.com\/faustbrian\/go-/ { print }' \
             "${module_root}/go.sum" >"${source_sum}"
     else
         : >"${source_sum}"
     fi
-    awk '$1 !~ /^github\.com\/faustbrian\/golib\// { print }' \
+    awk '$1 !~ /^github\.com\/faustbrian\/go-/ { print }' \
         "${sumfile}" >"${tidy_sum}"
     if ! diff -u "${source_sum}" "${tidy_sum}"; then
         status=1

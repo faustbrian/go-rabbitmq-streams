@@ -111,7 +111,7 @@ Propagation is synchronous and does not check context cancellation. A nil
 context is a validation error. It does not publish, consume, acknowledge,
 retry, or advance an offset.
 
-## Adoption and tradeoffs
+## When to use this adapter
 
 Adopt this module when the root observation seam and explicit W3C propagation
 are sufficient. Use application-owned tracing around publish and handler calls
@@ -160,5 +160,5 @@ No. Only W3C Trace Context fields are supported.
 
 See [CHANGELOG.md](CHANGELOG.md).
 
-Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
-to choose packages, compose services, and review repository-wide guarantees.
+See the [repository documentation](../docs/README.md) for package selection,
+operations, and interoperability guidance.

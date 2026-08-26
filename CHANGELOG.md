@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Changed
+
+- Align isolated dependency checks with standalone package module paths.
+
+### Documentation
+
+- Replace the archived monorepo portal with a repository-local documentation
+  index and a concise root README.
+- Remove the timestamped local benchmark report while retaining durable
+  performance and capacity methodology in the operations guide.
+
 ### Fixed
 
 - Build CI dependency proxies from their published root tag so nested-module
@@ -38,7 +49,7 @@
 
 ### Fixed
 
-- link the module README to the repository documentation portal
+- Link the module README to package-owned documentation.
 
 ### Added
 
