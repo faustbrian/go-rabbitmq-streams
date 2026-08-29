@@ -1,9 +1,10 @@
 # RabbitMQ Streams integration fixture
 
 The standalone fixture routes `localhost:15552` through a pinned Toxiproxy
-container to a single RabbitMQ node and exposes its control API only at
-`127.0.0.1:18474`. This makes connection loss and recovery deterministic
-without detaching Docker's published-port forwarding:
+container to a single RabbitMQ node. Direct standalone setup exposes its
+control API at `127.0.0.1:18474`; the shared repository runner instead assigns
+a task-owned dynamic loopback port. This makes connection loss and recovery
+deterministic without detaching Docker's published-port forwarding:
 
 ```sh
 export COMPOSE_PROJECT_NAME=codex-rabbitstream-single
@@ -14,8 +15,9 @@ export RABBITSTREAM_ERLANG_COOKIE="$(openssl rand -hex 32)"
 ./standalone-setup.sh
 ```
 
-Use `RABBITSTREAM_TEST_PROXY_API=http://127.0.0.1:18474` and
+Use the runner-provided `RABBITSTREAM_TEST_PROXY_API` and
 `RABBITSTREAM_TEST_PROXY_NAME=rabbitstream` for the network-interruption test.
+For direct standalone setup, the API value is `http://127.0.0.1:18474`.
 The broker restart container is `${COMPOSE_PROJECT_NAME}-rabbit-1`. Remove the
 exact fixture with `standalone-teardown.sh`.
 
@@ -27,8 +29,10 @@ The mixed-version phase also proves that producer session establishment rotates
 across the configured endpoints when a broker is reachable but its stream
 metadata path is temporarily unavailable. Later cluster tests therefore run
 against 4.3.5. Repeated gates skip the transition when the same task-owned
-fixture is already fully upgraded. The fixture exposes the three Streams
-listeners at `localhost:15561`, `localhost:15562`, and `localhost:15563`.
+fixture is already fully upgraded. The shared runner exports the three dynamic
+listener ports and the generated Compose resource identities; direct
+standalone setup uses `localhost:15561`, `localhost:15562`, and
+`localhost:15563`.
 
 Set task-owned credentials and a unique Compose project name, start the three
 services; the pinned classic peer-discovery configuration forms the cluster:

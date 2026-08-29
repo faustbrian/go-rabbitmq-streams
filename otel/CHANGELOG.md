@@ -4,6 +4,15 @@ All notable changes to this module are documented here.
 
 ## Unreleased
 
+### Changed
+
+- Use the repository's pinned shared `golib` contract for module verification.
+
+### Documentation
+
+- Move detailed module guidance behind a concise README and documentation index.
+- Link adoption and operations guidance to the standalone repository docs.
+
 ## 1.0.0 - 2026-08-25
 
 ### Changed
@@ -12,7 +21,7 @@ All notable changes to this module are documented here.
 
 ### Fixed
 
-- link the module README to the repository documentation portal
+- Link the module README to package-owned documentation.
 
 ### Added
 

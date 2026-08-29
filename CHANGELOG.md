@@ -2,11 +2,26 @@
 
 ## Unreleased
 
+### Changed
+
+- Replace the copied repository tooling with the pinned shared `golib`
+  repository contract while retaining module-specific verification evidence.
+- Align isolated dependency checks with standalone package module paths.
+
+### Documentation
+
+- Replace the archived monorepo portal with a repository-local documentation
+  index and a concise root README.
+- Remove the timestamped local benchmark report while retaining durable
+  performance and capacity methodology in the operations guide.
+
 ### Fixed
 
 - Build CI dependency proxies from their published root tag so nested-module
   patch releases do not reinterpret changed repository metadata as old module
   versions.
+- Run RabbitMQ Streams recovery and rolling-upgrade checks against the shared
+  fixture's task-owned dynamic ports and generated Compose resources.
 
 ## 1.0.0 - 2026-08-25
 
@@ -38,7 +53,7 @@
 
 ### Fixed
 
-- link the module README to the repository documentation portal
+- Link the module README to package-owned documentation.
 
 ### Added
 

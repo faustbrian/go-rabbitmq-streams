@@ -1,0 +1,110 @@
+schema_version: 1
+tool_version: v1.0.13
+tool_checksums_sha256: 164e5c8abefe655958f522677856816faddbd2a8d40eba7d37ba5a031210df70
+
+manifest:
+  modules: modules.json
+  packages: packages.json
+
+evidence:
+  root: .verification
+
+mutation:
+  root: .verification/mutation
+  imports:
+    - module: .
+      archive: .verification/mutation/bootstrap/root.zip
+      ledger: .verification/mutation/migration-ledger.json
+    - module: otel
+      archive: .verification/mutation/bootstrap/otel.zip
+      ledger: .verification/mutation/migration-ledger.json
+    - module: rabbitmq
+      archive: .verification/mutation/bootstrap/rabbitmq.zip
+      ledger: .verification/mutation/migration-ledger.json
+
+api:
+  baselines:
+    - module: .
+      mode: apidiff
+      path: api/baseline.txt
+    - module: otel
+      mode: apidiff
+      path: otel/api/baseline.txt
+    - module: rabbitmq
+      mode: apidiff
+      path: rabbitmq/api/baseline.txt
+
+operations:
+  - module: .
+    gate: fuzz
+    steps:
+      - type: go-test
+        packages: [.]
+        fuzz: '^FuzzMessageValidationAndOwnership$'
+        budget: 100x
+        timeout: 2m
+      - type: go-test
+        packages: [.]
+        fuzz: '^FuzzConnectionConfigNormalization$'
+        budget: 100x
+        timeout: 2m
+      - type: go-test
+        packages: [.]
+        fuzz: '^FuzzReplayRequestValidation$'
+        budget: 100x
+        timeout: 2m
+  - module: .
+    gate: benchmark
+    steps:
+      - type: go-test
+        packages: [./...]
+        benchmark: .
+        budget: 100ms
+        timeout: 20m
+  - module: otel
+    gate: fuzz
+    steps:
+      - type: go-test
+        packages: [.]
+        fuzz: '^FuzzPropagationOwnershipAndBounds$'
+        budget: 100x
+        timeout: 2m
+      - type: go-test
+        packages: [.]
+        fuzz: '^FuzzObservationIsolation$'
+        budget: 100x
+        timeout: 2m
+  - module: otel
+    gate: benchmark
+    steps:
+      - type: go-test
+        packages: [./...]
+        benchmark: .
+        budget: 100ms
+        timeout: 20m
+  - module: rabbitmq
+    gate: fuzz
+    steps:
+      - type: go-test
+        packages: [.]
+        fuzz: '^FuzzWireMessageRoundTrip$'
+        budget: 100x
+        timeout: 2m
+      - type: go-test
+        packages: [.]
+        fuzz: '^FuzzHashPartition$'
+        budget: 100x
+        timeout: 2m
+      - type: go-test
+        packages: [.]
+        fuzz: '^FuzzConfirmationClassification$'
+        budget: 100x
+        timeout: 2m
+  - module: rabbitmq
+    gate: benchmark
+    steps:
+      - type: go-test
+        packages: [./...]
+        benchmark: .
+        budget: 100ms
+        timeout: 20m

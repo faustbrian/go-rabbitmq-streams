@@ -1,0 +1,70 @@
+{
+  "schema_version": 3,
+  "reason": "Exact mutation checkpoints retained across history rewrites only when the approved old and replacement package input fingerprints, tool version, and report digest match.",
+  "verifier_migration_review": {
+    "gremlins_verifier_sha256": "9a9499ff68a8dfd49a0be7995590297a8ee563a1aa226bfd8b9361dc53058108",
+    "reason": "Each listed checkpoint was executed with the complete current Gremlins semantic patch set introduced by ac300cf3; the four omitted checkpoints require fresh campaigns.",
+    "reviewed_at": "2026-08-20"
+  },
+  "verifier_migrations": [
+    {
+      "module": ".",
+      "package": ".",
+      "execution_revision": "3506b146619f442263e3803fafb0403d3ebbea52",
+      "gate_input_digest": "a5dade96f7636aa854b33dd3432b738c90bf9b9c7d87c081fde8e9108046e8e5",
+      "gremlins_version": "v0.6.0",
+      "gremlins_verifier_sha256": "9a9499ff68a8dfd49a0be7995590297a8ee563a1aa226bfd8b9361dc53058108",
+      "report_sha256": "fc2da91b13c68419ec335b0130d8c9ed287c997556fdefca1815cf762fd63691"
+    },
+    {
+      "module": "otel",
+      "package": ".",
+      "execution_revision": "3506b146619f442263e3803fafb0403d3ebbea52",
+      "gate_input_digest": "45a90b0756857314d3eda31d32b07168a50a14c96425c630e0dab60e90f6761c",
+      "gremlins_version": "v0.6.0",
+      "gremlins_verifier_sha256": "9a9499ff68a8dfd49a0be7995590297a8ee563a1aa226bfd8b9361dc53058108",
+      "report_sha256": "c9e6d0892bf4001c55684faaac59a1fbfab6943487bbfbd59035a489eb006d67"
+    },
+    {
+      "module": "rabbitmq",
+      "package": ".",
+      "execution_revision": "3506b146619f442263e3803fafb0403d3ebbea52",
+      "gate_input_digest": "cbcaff5dcfbc5e98078e158f68a1d495022a7df012962efd0102fc32ab45497c",
+      "gremlins_version": "v0.6.0",
+      "gremlins_verifier_sha256": "9a9499ff68a8dfd49a0be7995590297a8ee563a1aa226bfd8b9361dc53058108",
+      "report_sha256": "1cfafbb9d507c4d66ebfe5b2f9febc3d7bb54bb6fea6830c8347dbe7b9536728"
+    }
+  ],
+  "entries": [
+    {
+      "module": ".",
+      "package": ".",
+      "execution_revision": "3506b146619f442263e3803fafb0403d3ebbea52",
+      "gate_input_digest": "a5dade96f7636aa854b33dd3432b738c90bf9b9c7d87c081fde8e9108046e8e5",
+      "replacement_gate_input_digest": "cb6fe53697a5b4202e5c61ef54d7c6f71c3d4ec602d5785bd2878477fd580edb",
+      "gremlins_version": "v0.6.0",
+      "gremlins_verifier_sha256": "9a9499ff68a8dfd49a0be7995590297a8ee563a1aa226bfd8b9361dc53058108",
+      "report_sha256": "fc2da91b13c68419ec335b0130d8c9ed287c997556fdefca1815cf762fd63691"
+    },
+    {
+      "module": "otel",
+      "package": ".",
+      "execution_revision": "3506b146619f442263e3803fafb0403d3ebbea52",
+      "gate_input_digest": "45a90b0756857314d3eda31d32b07168a50a14c96425c630e0dab60e90f6761c",
+      "replacement_gate_input_digest": "ed30b22c655a67886923819acaf84b8f019aacab9f5f9320c6d388d24e9c0c35",
+      "gremlins_version": "v0.6.0",
+      "gremlins_verifier_sha256": "9a9499ff68a8dfd49a0be7995590297a8ee563a1aa226bfd8b9361dc53058108",
+      "report_sha256": "c9e6d0892bf4001c55684faaac59a1fbfab6943487bbfbd59035a489eb006d67"
+    },
+    {
+      "module": "rabbitmq",
+      "package": ".",
+      "execution_revision": "3506b146619f442263e3803fafb0403d3ebbea52",
+      "gate_input_digest": "cbcaff5dcfbc5e98078e158f68a1d495022a7df012962efd0102fc32ab45497c",
+      "replacement_gate_input_digest": "2ece04739de5f50dff3bb3b8be1c04c236f295e107d53beba94ed654c208b06a",
+      "gremlins_version": "v0.6.0",
+      "gremlins_verifier_sha256": "9a9499ff68a8dfd49a0be7995590297a8ee563a1aa226bfd8b9361dc53058108",
+      "report_sha256": "1cfafbb9d507c4d66ebfe5b2f9febc3d7bb54bb6fea6830c8347dbe7b9536728"
+    }
+  ]
+}

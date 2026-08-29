@@ -112,21 +112,12 @@ func TestMutationContractReplayClosePreservesTheFirstOwnedFailure(t *testing.T) 
 	}
 }
 
-func TestMutationContractConnectionBudgetsAndBackoffAreExact(t *testing.T) {
+func TestMutationContractConnectionAttemptsAndBackoffAreExact(t *testing.T) {
 	if got := connectionAttemptNumber(0); got != 1 {
 		t.Fatalf("first attempt number = %d", got)
 	}
 	if got := connectionAttemptNumber(1); got != 2 {
 		t.Fatalf("second attempt number = %d", got)
-	}
-	if got := boundedAttemptTimeout(90*time.Millisecond, 3, 0, time.Second); got != 30*time.Millisecond {
-		t.Fatalf("first attempt timeout = %v", got)
-	}
-	if got := boundedAttemptTimeout(90*time.Millisecond, 3, 1, time.Second); got != 45*time.Millisecond {
-		t.Fatalf("second attempt timeout = %v", got)
-	}
-	if got := boundedAttemptTimeout(90*time.Millisecond, 3, 2, 20*time.Millisecond); got != 20*time.Millisecond {
-		t.Fatalf("configured attempt timeout = %v", got)
 	}
 	if shouldWaitBeforeConnectionAttempt(0) || !shouldWaitBeforeConnectionAttempt(1) {
 		t.Fatal("connection retry wait boundary is incorrect")

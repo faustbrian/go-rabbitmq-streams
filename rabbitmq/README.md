@@ -75,7 +75,7 @@ application properties, and the reserved
 application-property values are accepted. See the root
 [interoperability contract](../docs/interoperability.md).
 
-## Failure and lifecycle tradeoffs
+## Failure and lifecycle behavior
 
 The selected client's protocol implementation is reused, but its unbounded HA
 helper is not the policy boundary. This adapter owns finite reconnection,
@@ -143,5 +143,5 @@ The application. This adapter does not own a telemetry provider.
 
 See [CHANGELOG.md](CHANGELOG.md).
 
-Use the [Golib documentation portal](https://github.com/faustbrian/golib/blob/main/docs/index.md)
-to choose packages, compose services, and review repository-wide guarantees.
+See the [repository documentation](../docs/README.md) for package selection,
+operations, and interoperability guidance.

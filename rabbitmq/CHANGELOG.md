@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+### Changed
+
+- Use the repository's pinned shared `golib` contract for module verification.
+
+### Fixed
+
+- Run recovery and rolling-upgrade checks against the shared fixture's
+  task-owned dynamic ports and generated Compose resources.
+- Retry bounded leader-failure probes when reconnection fails before transport
+  admission, while retaining ambiguous-delivery classification.
+- Preserve the complete connection deadline across endpoint rotation so one
+  broker's RPC timeout cannot prematurely end failover to a live broker.
+
+### Documentation
+
+- Add a module documentation index for direct navigation.
+- Link lifecycle and operations guidance to the standalone repository docs and
+  remove the superseded timestamped local benchmark report.
+
 ## 1.0.1 - 2026-08-26
 
 ### Fixed
@@ -28,7 +47,7 @@
 - Make the concurrent consumer reconnect test enforce emitted signal presence,
   uniqueness, and causal reconnect-before-ready ordering without assuming that
   concurrent loss and reconnect goroutines are scheduled in one fixed order.
-- link the module README to the repository documentation portal
+- Link the module README to package-owned documentation.
 
 ### Added
 
