@@ -10,6 +10,8 @@
 
 - Run recovery and rolling-upgrade checks against the shared fixture's
   task-owned dynamic ports and generated Compose resources.
+- Retry bounded leader-failure probes when reconnection fails before transport
+  admission, while retaining ambiguous-delivery classification.
 
 ### Documentation
 

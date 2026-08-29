@@ -1134,10 +1134,31 @@ func TestClusterProducerRecoversAfterLeaderFailure(t *testing.T) {
 	}
 	publishCtx, cancelPublish := context.WithTimeout(t.Context(), 30*time.Second)
 	defer cancelPublish()
-	if result, err := producer.Publish(publishCtx, rabbitstream.Message{
-		Stream: streamName, Payload: []byte("after leader failure"),
-	}); err != nil || result.State != rabbitstream.DeliveryConfirmed {
-		t.Fatalf("publish after leader failure = %#v, %v", result, err)
+	recovered := false
+	var lastResult rabbitstream.DeliveryResult
+	var lastErr error
+	for attempt := 1; publishCtx.Err() == nil; attempt++ {
+		lastResult, lastErr = producer.Publish(publishCtx, rabbitstream.Message{
+			Stream: streamName, Payload: []byte("after leader failure probe " + strconv.Itoa(attempt)),
+		})
+		if lastErr == nil && lastResult.State == rabbitstream.DeliveryConfirmed {
+			recovered = true
+			break
+		}
+		if !errors.Is(lastErr, rabbitstream.ErrPublishAmbiguous) &&
+			!errors.Is(lastErr, rabbitstream.ErrConnection) &&
+			!errors.Is(lastErr, rabbitstream.ErrTimeout) {
+			t.Fatalf("leader-failure recovery probe %d = %#v, %v", attempt, lastResult, lastErr)
+		}
+		retryTimer := time.NewTimer(100 * time.Millisecond)
+		select {
+		case <-retryTimer.C:
+		case <-publishCtx.Done():
+			stopAndDrainTimer(retryTimer)
+		}
+	}
+	if !recovered {
+		t.Fatalf("producer did not confirm a bounded leader-failure recovery probe: %#v, %v", lastResult, lastErr)
 	}
 	ensureIntegrationContainerRunning(t, leaderContainer)
 	waitForIntegrationEndpoint(t, connection, metadata.Leader.Port)
