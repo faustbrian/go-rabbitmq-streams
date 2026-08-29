@@ -20,6 +20,8 @@
 - Build CI dependency proxies from their published root tag so nested-module
   patch releases do not reinterpret changed repository metadata as old module
   versions.
+- Run RabbitMQ Streams recovery and rolling-upgrade checks against the shared
+  fixture's task-owned dynamic ports and generated Compose resources.
 
 ## 1.0.0 - 2026-08-25
 

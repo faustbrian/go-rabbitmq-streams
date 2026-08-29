@@ -21,14 +21,21 @@ func TestClusterSupportsRollingPatchUpgrade(t *testing.T) {
 		t.Fatal("rolling-upgrade project is not task-owned")
 	}
 	containers := integrationClusterContainers(t)
+	ports := strings.Split(requiredIntegrationEnv(t, "RABBITSTREAM_CLUSTER_PORTS"), ",")
+	if len(ports) != 3 {
+		t.Fatal("RABBITSTREAM_CLUSTER_PORTS must contain exactly three ports")
+	}
 	services := []struct {
 		name      string
 		port      string
 		container string
 	}{
-		{name: "rabbit1", port: "15561", container: containers["15561"]},
-		{name: "rabbit2", port: "15562", container: containers["15562"]},
-		{name: "rabbit3", port: "15563", container: containers["15563"]},
+		{name: "rabbit1", port: strings.TrimSpace(ports[0])},
+		{name: "rabbit2", port: strings.TrimSpace(ports[1])},
+		{name: "rabbit3", port: strings.TrimSpace(ports[2])},
+	}
+	for index := range services {
+		services[index].container = containers[services[index].port]
 	}
 	fromVersion := requiredIntegrationEnv(t, "RABBITSTREAM_UPGRADE_FROM_VERSION")
 	toVersion := requiredIntegrationEnv(t, "RABBITSTREAM_UPGRADE_TO_VERSION")
@@ -108,18 +115,36 @@ func runIntegrationCLI(t *testing.T, container string, command ...string) {
 
 func recreateIntegrationService(t *testing.T, project string, service string) {
 	t.Helper()
-	integration, err := filepath.Abs("integration")
-	if err != nil || filepath.Base(integration) != "integration" {
-		t.Fatal("resolve integration fixture directory")
+	compose := requiredIntegrationEnv(t, "RABBITSTREAM_CLUSTER_COMPOSE")
+	if !filepath.IsAbs(compose) || filepath.Base(compose) != "compose.yaml" {
+		t.Fatal("rolling-upgrade Compose file must be the generated absolute fixture path")
 	}
+	resourcePrefix := strings.TrimSuffix(project, "-cluster")
+	resources := map[string]string{
+		"RABBITSTREAM_NETWORK":          "network",
+		"RABBITSTREAM_VOLUME_RABBIT1":   "rabbit1-data",
+		"RABBITSTREAM_VOLUME_RABBIT2":   "rabbit2-data",
+		"RABBITSTREAM_VOLUME_RABBIT3":   "rabbit3-data",
+		"RABBITSTREAM_VOLUME_TLS_CERTS": "tls-certs",
+		"RABBITSTREAM_VOLUME_TLS_DATA":  "tls-data",
+	}
+	environment := os.Environ()
+	for name, suffix := range resources {
+		value := requiredIntegrationEnv(t, name)
+		if value != resourcePrefix+"-"+suffix {
+			t.Fatalf("%s is outside the task-owned fixture", name)
+		}
+		environment = append(environment, name+"="+value)
+	}
+	projectDirectory := filepath.Dir(compose)
 	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Minute)
 	defer cancel()
 	command := exec.CommandContext(
-		ctx, "docker", "compose", "--project-directory", integration,
-		"-f", filepath.Join(integration, "compose.yaml"), "-p", project,
+		ctx, "docker", "compose", "--project-directory", projectDirectory,
+		"-f", compose, "-p", project,
 		"up", "-d", "--no-deps", "--force-recreate", "--wait", service,
 	)
-	command.Env = append(os.Environ(),
+	command.Env = append(environment,
 		"RABBITSTREAM_USER="+requiredIntegrationEnv(t, "RABBITSTREAM_TEST_USER"),
 		"RABBITSTREAM_PASSWORD="+requiredIntegrationEnv(t, "RABBITSTREAM_TEST_PASSWORD"),
 		"RABBITSTREAM_ERLANG_COOKIE="+requiredIntegrationEnv(t, "RABBITSTREAM_ERLANG_COOKIE"),

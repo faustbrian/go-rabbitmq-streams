@@ -1418,9 +1418,14 @@ func restartIntegrationContainer(t *testing.T, container string) {
 func setIntegrationProxyEnabled(t *testing.T, api string, name string, enabled bool) {
 	t.Helper()
 	parsed, err := url.Parse(api)
-	if err != nil || parsed.Scheme != "http" || parsed.Path != "" ||
+	if err != nil {
+		t.Fatal("network-interruption proxy must be the exact task-owned loopback fixture")
+	}
+	port, portErr := strconv.ParseUint(parsed.Port(), 10, 16)
+	if parsed.Scheme != "http" || parsed.Path != "" ||
 		(parsed.Hostname() != "127.0.0.1" && parsed.Hostname() != "localhost") ||
-		parsed.Port() != "18474" || name != "rabbitstream" {
+		parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" ||
+		portErr != nil || port == 0 || name != "rabbitstream" {
 		t.Fatal("network-interruption proxy must be the exact task-owned loopback fixture")
 	}
 	body := `{"enabled":false}`

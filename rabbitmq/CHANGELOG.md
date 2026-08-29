@@ -6,6 +6,11 @@
 
 - Use the repository's pinned shared `golib` contract for module verification.
 
+### Fixed
+
+- Run recovery and rolling-upgrade checks against the shared fixture's
+  task-owned dynamic ports and generated Compose resources.
+
 ### Documentation
 
 - Add a module documentation index for direct navigation.
