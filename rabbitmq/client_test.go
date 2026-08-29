@@ -1134,7 +1134,12 @@ func TestRabbitProducerSessionDeliversSynchronousConfirmationAfterAdmission(t *t
 	}); err != nil {
 		t.Fatalf("Send() error = %v", err)
 	}
-	confirmation := <-result
+	var confirmation rabbitstream.TransportConfirmation
+	select {
+	case confirmation = <-result:
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for synchronous confirmation")
+	}
 	if !confirmation.Confirmed || confirmation.PublishingID != 41 || len(session.pending) != 0 {
 		t.Fatalf("synchronous confirmation = %#v, pending %d", confirmation, len(session.pending))
 	}
