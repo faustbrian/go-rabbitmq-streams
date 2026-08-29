@@ -312,6 +312,44 @@ func TestSessionOpeningRetriesWholeSessionAcrossEndpoints(t *testing.T) {
 	}
 }
 
+func TestSessionOpeningPreservesRPCBudgetWhileRotatingEndpoints(t *testing.T) {
+	t.Parallel()
+
+	connection := rabbitstream.ConnectionConfig{
+		Endpoints: []rabbitstream.Endpoint{
+			{Host: "rabbit1", Port: 5552},
+			{Host: "rabbit2", Port: 5552},
+		},
+		ConnectTimeout:        4 * time.Second,
+		RPCTimeout:            3 * time.Second,
+		MaxReconnectAttempts:  2,
+		InitialReconnectDelay: time.Microsecond,
+		MaxReconnectBackoff:   time.Microsecond,
+	}
+	want := newFakeProducerSession()
+	var endpoints []string
+	session, err := openSessionWithRetries(
+		context.Background(),
+		connection,
+		func(_ context.Context, attempt rabbitstream.ConnectionConfig) (producerSession, error) {
+			endpoints = append(endpoints, attempt.Endpoints[0].Host)
+			if len(endpoints) == 1 {
+				if attempt.ConnectTimeout < connection.RPCTimeout {
+					return nil, context.DeadlineExceeded
+				}
+				return nil, rabbitstream.ErrConnection
+			}
+			return want, nil
+		},
+	)
+	if err != nil || session != want {
+		t.Fatalf("openSessionWithRetries() = %#v, %v", session, err)
+	}
+	if len(endpoints) != 2 || endpoints[0] != "rabbit1" || endpoints[1] != "rabbit2" {
+		t.Fatalf("attempt endpoints = %#v", endpoints)
+	}
+}
+
 func TestSessionOpeningRejectsLateSuccessAfterConnectionDeadline(t *testing.T) {
 	connection := rabbitstream.ConnectionConfig{
 		Endpoints:             []rabbitstream.Endpoint{{Host: "rabbit1", Port: 5552}},

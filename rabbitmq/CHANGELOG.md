@@ -12,6 +12,8 @@
   task-owned dynamic ports and generated Compose resources.
 - Retry bounded leader-failure probes when reconnection fails before transport
   admission, while retaining ambiguous-delivery classification.
+- Preserve the complete connection deadline across endpoint rotation so one
+  broker's RPC timeout cannot prematurely end failover to a live broker.
 
 ### Documentation
 

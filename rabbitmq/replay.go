@@ -475,16 +475,6 @@ func connectionAttemptNumber(attempt int) uint64 {
 	return uint64(attempt + 1)
 }
 
-func boundedAttemptTimeout(
-	remaining time.Duration,
-	maxAttempts int,
-	attempt int,
-	configured time.Duration,
-) time.Duration {
-	budget := remaining / time.Duration(maxAttempts-attempt)
-	return min(budget, configured)
-}
-
 func closeLateEnvironment(environment producerEnvironment) {
 	if environment != nil {
 		_ = environment.Close()

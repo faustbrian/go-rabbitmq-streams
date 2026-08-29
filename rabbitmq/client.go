@@ -140,10 +140,7 @@ func openSessionWithRetries[T closeableResource](
 			backoff = nextReconnectBackoff(backoff, connection.MaxReconnectBackoff)
 		}
 		remaining := time.Until(operationDeadline(operationCtx, connection.ConnectTimeout))
-		attemptTimeout := boundedAttemptTimeout(
-			remaining, connection.MaxReconnectAttempts, attempt, connection.RPCTimeout,
-		)
-		if attemptTimeout <= 0 {
+		if connectionAttemptBudgetExhausted(remaining, connection.RPCTimeout) {
 			if err := operationCtx.Err(); err != nil {
 				return zero, err
 			}
@@ -155,7 +152,7 @@ func openSessionWithRetries[T closeableResource](
 			append([]rabbitstream.Endpoint(nil), connection.Endpoints[endpoint:]...),
 			connection.Endpoints[:endpoint]...,
 		)
-		attemptConnection.ConnectTimeout = attemptTimeout
+		attemptConnection.ConnectTimeout = remaining
 		attemptConnection.MaxReconnectAttempts = 1
 		session, err := openResourceWithinContext(operationCtx, func() (T, error) {
 			return opener(operationCtx, attemptConnection)
