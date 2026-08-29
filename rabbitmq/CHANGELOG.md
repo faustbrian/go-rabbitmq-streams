@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+- Use the repository's pinned shared `golib` contract for module verification.
+
 ### Documentation
 
 - Add a module documentation index for direct navigation.

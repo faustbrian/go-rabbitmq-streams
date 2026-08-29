@@ -4,6 +4,8 @@
 
 ### Changed
 
+- Replace the copied repository tooling with the pinned shared `golib`
+  repository contract while retaining module-specific verification evidence.
 - Align isolated dependency checks with standalone package module paths.
 
 ### Documentation

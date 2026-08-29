@@ -4,6 +4,10 @@ All notable changes to this module are documented here.
 
 ## Unreleased
 
+### Changed
+
+- Use the repository's pinned shared `golib` contract for module verification.
+
 ### Documentation
 
 - Move detailed module guidance behind a concise README and documentation index.
