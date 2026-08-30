@@ -4,6 +4,15 @@
 
 ### Changed
 
+- Govern the adapter's RabbitMQ Streams protocol, wire mapping, confirmation,
+  offset, replay, Super Stream, and transport-security choices through the
+  [specification decision register](docs/specification-decisions.md):
+  `RABBITMQ-STREAM-DEC-001 sha256:82351d241102d65c13bd391ad564b5bccd4483197919ecd337116b288ea77fd3`,
+  `RABBITMQ-STREAM-DEC-002 sha256:faf727d2bbb98e5f944924b295de5848b5f6a5b41c6e241ebe7caf8e6e94da8a`,
+  `RABBITMQ-STREAM-DEC-003 sha256:42dfa5d274b3e421be3328a4b447d322723853ecccc239090c329cbf924711dd`,
+  `RABBITMQ-STREAM-DEC-004 sha256:1068e2cb1d86639527e0bb8263f248ce21eb68ffb8064ab5dba8f50248152478`,
+  `RABBITMQ-STREAM-DEC-005 sha256:74f82ab2d380c57560d2cc24b824433c8a0d46ac24664733b12c143aa3a3d61a`, and
+  `RABBITMQ-STREAM-DEC-006 sha256:2d67c02f9756315064aa352b361029c2ebd62610c4e7dd1e3fea31ab6653752f`.
 - Use the repository's pinned shared `golib` contract for module verification.
 
 ### Fixed

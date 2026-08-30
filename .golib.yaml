@@ -35,6 +35,14 @@ api:
       path: rabbitmq/api/baseline.txt
 
 operations:
+  - module: rabbitmq
+    gate: conformance
+    steps:
+      - type: go-test
+        packages: [.]
+        run: '^(TestWireMessagePreservesLanguageNeutralEventMetadata|TestWireDeliveryCopiesAndNormalizesLanguageNeutralMetadata|TestWireDeliveryRejectsUnsupportedMetadataWithoutLeakingIt|TestConfirmationClassificationPreservesAmbiguity|TestRabbitProducerSessionConfirmationAdmissionOrdering|TestRabbitProducerSessionFailureAndAbortAreSingleTerminalTransitions|TestStoredStartResolvesTheBrokerOffsetBeforeOpeningTheConsumer|TestRabbitConsumerSessionStoresOnlyOwnedBoundedOffsets|TestConsumerTransportStoreOffsetRetriesOnlyConnectionFailures|TestReplaySourceRejectsUnavailableAndChangedHistoryBoundaries|TestReplayCursorAcceptsOnlyTheRequestedActiveRange|TestConsumerStartPositionMapsWithoutSemanticSubstitution|TestHashRoutingIsStableForAnOrderedPartitionTopology|TestRabbitSuperProducerSessionRoutesAndRejectsUnavailablePartitions|TestReplayTopologyMustRemainExactAndOrdered|TestEnvironmentOptionsPreserveConnectionSecurityPolicy|TestOpenProducerHonorsCancellationBeforeCredentialResolution|TestSessionOpeningRetriesBrokerAuthenticationButNotPermanentFailure)$'
+        count: 1
+        timeout: 10m
   - module: .
     gate: fuzz
     steps:

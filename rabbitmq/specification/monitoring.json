@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "reviewed_at": "2026-08-30",
+  "review_interval_days": 90,
+  "authorities": [
+    {
+      "id": "rabbitmq-stream-protocol-435",
+      "kind": "specification",
+      "version": "RabbitMQ Streams 4.3.5 protocol and semantics",
+      "url": "https://raw.githubusercontent.com/rabbitmq/rabbitmq-server/0dde27bfdd1984ff7e157226fd97656854a7f359/deps/rabbitmq_stream/docs/PROTOCOL.adoc",
+      "sha256": "e43d5f7e926f0313391c0cca4d686fcccb3737b46f509ac2cff5649766303ce4",
+      "specifications": ["RabbitMQ Streams 4.3.5 protocol and semantics"]
+    },
+    {
+      "id": "rabbitmq-stream-guide-43",
+      "kind": "specification",
+      "version": "RabbitMQ Streams 4.3.5 protocol and semantics",
+      "url": "https://raw.githubusercontent.com/rabbitmq/rabbitmq-website/1c99c9687f012ad700385c1e9a6990f6520720d3/versioned_docs/version-4.3/streams.md",
+      "sha256": "1719c724d9d6877aad0b8830bc935d26644710aa7cd510a9fb554c0a239d99a0",
+      "specifications": ["RabbitMQ Streams 4.3.5 protocol and semantics"]
+    },
+    {
+      "id": "rabbitmq-server-435-release",
+      "kind": "releases",
+      "version": "",
+      "url": "https://github.com/rabbitmq/rabbitmq-server/releases.atom",
+      "sha256": "e17f46b0ca1fb73808cc5fa9741549e25d8bd879a9b446e4d75a762ed78dbc43",
+      "specifications": ["RabbitMQ Streams 4.3.5 protocol and semantics"]
+    }
+  ]
+}

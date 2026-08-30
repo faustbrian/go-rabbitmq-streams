@@ -170,16 +170,23 @@
         "integration"
       ],
       "interoperability_tools": [],
-      "specifications": [],
-      "conformance_corpora": [],
-      "provenance": [],
+      "specifications": [
+        "RabbitMQ Streams 4.3.5 protocol and semantics"
+      ],
+      "conformance_corpora": [
+        "RabbitMQ 4.3.5 live-provider single-stream, replay, TLS, and Super Stream integration matrix",
+        "Bounded AMQP 1.0 message mapping, confirmation, offset, and routing unit and fuzz evidence"
+      ],
+      "provenance": [
+        "rabbitmq/specification/sources.lock.json"
+      ],
       "goal_files": [],
       "goal_status": "not-applicable",
       "goal_evidence": [],
       "gates": {
         "api_compatibility": true,
         "benchmarks": true,
-        "conformance": false,
+        "conformance": true,
         "coverage": true,
         "documentation": true,
         "fuzz": true,

@@ -9,6 +9,9 @@
 
 - [Parent security policy](../../SECURITY.md)
 - [Changelog](../CHANGELOG.md)
+- [Compatibility policy](../COMPATIBILITY.md)
+- [Specification decisions](specification-decisions.md)
+- [Specification conformance matrix](../specification/README.md)
 
 ## Related packages
 
