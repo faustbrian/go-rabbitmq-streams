@@ -4,8 +4,9 @@
 
 ### Changed
 
-- Replace the copied repository tooling with the pinned shared `golib`
-  repository contract while retaining module-specific verification evidence.
+- Adopt the checksum-pinned `go-library-tools` v1.2.0 repository contract and
+  immutable `1f9629e5f27418600460b55a50a5b2fc81697fab` workflow while retaining
+  module-specific verification evidence.
 - Align isolated dependency checks with standalone package module paths.
 
 ### Documentation
