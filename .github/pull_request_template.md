@@ -9,13 +9,15 @@ Omit topics that do not apply.
 
 ## Specification Decisions
 
-For parsing, validation, serialization, resolution, canonicalization,
-transport, or protocol changes, list:
+For protocol, parsing, validation, serialization, transport, confirmation,
+offset, replay, or routing changes, list:
 
 - affected decision identifiers;
-- changed normative sources, registries, fixtures, or errata;
-- selected observable behavior and alternatives considered;
+- changed normative sources, fixtures, release authorities, or errata;
+- selected behavior and alternatives considered;
 - compatibility and wire consequences;
-- executable conformance and interoperability evidence.
+- executable conformance, provider, and differential evidence;
+- the required changelog entry for any observable decision change; and
+- replacement links for every superseded decision.
 
 State `Not applicable` only when no specification-backed behavior can change.

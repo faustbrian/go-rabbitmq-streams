@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "decisions": [
+    {
+      "id": "RABBITMQ-STREAM-DEC-001",
+      "authoritative_sources": ["rabbitmq-stream-protocol-435"],
+      "executable_evidence": ["TestWireMessagePreservesLanguageNeutralEventMetadata", "TestWireDeliveryCopiesAndNormalizesLanguageNeutralMetadata", "TestWireDeliveryRejectsUnsupportedMetadataWithoutLeakingIt"],
+      "fixtures": [],
+      "fuzz": ["FuzzWireMessageRoundTrip"],
+      "interoperability_evidence": ["rabbitmq/specification/provider-evidence.tsv"],
+      "interoperability_classification": "provider agreement",
+      "differential_evidence": [],
+      "differential_classification": "not assessed",
+      "public_behavior": ["The adapter preserves one bounded language-neutral AMQP 1.0 mapping and rejects unsupported representations without coercion."]
+    },
+    {
+      "id": "RABBITMQ-STREAM-DEC-002",
+      "authoritative_sources": ["rabbitmq-stream-protocol-435"],
+      "executable_evidence": ["TestConfirmationClassificationPreservesAmbiguity", "TestRabbitProducerSessionConfirmationAdmissionOrdering", "TestRabbitProducerSessionFailureAndAbortAreSingleTerminalTransitions"],
+      "fixtures": [],
+      "fuzz": ["FuzzConfirmationClassification"],
+      "interoperability_evidence": ["rabbitmq/specification/provider-evidence.tsv"],
+      "interoperability_classification": "provider agreement",
+      "differential_evidence": [],
+      "differential_classification": "not assessed",
+      "public_behavior": ["An admitted publication has one confirmed, rejected, or ambiguous outcome, and publishing-ID deduplication remains stream and producer scoped."]
+    },
+    {
+      "id": "RABBITMQ-STREAM-DEC-003",
+      "authoritative_sources": ["rabbitmq-stream-protocol-435"],
+      "executable_evidence": ["TestStoredStartResolvesTheBrokerOffsetBeforeOpeningTheConsumer", "TestRabbitConsumerSessionStoresOnlyOwnedBoundedOffsets", "TestConsumerTransportStoreOffsetRetriesOnlyConnectionFailures"],
+      "fixtures": [],
+      "fuzz": [],
+      "interoperability_evidence": ["rabbitmq/specification/provider-evidence.tsv"],
+      "interoperability_classification": "provider agreement",
+      "differential_evidence": [],
+      "differential_classification": "not assessed",
+      "public_behavior": ["Named offsets advance only after successful partition-local handling and remain separate from external side effects."]
+    },
+    {
+      "id": "RABBITMQ-STREAM-DEC-004",
+      "authoritative_sources": ["rabbitmq-stream-guide-43"],
+      "executable_evidence": ["TestReplaySourceRejectsUnavailableAndChangedHistoryBoundaries", "TestReplayCursorAcceptsOnlyTheRequestedActiveRange", "TestConsumerStartPositionMapsWithoutSemanticSubstitution"],
+      "fixtures": [],
+      "fuzz": [],
+      "interoperability_evidence": ["rabbitmq/specification/provider-evidence.tsv"],
+      "interoperability_classification": "provider agreement",
+      "differential_evidence": [],
+      "differential_classification": "not assessed",
+      "public_behavior": ["Exact replay rejects retained-range gaps, clamped starts, unavailable ends, and topology changes instead of silently accepting best-effort history."]
+    },
+    {
+      "id": "RABBITMQ-STREAM-DEC-005",
+      "authoritative_sources": ["rabbitmq-stream-guide-43"],
+      "executable_evidence": ["TestHashRoutingIsStableForAnOrderedPartitionTopology", "TestRabbitSuperProducerSessionRoutesAndRejectsUnavailablePartitions", "TestReplayTopologyMustRemainExactAndOrdered"],
+      "fixtures": [],
+      "fuzz": ["FuzzHashPartition"],
+      "interoperability_evidence": ["rabbitmq/specification/provider-evidence.tsv"],
+      "interoperability_classification": "provider agreement",
+      "differential_evidence": [],
+      "differential_classification": "not assessed",
+      "public_behavior": ["Super Stream routing uses one exact ordered topology with partition-local order and no global-order claim."]
+    },
+    {
+      "id": "RABBITMQ-STREAM-DEC-006",
+      "authoritative_sources": ["rabbitmq-stream-protocol-435"],
+      "executable_evidence": ["TestEnvironmentOptionsPreserveConnectionSecurityPolicy", "TestOpenProducerHonorsCancellationBeforeCredentialResolution", "TestSessionOpeningRetriesBrokerAuthenticationButNotPermanentFailure"],
+      "fixtures": [],
+      "fuzz": [],
+      "interoperability_evidence": ["rabbitmq/specification/provider-evidence.tsv"],
+      "interoperability_classification": "provider agreement",
+      "differential_evidence": [],
+      "differential_classification": "not assessed",
+      "public_behavior": ["Production transport requires verified TLS and bounded caller-owned authentication, endpoint, retry, and lifecycle policy."]
+    }
+  ]
+}

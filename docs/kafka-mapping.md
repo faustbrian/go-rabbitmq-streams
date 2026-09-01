@@ -2,7 +2,7 @@
 
 This report is the design input for `rabbitstream`; it is not a claim that
 Kafka and RabbitMQ Streams are interchangeable. It was checked against the
-pinned sources in `specification/sources.lock.json`.
+pinned sources in `rabbitmq/specification/sources.lock.json`.
 
 | Kafka concept or repository use | Classification | RabbitMQ design |
 | --- | --- | --- |

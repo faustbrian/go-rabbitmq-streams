@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "entries": [
+    {"id": "RABBITMQ-STREAM-DEC-001", "digests": ["82351d241102d65c13bd391ad564b5bccd4483197919ecd337116b288ea77fd3"]},
+    {"id": "RABBITMQ-STREAM-DEC-002", "digests": ["faf727d2bbb98e5f944924b295de5848b5f6a5b41c6e241ebe7caf8e6e94da8a"]},
+    {"id": "RABBITMQ-STREAM-DEC-003", "digests": ["42dfa5d274b3e421be3328a4b447d322723853ecccc239090c329cbf924711dd"]},
+    {"id": "RABBITMQ-STREAM-DEC-004", "digests": ["1068e2cb1d86639527e0bb8263f248ce21eb68ffb8064ab5dba8f50248152478"]},
+    {"id": "RABBITMQ-STREAM-DEC-005", "digests": ["74f82ab2d380c57560d2cc24b824433c8a0d46ac24664733b12c143aa3a3d61a"]},
+    {"id": "RABBITMQ-STREAM-DEC-006", "digests": ["2d67c02f9756315064aa352b361029c2ebd62610c4e7dd1e3fea31ab6653752f"]}
+  ]
+}

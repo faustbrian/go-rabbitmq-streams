@@ -1,10 +1,11 @@
 {
   "schema_version": 1,
-  "verified_at": "2026-08-21",
+  "verified_at": "2026-08-30",
   "rabbitmq_server": {
     "version": "4.3.5",
+    "commit": "0dde27bfdd1984ff7e157226fd97656854a7f359",
     "release_url": "https://github.com/rabbitmq/rabbitmq-server/releases/tag/v4.3.5",
-    "protocol_url": "https://raw.githubusercontent.com/rabbitmq/rabbitmq-server/v4.3.5/deps/rabbitmq_stream/docs/PROTOCOL.adoc",
+    "protocol_url": "https://raw.githubusercontent.com/rabbitmq/rabbitmq-server/0dde27bfdd1984ff7e157226fd97656854a7f359/deps/rabbitmq_stream/docs/PROTOCOL.adoc",
     "protocol_sha256": "e43d5f7e926f0313391c0cca4d686fcccb3737b46f509ac2cff5649766303ce4"
   },
   "go_client": {
@@ -16,7 +17,8 @@
   },
   "rabbitmq_documentation": {
     "series": "4.3",
-    "streams_url": "https://raw.githubusercontent.com/rabbitmq/rabbitmq-website/main/versioned_docs/version-4.3/streams.md",
+    "commit": "1c99c9687f012ad700385c1e9a6990f6520720d3",
+    "streams_url": "https://raw.githubusercontent.com/rabbitmq/rabbitmq-website/1c99c9687f012ad700385c1e9a6990f6520720d3/versioned_docs/version-4.3/streams.md",
     "streams_sha256": "1719c724d9d6877aad0b8830bc935d26644710aa7cd510a9fb554c0a239d99a0"
   },
   "container": {
@@ -27,6 +29,7 @@
   },
   "rolling_upgrade_source": {
     "version": "4.3.4",
+    "commit": "d5186e66e056960f58e2d0fbee2fcc66e1ed6fb9",
     "release_url": "https://github.com/rabbitmq/rabbitmq-server/releases/tag/v4.3.4",
     "image": "rabbitmq:4.3.4-management",
     "index_digest": "sha256:eb5295d083325da5929a5ade766684d4019ffd2bce8bc7e43d6f9a05cafc8646",

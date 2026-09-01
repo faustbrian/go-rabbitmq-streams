@@ -118,6 +118,10 @@ architecture for an interoperability claim.
 Direct Laravel/PHP Streams compatibility is not claimed because the pinned
 RabbitMQ support baseline has no supported PHP Streams client.
 
+The adapter's observable protocol choices are governed by the
+[specification decision register](docs/specification-decisions.md) and
+[conformance matrix](specification/README.md).
+
 ## FAQ
 
 ### Why is the upstream client not exposed?
