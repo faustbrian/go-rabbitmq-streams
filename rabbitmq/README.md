@@ -8,6 +8,11 @@ The dependency remains nested because the selected client brings its own
 dependency graph, including OpenTelemetry. Importing the root policy module
 does not require it.
 
+This adapter belongs to Golib's integration and data movement family. See the
+versioned [v1.3.0 ecosystem
+index](https://github.com/faustbrian/go-library-tools/blob/v1.3.0/docs/ecosystem/README.md#integration-and-data-movement)
+for package selection and shared lifecycle conventions.
+
 ## API
 
 - `OpenProducer` opens a bounded reconnecting transport and returns a root

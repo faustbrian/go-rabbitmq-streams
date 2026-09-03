@@ -15,6 +15,10 @@ workloads. It provides bounded publishing, consumption, replay, inspection,
 failure handling, lifecycle, and observations without implementing the
 RabbitMQ Streams protocol.
 
+For the shared construction, ownership, lifecycle, and integration vocabulary,
+see the versioned [v1.3.0 Golib ecosystem
+index](https://github.com/faustbrian/go-library-tools/blob/v1.3.0/docs/ecosystem/README.md#integration-and-data-movement).
+
 | Use `rabbitstream` | Use [`queue`](https://github.com/faustbrian/go-queue) |
 | --- | --- |
 | retained event histories | jobs and commands |

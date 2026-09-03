@@ -4,6 +4,11 @@
 
 ### Changed
 
+- Publish complete schema-v2 cohesion metadata for all three releasable
+  modules, add versioned ecosystem navigation, and expose local cohesion
+  validation through the repository contract.
+- Adopt the checksum-verified `go-library-tools` v1.3.0 contract and immutable
+  `6c76f5c670d193ce369a7242d4c634f1117286e9` reusable workflow.
 - Adopt the checksum-pinned `go-library-tools` v1.2.0 repository contract and
   immutable `1f9629e5f27418600460b55a50a5b2fc81697fab` workflow while retaining
   module-specific verification evidence.

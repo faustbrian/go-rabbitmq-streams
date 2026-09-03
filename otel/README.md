@@ -5,6 +5,11 @@ values into caller-owned OpenTelemetry metrics and propagates W3C Trace Context
 through `rabbitstream.Message` headers. The root module remains telemetry-vendor
 neutral.
 
+This adapter belongs to Golib's integration and data movement family. See the
+versioned [v1.3.0 ecosystem
+index](https://github.com/faustbrian/go-library-tools/blob/v1.3.0/docs/ecosystem/README.md#integration-and-data-movement)
+for package selection and shared ownership conventions.
+
 ## Install
 
 ```sh
