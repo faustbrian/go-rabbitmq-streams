@@ -10,7 +10,8 @@ does not require it.
 
 This adapter belongs to Golib's integration and data movement family. See the
 versioned [v1.4.0 ecosystem
-index](https://github.com/faustbrian/go-library-tools/blob/v1.4.0/docs/ecosystem/README.md#integration-and-data-movement)
+index](https://github.com/faustbrian/go-library-tools/blob/v1.4.0/docs/ecosystem/README.md)
+and its [Integration and data movement family](https://github.com/faustbrian/go-library-tools/blob/v1.4.0/docs/ecosystem/design-language.md#package-families-and-selection)
 for package selection and shared lifecycle conventions.
 
 ## API

@@ -16,6 +16,8 @@ All notable changes to this module are documented here.
 
 ### Documentation
 
+- Correct the README's immutable v1.4.0 ecosystem navigation and link the
+  Integration and data movement family guidance.
 - Move detailed module guidance behind a concise README and documentation index.
 - Link adoption and operations guidance to the standalone repository docs.
 

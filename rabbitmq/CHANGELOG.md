@@ -32,6 +32,8 @@
 
 ### Documentation
 
+- Correct the README's immutable v1.4.0 ecosystem navigation and link the
+  Integration and data movement family guidance.
 - Add a module documentation index for direct navigation.
 - Link lifecycle and operations guidance to the standalone repository docs and
   remove the superseded timestamped local benchmark report.
