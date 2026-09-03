@@ -4,6 +4,10 @@
 
 ### Changed
 
+- Advance module verification and ecosystem navigation to the final
+  checksum-verified `go-library-tools` v1.4.0 release.
+- Reconcile the root module archive checksum with its public Go proxy and
+  checksum-database identity.
 - Publish schema-v2 cohesion metadata, versioned ecosystem navigation, and the
   repository-local cohesion validation entry point for this module.
 - Govern the adapter's RabbitMQ Streams protocol, wire mapping, confirmation,

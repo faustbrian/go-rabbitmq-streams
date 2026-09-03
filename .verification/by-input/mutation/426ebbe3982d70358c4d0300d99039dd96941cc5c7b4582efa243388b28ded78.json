@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "repository": "github.com/faustbrian/go-rabbitmq-streams",
+  "module": "otel",
+  "package": ".",
+  "gate": "mutation",
+  "input_digest": "sha256:426ebbe3982d70358c4d0300d99039dd96941cc5c7b4582efa243388b28ded78",
+  "verifier_digest": "sha256:9a9499ff68a8dfd49a0be7995590297a8ee563a1aa226bfd8b9361dc53058108",
+  "result": "passed",
+  "report_digest": "sha256:b6b6e4aa9e24af2044360fe7b98eef068fb31c36d0917f6e3dc19ed5b6c0437e",
+  "environment": {
+    "CGO_ENABLED": "1",
+    "GOARCH": "arm64",
+    "GOOS": "darwin",
+    "GOVERSION": "go1.27.0",
+    "gremlins_binary_sha256": "sha256:6a2beddc477eb410f8a670b6c9049558563d3c4327498fe31604d31c773a959e"
+  },
+  "completed_at": "2026-09-03T04:25:51.556024Z"
+}

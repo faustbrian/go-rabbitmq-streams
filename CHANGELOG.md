@@ -4,6 +4,8 @@
 
 ### Changed
 
+- Advance repository verification and ecosystem navigation to the final
+  checksum-verified `go-library-tools` v1.4.0 release.
 - Publish complete schema-v2 cohesion metadata for all three releasable
   modules, add versioned ecosystem navigation, and expose local cohesion
   validation through the repository contract.
