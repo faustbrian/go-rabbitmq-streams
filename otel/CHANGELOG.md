@@ -6,6 +6,10 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- Advance module verification and ecosystem navigation to the final
+  checksum-verified `go-library-tools` v1.4.0 release.
+- Reconcile the root module archive checksum with its public Go proxy and
+  checksum-database identity.
 - Publish schema-v2 cohesion metadata, versioned ecosystem navigation, and the
   repository-local cohesion validation entry point for this module.
 - Use the repository's pinned shared `golib` contract for module verification.
