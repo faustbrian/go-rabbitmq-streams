@@ -4,6 +4,8 @@
 
 ### Changed
 
+- Publish schema-v2 cohesion metadata, versioned ecosystem navigation, and the
+  repository-local cohesion validation entry point for this module.
 - Govern the adapter's RabbitMQ Streams protocol, wire mapping, confirmation,
   offset, replay, Super Stream, and transport-security choices through the
   [specification decision register](docs/specification-decisions.md):

@@ -6,6 +6,8 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- Publish schema-v2 cohesion metadata, versioned ecosystem navigation, and the
+  repository-local cohesion validation entry point for this module.
 - Use the repository's pinned shared `golib` contract for module verification.
 
 ### Documentation
