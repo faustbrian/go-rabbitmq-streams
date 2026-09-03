@@ -18,6 +18,9 @@
 
 ### Documentation
 
+- Correct the README's immutable v1.4.0 ecosystem navigation and link the
+  Integration and data movement family guidance.
+
 - Replace the archived monorepo portal with a repository-local documentation
   index and a concise root README.
 - Remove the timestamped local benchmark report while retaining durable

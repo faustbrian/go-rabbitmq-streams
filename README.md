@@ -17,7 +17,8 @@ RabbitMQ Streams protocol.
 
 For the shared construction, ownership, lifecycle, and integration vocabulary,
 see the versioned [v1.4.0 Golib ecosystem
-index](https://github.com/faustbrian/go-library-tools/blob/v1.4.0/docs/ecosystem/README.md#integration-and-data-movement).
+index](https://github.com/faustbrian/go-library-tools/blob/v1.4.0/docs/ecosystem/README.md)
+and its [Integration and data movement family](https://github.com/faustbrian/go-library-tools/blob/v1.4.0/docs/ecosystem/design-language.md#package-families-and-selection).
 
 | Use `rabbitstream` | Use [`queue`](https://github.com/faustbrian/go-queue) |
 | --- | --- |
