@@ -36,6 +36,8 @@
   Integration and data movement family guidance.
 - Add canonical installation guidance, the exact supported Go release, and
   direct compatibility and support navigation to the module entry point.
+- Link compile-checked producer and consumer examples that exercise the public
+  adapter lifecycle from open through publish or handler execution.
 - Add a module documentation index for direct navigation.
 - Link lifecycle and operations guidance to the standalone repository docs and
   remove the superseded timestamped local benchmark report.

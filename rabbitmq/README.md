@@ -42,9 +42,11 @@ consumers.
 
 ## Quick start
 
-See the root [producer and consumer guide](../README.md). Production TLS is the
-default; plaintext is accepted only through the explicit development helper.
-Streams and Super Streams must already exist.
+The compile-checked [producer and consumer examples](example_test.go) include
+complete imports, connection setup, publication, and handler execution. See the
+root [producer and consumer guide](../README.md) for the policy contract.
+Production TLS is the default; plaintext is accepted only through the explicit
+development helper. Streams and Super Streams must already exist.
 
 ```go
 producer, err := rabbitmq.OpenProducer(ctx, connection, rabbitstream.ProducerConfig{
