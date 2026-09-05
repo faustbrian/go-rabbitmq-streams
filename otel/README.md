@@ -34,7 +34,7 @@ producer, err := rabbitstream.NewProducer(rabbitstream.ProducerConfig{
 })
 ```
 
-The compiling examples in this module contain complete imports and setup.
+The compiling [`Example`](example_test.go) contains complete imports and setup.
 
 ## Guarantees and limitations
 
@@ -51,8 +51,9 @@ additional guarantees beyond the documented module boundary.
 
 ## Compatibility and support
 
-This module follows Semantic Versioning. Report vulnerabilities through the
-[parent security policy](../SECURITY.md).
+This stable module requires Go 1.26.6 and follows Semantic Versioning. Use the
+[parent support policy](../SUPPORT.md) for adoption help and report
+vulnerabilities through the [parent security policy](../SECURITY.md).
 
 ## License
 

@@ -33,19 +33,19 @@ implicitly by the root `rabbitstream` module.
 
 | Current module or use case | Classification | Migration decision |
 | --- | --- | --- |
-| `pkg/kafka` producer, consumer, replay, inspection, and retained-topic policy | Streams-native or Super Streams-native by configured topic shape | migrate each configured workload to the equivalent explicit stream policy; do not preserve Kafka-shaped APIs |
-| `pkg/kafka` transactional producer and read-process-write transaction processor | unsupported / requires redesign | RabbitMQ Streams has no equivalent atomic source-offset plus target-publish transaction |
-| `pkg/kafka/adapters/golog` | application responsibility | add a stream-specific observer adapter only if the stable root observation seam lacks required logging integration |
-| `pkg/kafka/adapters/gotelemetry` | adapter responsibility | use `otel`; separately review Kafka-only spans, attributes, and propagation semantics |
-| `pkg/kafka/adapters/mskiam` | unsupported / remove for RabbitMQ | AWS MSK IAM is Kafka-specific; use RabbitMQ TLS and authentication policy instead |
-| `pkg/kafka/kafkaservice` | application/service composition responsibility | no generic `rabbitstreamservice` module is added: the core lifecycle is explicit, and no current adoption contract justifies correlation or service-framework coupling |
-| `pkg/kafka/benchmarks/clients` | validation tooling | replace with equivalent raw-client and policy-wrapper RabbitMQ Streams benchmarks, preserving durability and payloads |
-| `pkg/kafka/kafkatest` | validation tooling | create RabbitMQ-specific fakes only for deterministic policy seams; real broker guarantees remain integration tests |
-| `pkg/cloudevents/adapters/golib` Kafka transport | Streams-native | use the distinct structured JSON RabbitMQ Streams mapping in that adapter; it keeps broker state outside CloudEvents and does not invent an unverified binary AMQP binding |
-| `pkg/event-sourcing/adapters/gokafka` dispatcher, handler, codec, and dead-letter path | application/database responsibility plus Streams-native transport | no generic Streams adapter is added: event-store position, dispatcher checkpoint, retry/dead-letter publication, source offset advancement, and duplicate windows require a workload-specific design before transport mapping |
-| `pkg/event-sourcing/adapters/gotelemetry` Kafka propagation | adapter responsibility | use the language-neutral message and W3C propagation contract; do not couple event-sourcing telemetry to the root module |
-| `pkg/outbox/adapters/gokafka` relay publisher | application/database responsibility plus Streams-native publisher | use `pkg/outbox/adapters/gorabbitstream`; it retains database/outbox transaction ownership and requires one confirmed publish without claiming atomic relay settlement |
-| `pkg/service/integration/adoption` Kafka fixture | adoption fixture | add a separate RabbitMQ Streams adoption fixture after a service adapter exists; do not replace the Kafka fixture in place |
+| `github.com/faustbrian/go-kafka` producer, consumer, replay, inspection, and retained-topic policy | Streams-native or Super Streams-native by configured topic shape | migrate each configured workload to the equivalent explicit stream policy; do not preserve Kafka-shaped APIs |
+| `github.com/faustbrian/go-kafka` transactional producer and read-process-write transaction processor | unsupported / requires redesign | RabbitMQ Streams has no equivalent atomic source-offset plus target-publish transaction |
+| `github.com/faustbrian/go-kafka/adapters/golog` | application responsibility | add a stream-specific observer adapter only if the stable root observation seam lacks required logging integration |
+| `github.com/faustbrian/go-kafka/adapters/gotelemetry` | adapter responsibility | use `github.com/faustbrian/go-rabbitmq-streams/otel`; separately review Kafka-only spans, attributes, and propagation semantics |
+| `github.com/faustbrian/go-kafka/adapters/mskiam` | unsupported / remove for RabbitMQ | AWS MSK IAM is Kafka-specific; use RabbitMQ TLS and authentication policy instead |
+| `github.com/faustbrian/go-kafka/kafkaservice` | application/service composition responsibility | no generic `rabbitstreamservice` module is added: the core lifecycle is explicit, and no current adoption contract justifies correlation or service-framework coupling |
+| `github.com/faustbrian/go-kafka/benchmarks/clients` | validation tooling | replace with equivalent raw-client and policy-wrapper RabbitMQ Streams benchmarks, preserving durability and payloads |
+| `github.com/faustbrian/go-kafka/kafkatest` | validation tooling | create RabbitMQ-specific fakes only for deterministic policy seams; real broker guarantees remain integration tests |
+| `github.com/faustbrian/go-cloudevents/adapters/golib` Kafka transport | Streams-native | use the distinct structured JSON RabbitMQ Streams mapping in that adapter; it keeps broker state outside CloudEvents and does not invent an unverified binary AMQP binding |
+| `github.com/faustbrian/go-event-sourcing/adapters/gokafka` dispatcher, handler, codec, and dead-letter path | application/database responsibility plus Streams-native transport | no generic Streams adapter is added: event-store position, dispatcher checkpoint, retry/dead-letter publication, source offset advancement, and duplicate windows require a workload-specific design before transport mapping |
+| `github.com/faustbrian/go-event-sourcing/adapters/gotelemetry` Kafka propagation | adapter responsibility | use the language-neutral message and W3C propagation contract; do not couple event-sourcing telemetry to the root module |
+| `github.com/faustbrian/go-transactional-outbox/adapters/gokafka` relay publisher | application/database responsibility plus Streams-native publisher | use `github.com/faustbrian/go-transactional-outbox/adapters/gorabbitstream`; it retains database/outbox transaction ownership and requires one confirmed publish without claiming atomic relay settlement |
+| `github.com/faustbrian/go-service/integration/adoption` Kafka fixture | adoption fixture | add a separate RabbitMQ Streams adoption fixture after a service adapter exists; do not replace the Kafka fixture in place |
 | delayed retry, command execution, webhook delivery, and jobs currently routed through messaging | existing `queue` package | keep queue semantics rather than translating them into retained streams |
 
 The root package therefore has no dependency on Kafka, queue, outbox,
