@@ -18,6 +18,8 @@ All notable changes to this module are documented here.
 
 - Correct the README's immutable v1.4.0 ecosystem navigation and link the
   Integration and data movement family guidance.
+- State the exact supported Go release and link the executable example and
+  parent support policy from the module entry point.
 - Move detailed module guidance behind a concise README and documentation index.
 - Link adoption and operations guidance to the standalone repository docs.
 

@@ -14,6 +14,14 @@ index](https://github.com/faustbrian/go-library-tools/blob/v1.4.0/docs/ecosystem
 and its [Integration and data movement family](https://github.com/faustbrian/go-library-tools/blob/v1.4.0/docs/ecosystem/design-language.md#package-families-and-selection)
 for package selection and shared lifecycle conventions.
 
+## Install
+
+This stable module requires Go 1.26.6.
+
+```sh
+go get github.com/faustbrian/go-rabbitmq-streams/rabbitmq@v1
+```
+
 ## API
 
 - `OpenProducer` opens a bounded reconnecting transport and returns a root
@@ -34,9 +42,11 @@ consumers.
 
 ## Quick start
 
-See the root [producer and consumer guide](../README.md). Production TLS is the
-default; plaintext is accepted only through the explicit development helper.
-Streams and Super Streams must already exist.
+The compile-checked [producer and consumer examples](example_test.go) include
+complete imports, connection setup, publication, and handler execution. See the
+root [producer and consumer guide](../README.md) for the policy contract.
+Production TLS is the default; plaintext is accepted only through the explicit
+development helper. Streams and Super Streams must already exist.
 
 ```go
 producer, err := rabbitmq.OpenProducer(ctx, connection, rabbitstream.ProducerConfig{
@@ -155,3 +165,6 @@ See [CHANGELOG.md](CHANGELOG.md).
 
 See the [repository documentation](../docs/README.md) for package selection,
 operations, and interoperability guidance.
+
+For compatibility and upgrade policy, see [COMPATIBILITY.md](COMPATIBILITY.md).
+For adoption help, use the [parent support policy](../SUPPORT.md).
