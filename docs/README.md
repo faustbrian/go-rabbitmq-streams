@@ -3,6 +3,10 @@
 `rabbitstream` provides vendor-neutral policy for RabbitMQ Streams and Super
 Streams, with separate RabbitMQ and OpenTelemetry adapter modules.
 
+- [Root overview and canonical installation](../README.md)
+- [Compiler-checked root examples](../example_test.go)
+- [Compatibility and release tags](../COMPATIBILITY.md)
+
 ## Choosing a package
 
 - Use the root module for message, delivery, retry, replay, inspection, and
@@ -31,5 +35,20 @@ Streams, with separate RabbitMQ and OpenTelemetry adapter modules.
 
 ## Module documentation
 
+- [RabbitMQ adapter overview and installation](../rabbitmq/README.md)
 - [RabbitMQ adapter documentation](../rabbitmq/docs/README.md)
+- [RabbitMQ compiler-checked examples](../rabbitmq/example_test.go)
+- [RabbitMQ changelog](../rabbitmq/CHANGELOG.md)
+- [OpenTelemetry adapter overview and installation](../otel/README.md)
 - [OpenTelemetry adapter documentation](../otel/docs/README.md)
+- [OpenTelemetry compiler-checked example](../otel/example_test.go)
+- [OpenTelemetry changelog](../otel/CHANGELOG.md)
+
+## Support and maintenance
+
+- [Operations, performance, troubleshooting, and FAQ](operations.md)
+- [Support](../SUPPORT.md)
+- [Private vulnerability reporting](../SECURITY.md)
+- [Root changelog](../CHANGELOG.md)
+- [Contributing](../CONTRIBUTING.md)
+- [License](../LICENSE)

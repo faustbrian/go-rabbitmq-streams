@@ -194,6 +194,30 @@ payload, or arbitrary metadata on metrics.
 | high memory | payload distribution, outstanding confirms, buffers, batch size | lower bounds and remove handler retention |
 | shutdown timeout | handler cooperation, confirmation wait, deployment deadline | propagate cancellation and align finite budgets |
 
+## FAQ
+
+### Does a publisher confirmation mean a consumer processed the message?
+
+No. It confirms the broker-side publication outcome only. Consumer processing,
+application side effects, and stored offsets remain separate operations.
+
+### Does closing a consumer advance an unfinished delivery?
+
+No. Cancel and join the run before closing its resources. A delivery whose
+handler did not complete successfully must remain eligible for redelivery.
+
+### Does the OpenTelemetry adapter need separate shutdown?
+
+No. The adapter starts no background work and owns no provider or exporter.
+After stream clients stop emitting observations, flush and shut down the
+caller-owned OpenTelemetry provider.
+
+### Can Kafka transactions be migrated without redesign?
+
+No. RabbitMQ Streams has no equivalent atomic source-offset and target-publish
+transaction. Use an application-owned outbox or an explicit idempotent workflow
+with documented duplicate and loss windows.
+
 ## Incident evidence
 
 Record timestamps, safe categories, endpoint identity, stream/partition names

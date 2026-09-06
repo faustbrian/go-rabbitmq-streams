@@ -2,9 +2,10 @@
 
 ## Reporting
 
-Report suspected vulnerabilities privately through the GitHub security
-advisory for `faustbrian/go-rabbitmq-streams`. Do not open a public issue containing exploit
-details, credentials, private fixtures, or affected deployment information.
+Report suspected vulnerabilities through this repository's
+[private security advisory](https://github.com/faustbrian/go-rabbitmq-streams/security/advisories/new)
+form. Do not open a public issue containing exploit details, credentials,
+private fixtures, or affected deployment information.
 
 Include the affected module and version, impact, reproduction, preconditions,
 and any suggested mitigation. Reports are acknowledged as soon as practical;
@@ -12,8 +13,10 @@ timelines depend on severity and verification.
 
 ## Supported Versions
 
-The latest stable `v1` release line receives security fixes. Support windows
-are documented per module and in
+The root, OpenTelemetry, and RabbitMQ modules each have a published stable v1
+line. The latest v1 patch release for each module receives security fixes unless
+announced otherwise. Fixes land on the default branch before the affected
+module is released independently. Support windows are documented in
 [`COMPATIBILITY.md`](COMPATIBILITY.md).
 
 ## Security Gates

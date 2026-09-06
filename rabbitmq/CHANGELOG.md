@@ -32,6 +32,10 @@
 
 ### Documentation
 
+- Link the transport's compiler-checked examples, stable support policy,
+  canonical tag form, operational FAQ, and live support and security routes
+  from the shared package documentation.
+
 - Correct the README's immutable v1.4.0 ecosystem navigation and link the
   Integration and data movement family guidance.
 - Add canonical installation guidance, the exact supported Go release, and

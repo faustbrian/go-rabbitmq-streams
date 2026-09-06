@@ -16,6 +16,9 @@ All notable changes to this module are documented here.
 
 ### Documentation
 
+- Add the package map, explicit no-shutdown and provider-ownership boundary,
+  direct operational FAQ navigation, and live support and security routes.
+
 - Correct the README's immutable v1.4.0 ecosystem navigation and link the
   Integration and data movement family guidance.
 - State the exact supported Go release and link the executable example and

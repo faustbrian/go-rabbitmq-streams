@@ -15,6 +15,10 @@ workloads. It provides bounded publishing, consumption, replay, inspection,
 failure handling, lifecycle, and observations without implementing the
 RabbitMQ Streams protocol.
 
+The root policy library, RabbitMQ transport, and OpenTelemetry adapter are
+stable v1 modules. Their minimum supported Go version is 1.26.6; repository
+verification currently tests exactly Go 1.26.6.
+
 For the shared construction, ownership, lifecycle, and integration vocabulary,
 see the versioned [v1.4.0 Golib ecosystem
 index](https://github.com/faustbrian/go-library-tools/blob/v1.4.0/docs/ecosystem/README.md)
@@ -30,14 +34,22 @@ and its [Integration and data movement family](https://github.com/faustbrian/go-
 ## Install
 
 ```sh
-go get github.com/faustbrian/go-rabbitmq-streams
-go get github.com/faustbrian/go-rabbitmq-streams/rabbitmq
+go get github.com/faustbrian/go-rabbitmq-streams@v1
+go get github.com/faustbrian/go-rabbitmq-streams/rabbitmq@v1
+go get github.com/faustbrian/go-rabbitmq-streams/otel@v1
 ```
 
-The root module defines vendor-neutral policy and transport seams. The
-[`rabbitmq`](rabbitmq) module adapts the supported RabbitMQ Go Streams client,
-and [`otel`](otel) provides optional OpenTelemetry metrics and W3C Trace
+Install only the modules an application imports. The root module defines
+vendor-neutral policy and transport seams. The [`rabbitmq`](rabbitmq/README.md)
+module adapts the supported RabbitMQ Go Streams client, and
+[`otel`](otel/README.md) provides optional OpenTelemetry metrics and W3C Trace
 Context propagation.
+
+| Package | Use |
+| --- | --- |
+| `github.com/faustbrian/go-rabbitmq-streams` | Define bounded messages, delivery policy, producer and consumer contracts, replay, and inspection. |
+| `github.com/faustbrian/go-rabbitmq-streams/rabbitmq` | Open RabbitMQ Streams protocol resources through the supported Go client. |
+| `github.com/faustbrian/go-rabbitmq-streams/otel` | Translate observations to caller-owned OpenTelemetry metrics and propagate W3C Trace Context. |
 
 ## Producer
 
@@ -123,6 +135,14 @@ The consumer stores progress only after successful handling. External side
 effects and RabbitMQ offsets do not share a transaction, so handlers must be
 idempotent or reconcile duplicates.
 
+Root producer and consumer values own bounded background work after successful
+construction and require a bounded `Close` call. Stop new publications, cancel
+and join consumer runs, close consumers, then close producers. The RabbitMQ
+adapter owns the protocol connections and sessions it opens. The OpenTelemetry
+adapter starts no goroutines, owns no provider or exporter, and exposes no
+`Close` or `Shutdown`; callers flush and shut down their providers after all
+stream clients stop emitting observations.
+
 ## Guarantees
 
 - Publisher confirmations do not prove downstream processing.
@@ -135,6 +155,11 @@ idempotent or reconcile duplicates.
 Read the [documentation index](docs/README.md) before production adoption. It
 covers API contracts, delivery guarantees, operations, capacity validation,
 interoperability, and Kafka migration.
+
+The [compiler-checked root examples](example_test.go) demonstrate producer and
+consumer construction. The RabbitMQ and OpenTelemetry modules provide their
+own [transport examples](rabbitmq/example_test.go) and
+[telemetry example](otel/example_test.go).
 
 ## Compatibility
 
