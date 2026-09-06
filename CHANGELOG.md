@@ -18,6 +18,10 @@
 
 ### Documentation
 
+- Document stable module entry points, canonical v1 installation and tag
+  forms, owned lifecycle and shutdown boundaries, compiler-checked examples,
+  complete navigation and FAQ coverage, and live support and security routes.
+
 - Correct the README's immutable v1.4.0 ecosystem navigation and link the
   Integration and data movement family guidance.
 - Replace archived monorepo package labels in the Kafka migration inventory

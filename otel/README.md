@@ -17,6 +17,15 @@ for package selection and shared ownership conventions.
 go get github.com/faustbrian/go-rabbitmq-streams/otel@v1
 ```
 
+## Package map
+
+| Package | Use |
+| --- | --- |
+| `github.com/faustbrian/go-rabbitmq-streams/otel` | Add bounded metrics and W3C Trace Context propagation to root `rabbitstream` values. |
+
+This module has no public subpackages. Use the independently released root
+module for stream policy and the `rabbitmq` module for protocol resources.
+
 ## Quick start
 
 ```go
@@ -42,12 +51,19 @@ The [complete guide](docs/reference.md) defines ownership, failure semantics,
 bounds, concurrency, security, and unsupported behavior. Do not infer
 additional guarantees beyond the documented module boundary.
 
+The adapter starts no goroutines, owns no OpenTelemetry provider or exporter,
+and exposes no `Close` or `Shutdown`. Callers flush and shut down their provider
+only after RabbitMQ Streams clients stop emitting observations.
+
 ## Documentation
 
 - [Documentation index](docs/README.md)
 - [Complete technical guide](docs/reference.md)
 - [Go API reference](https://pkg.go.dev/github.com/faustbrian/go-rabbitmq-streams/otel)
 - [Parent package documentation](../docs/README.md)
+- [Operations and FAQ](../docs/operations.md)
+- [Support](../SUPPORT.md)
+- [Private vulnerability reporting](../SECURITY.md)
 
 ## Compatibility and support
 
