@@ -25,7 +25,7 @@ section of the pull request template. An unresolved interpretation or stale
 source pin is release-blocking; peer behavior cannot silently select policy.
 
 RabbitMQ Streams protocol, wire mapping, confirmation, offset, replay,
-security, and Super Stream changes must update the adapter's
+security, and Super Stream changes must update the released adapter's
 [specification decision register](rabbitmq/docs/specification-decisions.md).
 
 Required mutation gates must finish with zero surviving viable mutants.

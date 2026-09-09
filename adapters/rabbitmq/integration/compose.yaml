@@ -1,0 +1,90 @@
+name: ${COMPOSE_PROJECT_NAME:?set COMPOSE_PROJECT_NAME to a task-owned value}
+
+x-rabbitmq-common: &rabbitmq-common
+  image: ${RABBITSTREAM_IMAGE:-rabbitmq@sha256:eb5295d083325da5929a5ade766684d4019ffd2bce8bc7e43d6f9a05cafc8646}
+  environment:
+    RABBITMQ_DEFAULT_USER: ${RABBITSTREAM_USER:?set RABBITSTREAM_USER}
+    RABBITMQ_DEFAULT_PASS: ${RABBITSTREAM_PASSWORD:?set RABBITSTREAM_PASSWORD}
+    RABBITMQ_ERLANG_COOKIE: ${RABBITSTREAM_ERLANG_COOKIE:?set RABBITSTREAM_ERLANG_COOKIE}
+  networks:
+    - rabbitstream
+  healthcheck:
+    test: ["CMD", "gosu", "rabbitmq", "rabbitmq-diagnostics", "-q", "check_running"]
+    interval: 1s
+    timeout: 5s
+    retries: 60
+  restart: "no"
+
+services:
+  rabbit1:
+    <<: *rabbitmq-common
+    hostname: rabbit1
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITSTREAM_USER:?set RABBITSTREAM_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITSTREAM_PASSWORD:?set RABBITSTREAM_PASSWORD}
+      RABBITMQ_ERLANG_COOKIE: ${RABBITSTREAM_ERLANG_COOKIE:?set RABBITSTREAM_ERLANG_COOKIE}
+      RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: -rabbitmq_stream initial_cluster_size 3
+    ports:
+      - "15561:5552"
+    volumes:
+      - ./enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
+      - ./rabbit1.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - type: volume
+        source: rabbit1-data
+        target: /var/lib/rabbitmq/mnesia
+        volume:
+          nocopy: true
+
+  rabbit2:
+    <<: *rabbitmq-common
+    hostname: rabbit2
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITSTREAM_USER:?set RABBITSTREAM_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITSTREAM_PASSWORD:?set RABBITSTREAM_PASSWORD}
+      RABBITMQ_ERLANG_COOKIE: ${RABBITSTREAM_ERLANG_COOKIE:?set RABBITSTREAM_ERLANG_COOKIE}
+      RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: -rabbitmq_stream initial_cluster_size 3
+    ports:
+      - "15562:5552"
+    volumes:
+      - ./enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
+      - ./rabbit2.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - type: volume
+        source: rabbit2-data
+        target: /var/lib/rabbitmq/mnesia
+        volume:
+          nocopy: true
+
+  rabbit3:
+    <<: *rabbitmq-common
+    hostname: rabbit3
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITSTREAM_USER:?set RABBITSTREAM_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITSTREAM_PASSWORD:?set RABBITSTREAM_PASSWORD}
+      RABBITMQ_ERLANG_COOKIE: ${RABBITSTREAM_ERLANG_COOKIE:?set RABBITSTREAM_ERLANG_COOKIE}
+      RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: -rabbitmq_stream initial_cluster_size 3
+    ports:
+      - "15563:5552"
+    volumes:
+      - ./enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
+      - ./rabbit3.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - type: volume
+        source: rabbit3-data
+        target: /var/lib/rabbitmq/mnesia
+        volume:
+          nocopy: true
+
+networks:
+  rabbitstream:
+    labels:
+      codex.task: rabbitstream-cluster
+
+volumes:
+  rabbit1-data:
+    labels:
+      codex.task: rabbitstream-cluster
+  rabbit2-data:
+    labels:
+      codex.task: rabbitstream-cluster
+  rabbit3-data:
+    labels:
+      codex.task: rabbitstream-cluster

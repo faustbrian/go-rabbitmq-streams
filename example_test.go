@@ -14,7 +14,7 @@ func ExampleNewProducer() {
 	if err != nil {
 		panic(err)
 	}
-	defer func() { _ = producer.Close(context.Background()) }()
+	defer func() { _ = producer.Shutdown(context.Background()) }()
 
 	result, err := producer.Publish(context.Background(), rabbitstream.Message{
 		Stream:    "tracking.events",
@@ -43,7 +43,7 @@ func ExampleNewConsumer() {
 	if err != nil {
 		panic(err)
 	}
-	defer func() { _ = consumer.Close(context.Background()) }()
+	defer func() { _ = consumer.Shutdown(context.Background()) }()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	err = consumer.Run(ctx, func(_ context.Context, message rabbitstream.Message) error {

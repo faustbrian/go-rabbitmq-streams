@@ -2,6 +2,8 @@ go 1.26.6
 
 use (
 	.
+	./adapters/otel
+	./adapters/rabbitmq
 	./otel
 	./rabbitmq
 )

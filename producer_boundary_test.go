@@ -311,3 +311,40 @@ func TestProducerCloseReportsCancellationTransportFailureAndTimeout(t *testing.T
 	}
 	close(releaseCanceled)
 }
+
+func TestProducerShutdownBoundsEachCallerAndSharesTerminalResult(t *testing.T) {
+	t.Parallel()
+
+	release := make(chan struct{})
+	transport := newFakeProducerTransport()
+	transport.closeBlock = release
+	transport.closeErr = ErrAuthorization
+	producer, err := NewProducer(ProducerConfig{Stream: "stream"}, transport)
+	if err != nil {
+		t.Fatalf("NewProducer() error = %v", err)
+	}
+
+	canceled, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := producer.Shutdown(canceled); !errors.Is(err, ErrCanceled) {
+		t.Fatalf("Shutdown(canceled) error = %v", err)
+	}
+
+	terminal := make(chan error, 1)
+	go func() { terminal <- producer.Shutdown(boundedTestContext()) }()
+	select {
+	case err := <-terminal:
+		t.Fatalf("second Shutdown returned before terminal cleanup: %v", err)
+	case <-time.After(time.Millisecond):
+	}
+	close(release)
+	if err := receiveTest(t, terminal); !errors.Is(err, ErrAuthorization) {
+		t.Fatalf("Shutdown() terminal error = %v", err)
+	}
+	if err := producer.Close(boundedTestContext()); !errors.Is(err, ErrAuthorization) {
+		t.Fatalf("Close() shared terminal error = %v", err)
+	}
+	if calls := transport.closeCalls(); calls != 1 {
+		t.Fatalf("transport Close() calls = %d", calls)
+	}
+}

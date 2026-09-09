@@ -1,16 +1,18 @@
 # Compatibility Policy
 
 Each releasable directory is an independent Go module and follows semantic
-versioning. Root releases use `v<version>` tags. OpenTelemetry adapter releases
-use `otel/v<version>`, and RabbitMQ transport releases use
-`rabbitmq/v<version>`. A directory prefix is never added to the root module's
-tag.
+versioning. Root releases use `v<version>` tags. Canonical OpenTelemetry adapter
+releases use `adapters/otel/v<version>`, and canonical RabbitMQ transport
+releases use `adapters/rabbitmq/v<version>`. The released `otel` and
+`rabbitmq` modules retain their directory-prefixed tags during migration. A
+directory prefix is never added to the root module's tag.
 
-All three modules are stable v1 libraries. Their minimum supported Go version
-is 1.26.6, and repository verification currently tests exactly Go 1.26.6. The
-RabbitMQ transport's broker and client support matrix is documented in
-[`rabbitmq/COMPATIBILITY.md`](rabbitmq/COMPATIBILITY.md); OpenTelemetry support
-and limitations are documented in [`otel/docs/reference.md`](otel/docs/reference.md).
+All releasable modules are stable v1 libraries. Their minimum supported Go
+version is 1.26.6, and repository verification currently tests exactly Go
+1.26.6. The RabbitMQ transport's broker and client support matrix is documented
+in [`adapters/rabbitmq/COMPATIBILITY.md`](adapters/rabbitmq/COMPATIBILITY.md);
+OpenTelemetry support and limitations are documented in
+[`adapters/otel/docs/reference.md`](adapters/otel/docs/reference.md).
 
 Before `v1`, minor releases MAY contain reviewed breaking changes, but every
 break MUST be documented with migration guidance. Patch releases MUST remain

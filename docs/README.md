@@ -11,8 +11,8 @@ Streams, with separate RabbitMQ and OpenTelemetry adapter modules.
 
 - Use the root module for message, delivery, retry, replay, inspection, and
   lifecycle contracts.
-- Use [`rabbitmq`](../rabbitmq) for the supported RabbitMQ Go Streams client.
-- Use [`otel`](../otel) for bounded metrics and W3C Trace Context propagation.
+- Use [`adapters/rabbitmq`](../adapters/rabbitmq) for the supported RabbitMQ Go Streams client.
+- Use [`adapters/otel`](../adapters/otel) for bounded metrics and W3C Trace Context propagation.
 - Use [`queue`](https://github.com/faustbrian/go-queue) instead for competing
   job workers and process-and-remove delivery.
 
@@ -30,19 +30,19 @@ Streams, with separate RabbitMQ and OpenTelemetry adapter modules.
 ## API reference
 
 - [Root package](https://pkg.go.dev/github.com/faustbrian/go-rabbitmq-streams)
-- [RabbitMQ adapter](https://pkg.go.dev/github.com/faustbrian/go-rabbitmq-streams/rabbitmq)
-- [OpenTelemetry adapter](https://pkg.go.dev/github.com/faustbrian/go-rabbitmq-streams/otel)
+- [RabbitMQ adapter](https://pkg.go.dev/github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq)
+- [OpenTelemetry adapter](https://pkg.go.dev/github.com/faustbrian/go-rabbitmq-streams/adapters/otel)
 
 ## Module documentation
 
-- [RabbitMQ adapter overview and installation](../rabbitmq/README.md)
-- [RabbitMQ adapter documentation](../rabbitmq/docs/README.md)
-- [RabbitMQ compiler-checked examples](../rabbitmq/example_test.go)
-- [RabbitMQ changelog](../rabbitmq/CHANGELOG.md)
-- [OpenTelemetry adapter overview and installation](../otel/README.md)
-- [OpenTelemetry adapter documentation](../otel/docs/README.md)
-- [OpenTelemetry compiler-checked example](../otel/example_test.go)
-- [OpenTelemetry changelog](../otel/CHANGELOG.md)
+- [RabbitMQ adapter overview and installation](../adapters/rabbitmq/README.md)
+- [RabbitMQ adapter documentation](../adapters/rabbitmq/docs/README.md)
+- [RabbitMQ compiler-checked examples](../adapters/rabbitmq/example_test.go)
+- [RabbitMQ changelog](../adapters/rabbitmq/CHANGELOG.md)
+- [OpenTelemetry adapter overview and installation](../adapters/otel/README.md)
+- [OpenTelemetry adapter documentation](../adapters/otel/docs/README.md)
+- [OpenTelemetry compiler-checked example](../adapters/otel/example_test.go)
+- [OpenTelemetry changelog](../adapters/otel/CHANGELOG.md)
 
 ## Support and maintenance
 

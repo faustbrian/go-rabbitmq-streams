@@ -2,10 +2,20 @@
 
 ## Unreleased
 
+### Added
+
+- Add concurrency-safe `Producer.Shutdown` and `Consumer.Shutdown` lifecycles
+  with independently bounded callers and one shared terminal cleanup result.
+- Add target-oriented `adapters/otel` and `adapters/rabbitmq` modules
+  alongside the released `otel` and `rabbitmq` paths.
+
 ### Changed
 
-- Advance repository verification and ecosystem navigation to the final
-  checksum-verified `go-library-tools` v1.4.0 release.
+- Deprecate the context-taking `Close` methods in favor of `Shutdown` without
+  changing their behavior, errors, or cleanup ownership.
+
+- Advance repository verification to the checksum-verified
+  `go-library-tools` v1.6.1 release.
 - Publish complete schema-v2 cohesion metadata for all three releasable
   modules, add versioned ecosystem navigation, and expose local cohesion
   validation through the repository contract.

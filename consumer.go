@@ -937,9 +937,11 @@ func callHandler(ctx context.Context, handler MessageHandler, message Message) (
 	return handler(ctx, message)
 }
 
-// Close cancels an active Run, waits within caller and policy bounds, and
-// closes the owned transport exactly once.
-func (consumer *Consumer) Close(ctx context.Context) error {
+// Shutdown cancels an active Run, waits within caller and policy bounds, and
+// closes the owned transport exactly once. Each caller's context bounds only
+// that caller's wait; cleanup continues once started and every caller that
+// observes completion receives the same terminal cleanup result.
+func (consumer *Consumer) Shutdown(ctx context.Context) error {
 	if ctx == nil {
 		return validationError(errors.New("close context is nil"))
 	}
@@ -961,6 +963,13 @@ func (consumer *Consumer) Close(ctx context.Context) error {
 	}
 }
 
+// Close preserves the released context-bounded shutdown contract.
+//
+// Deprecated: use Shutdown.
+func (consumer *Consumer) Close(ctx context.Context) error {
+	return consumer.Shutdown(ctx)
+}
+
 func (consumer *Consumer) close(runDone <-chan struct{}) {
 	started := time.Now()
 	defer func() {
@@ -979,9 +988,16 @@ func (consumer *Consumer) close(runDone <-chan struct{}) {
 			return
 		}
 	}
-	if err := consumer.transport.Close(); err != nil {
-		consumer.closeErr = &OperationError{
-			Operation: OperationClose, Category: categoryForError(err, CategoryConnection), Cause: err,
+	transportResult := make(chan error, 1)
+	go func() { transportResult <- consumer.transport.Close() }()
+	select {
+	case err := <-transportResult:
+		if err != nil {
+			consumer.closeErr = &OperationError{
+				Operation: OperationClose, Category: categoryForError(err, CategoryConnection), Cause: err,
+			}
 		}
+	case <-timer.C:
+		consumer.closeErr = &OperationError{Operation: OperationClose, Category: CategoryTimeout, Cause: ErrTimeout}
 	}
 }

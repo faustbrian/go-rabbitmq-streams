@@ -35,21 +35,22 @@ and its [Integration and data movement family](https://github.com/faustbrian/go-
 
 ```sh
 go get github.com/faustbrian/go-rabbitmq-streams@v1
-go get github.com/faustbrian/go-rabbitmq-streams/rabbitmq@v1
-go get github.com/faustbrian/go-rabbitmq-streams/otel@v1
+go get github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq@v1
+go get github.com/faustbrian/go-rabbitmq-streams/adapters/otel@v1
 ```
 
 Install only the modules an application imports. The root module defines
-vendor-neutral policy and transport seams. The [`rabbitmq`](rabbitmq/README.md)
-module adapts the supported RabbitMQ Go Streams client, and
-[`otel`](otel/README.md) provides optional OpenTelemetry metrics and W3C Trace
-Context propagation.
+vendor-neutral policy and transport seams. The
+[`adapters/rabbitmq`](adapters/rabbitmq/README.md) module adapts the supported
+RabbitMQ Go Streams client, and [`adapters/otel`](adapters/otel/README.md)
+provides optional OpenTelemetry metrics and W3C Trace Context propagation.
+The released `rabbitmq` and `otel` paths remain available during migration.
 
 | Package | Use |
 | --- | --- |
 | `github.com/faustbrian/go-rabbitmq-streams` | Define bounded messages, delivery policy, producer and consumer contracts, replay, and inspection. |
-| `github.com/faustbrian/go-rabbitmq-streams/rabbitmq` | Open RabbitMQ Streams protocol resources through the supported Go client. |
-| `github.com/faustbrian/go-rabbitmq-streams/otel` | Translate observations to caller-owned OpenTelemetry metrics and propagate W3C Trace Context. |
+| `github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq` | Open RabbitMQ Streams protocol resources through the supported Go client. |
+| `github.com/faustbrian/go-rabbitmq-streams/adapters/otel` | Translate observations to caller-owned OpenTelemetry metrics and propagate W3C Trace Context. |
 
 ## Producer
 
@@ -83,7 +84,7 @@ producer, err := rabbitmq.OpenProducer(
 if err != nil {
     return err
 }
-defer producer.Close(context.Background())
+defer producer.Shutdown(context.Background())
 
 result, err := producer.Publish(ctx, rabbitstream.Message{
     Stream:        "tracking.events",
@@ -121,7 +122,7 @@ consumer, err := rabbitmq.OpenConsumer(
 if err != nil {
     return err
 }
-defer consumer.Close(context.Background())
+defer consumer.Shutdown(context.Background())
 
 return consumer.Run(ctx, func(
     handlerCtx context.Context,
@@ -136,7 +137,10 @@ effects and RabbitMQ offsets do not share a transaction, so handlers must be
 idempotent or reconcile duplicates.
 
 Root producer and consumer values own bounded background work after successful
-construction and require a bounded `Close` call. Stop new publications, cancel
+construction and require a bounded `Shutdown` call. Each caller independently
+bounds its wait while all callers observe one shared terminal cleanup result.
+The deprecated context-taking `Close` method remains behavior-compatible. Stop
+new publications, cancel
 and join consumer runs, close consumers, then close producers. The RabbitMQ
 adapter owns the protocol connections and sessions it opens. The OpenTelemetry
 adapter starts no goroutines, owns no provider or exporter, and exposes no
@@ -158,8 +162,8 @@ interoperability, and Kafka migration.
 
 The [compiler-checked root examples](example_test.go) demonstrate producer and
 consumer construction. The RabbitMQ and OpenTelemetry modules provide their
-own [transport examples](rabbitmq/example_test.go) and
-[telemetry example](otel/example_test.go).
+own [transport examples](adapters/rabbitmq/example_test.go) and
+[telemetry example](adapters/otel/example_test.go).
 
 ## Compatibility
 

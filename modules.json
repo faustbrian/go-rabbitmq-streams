@@ -29,12 +29,14 @@
       "family_label": "Integration And Data Movement",
       "family_description": "Bounded external I/O, data movement, provider boundaries, and derived search state.",
       "family_order": 7,
-      "version": "1.0.0",
+      "version": "1.1.0",
       "tag_prefix": "v",
       "owned_dependencies": [],
       "reverse_owned_dependencies": [
         "github.com/faustbrian/go-cloudevents/adapters/golib",
         "github.com/faustbrian/go-transactional-outbox/adapters/gorabbitstream",
+        "github.com/faustbrian/go-rabbitmq-streams/adapters/otel",
+        "github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq",
         "github.com/faustbrian/go-rabbitmq-streams/otel",
         "github.com/faustbrian/go-rabbitmq-streams/rabbitmq"
       ],
@@ -77,7 +79,8 @@
         ],
         "lifecycle_styles": [
           "close",
-          "run"
+          "run",
+          "shutdown"
         ],
         "ownership": {
           "configuration": "caller",
@@ -90,8 +93,8 @@
         },
         "optional_owned_dependencies": [],
         "adapters": [
-          "github.com/faustbrian/go-rabbitmq-streams/otel",
-          "github.com/faustbrian/go-rabbitmq-streams/rabbitmq"
+          "github.com/faustbrian/go-rabbitmq-streams/adapters/otel",
+          "github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq"
         ],
         "companions": [
           "github.com/faustbrian/go-cloudevents/adapters/golib",
@@ -128,8 +131,8 @@
         },
         "known_good_compatibility_sets": [],
         "delivery": {
-          "implementation": "not-started",
-          "hardening": "not-started",
+          "implementation": "in-progress",
+          "hardening": "in-progress",
           "release": "not-started"
         }
       },
@@ -431,6 +434,286 @@
         "fuzz": true,
         "lint": true,
         "mutation": true,
+        "race": true,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
+      "directory": "adapters/otel",
+      "module_path": "github.com/faustbrian/go-rabbitmq-streams/adapters/otel",
+      "go_version": "1.26.6",
+      "packages": [
+        {
+          "module_directory": "adapters/otel",
+          "directory": ".",
+          "name": "rabbitstreamotel",
+          "import_path": "github.com/faustbrian/go-rabbitmq-streams/adapters/otel",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        }
+      ],
+      "purpose": "`rabbitstreamotel` converts the root module's bounded `rabbitstream.Observation` values into caller-owned OpenTelemetry metrics and propagates W3C Trace Context through `rabbitstream.Message` headers. The root module remains telemetry-vendor neutral.",
+      "lifecycle": "stable",
+      "kind": "public library",
+      "releasable": true,
+      "family": "integration-and-data-movement",
+      "family_label": "Integration And Data Movement",
+      "family_description": "Bounded external I/O, data movement, provider boundaries, and derived search state.",
+      "family_order": 7,
+      "version": "1.0.0",
+      "tag_prefix": "adapters/otel/v",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-rabbitmq-streams"
+      ],
+      "reverse_owned_dependencies": [],
+      "external_runtime_dependencies": [
+        "go.opentelemetry.io/otel",
+        "go.opentelemetry.io/otel/metric",
+        "go.opentelemetry.io/otel/sdk/metric",
+        "go.opentelemetry.io/otel/trace"
+      ],
+      "required_services": [],
+      "build_tags": [],
+      "test_tags": [],
+      "interoperability_tools": [],
+      "specifications": [],
+      "conformance_corpora": [],
+      "provenance": [],
+      "goal_files": [],
+      "goal_status": "not-applicable",
+      "goal_evidence": [],
+      "cohesion": {
+        "family": "integration-and-data-movement",
+        "secondary_capabilities": [
+          "observability",
+          "protocols-and-schemas"
+        ],
+        "responsibility": "Translate bounded RabbitMQ Streams observations into caller-owned OpenTelemetry metrics and propagate W3C Trace Context through message headers.",
+        "non_goals": [
+          "Create, configure, flush, or shut down OpenTelemetry providers and exporters.",
+          "Record message payloads, credentials, or unbounded application attributes.",
+          "Change RabbitMQ Streams delivery, retry, or lifecycle policy."
+        ],
+        "public_package_identifier": "rabbitstreamotel",
+        "primary_entry_packages": [
+          "github.com/faustbrian/go-rabbitmq-streams/adapters/otel"
+        ],
+        "package_selection": {
+          "github.com/faustbrian/go-rabbitmq-streams/adapters/otel": "Use when a rabbitstream application needs bounded OpenTelemetry metrics or W3C Trace Context propagation without giving the core module telemetry ownership."
+        },
+        "lifecycle_status": "active",
+        "maturity": "stable",
+        "construction_styles": [
+          "new-config"
+        ],
+        "lifecycle_styles": [
+          "stateless"
+        ],
+        "ownership": {
+          "configuration": "caller",
+          "mutable_inputs": [
+            "borrow",
+            "copy"
+          ],
+          "runtime_resources": "caller",
+          "background_work": "none"
+        },
+        "optional_owned_dependencies": [],
+        "adapters": [],
+        "companions": [],
+        "supported_go": {
+          "minimum": "1.26.6",
+          "tested": [
+            "1.26.6"
+          ]
+        },
+        "supported_platforms": [
+          "portable-go"
+        ],
+        "supported_backends": [
+          "opentelemetry"
+        ],
+        "supported_protocols": [
+          "w3c-trace-context"
+        ],
+        "documentation": {
+          "readme": "adapters/otel/README.md",
+          "api": "https://pkg.go.dev/github.com/faustbrian/go-rabbitmq-streams/adapters/otel",
+          "adoption": "adapters/otel/README.md",
+          "security": "SECURITY.md",
+          "compatibility": "adapters/otel/docs/reference.md",
+          "performance": "adapters/otel/docs/reference.md",
+          "examples": "adapters/otel/example_test.go",
+          "faq": "adapters/otel/docs/reference.md",
+          "changelog": "adapters/otel/CHANGELOG.md",
+          "pkg_go_dev": "https://pkg.go.dev/github.com/faustbrian/go-rabbitmq-streams/adapters/otel",
+          "ecosystem_index": "https://github.com/faustbrian/go-library-tools/blob/v1.4.0/docs/ecosystem/README.md"
+        },
+        "known_good_compatibility_sets": [],
+        "delivery": {
+          "implementation": "in-progress",
+          "hardening": "in-progress",
+          "release": "not-started"
+        }
+      },
+      "gates": {
+        "api_compatibility": true,
+        "benchmarks": false,
+        "conformance": false,
+        "coverage": true,
+        "documentation": true,
+        "fuzz": false,
+        "lint": true,
+        "mutation": false,
+        "race": true,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
+      "directory": "adapters/rabbitmq",
+      "module_path": "github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq",
+      "go_version": "1.26.6",
+      "packages": [
+        {
+          "module_directory": "adapters/rabbitmq",
+          "directory": ".",
+          "name": "rabbitmq",
+          "import_path": "github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        }
+      ],
+      "purpose": "This nested module adapts the pinned RabbitMQ-supported Go Streams client to the stable policy types in the root [`rabbitstream`](../..) module. It owns protocol resources while keeping low-level client types out of ordinary public APIs.",
+      "lifecycle": "stable",
+      "kind": "public library",
+      "releasable": true,
+      "family": "integration-and-data-movement",
+      "family_label": "Integration And Data Movement",
+      "family_description": "Bounded external I/O, data movement, provider boundaries, and derived search state.",
+      "family_order": 7,
+      "version": "1.0.0",
+      "tag_prefix": "adapters/rabbitmq/v",
+      "owned_dependencies": [
+        "github.com/faustbrian/go-rabbitmq-streams"
+      ],
+      "reverse_owned_dependencies": [],
+      "external_runtime_dependencies": [
+        "github.com/rabbitmq/rabbitmq-stream-go-client"
+      ],
+      "required_services": [
+        "rabbitstream"
+      ],
+      "build_tags": [],
+      "test_tags": [
+        "integration"
+      ],
+      "interoperability_tools": [],
+      "specifications": [],
+      "conformance_corpora": [],
+      "provenance": [],
+      "goal_files": [],
+      "goal_status": "not-applicable",
+      "goal_evidence": [],
+      "cohesion": {
+        "family": "integration-and-data-movement",
+        "secondary_capabilities": [
+          "database-and-storage",
+          "eventing-and-messaging",
+          "protocols-and-schemas",
+          "resilience-and-admission",
+          "transport-and-networking"
+        ],
+        "responsibility": "Adapt the RabbitMQ-supported Go Streams client to bounded rabbitstream policy while owning protocol connections, sessions, cursors, recovery, and wire conversion.",
+        "non_goals": [
+          "Create, change, or delete RabbitMQ Streams or Super Stream topology.",
+          "Expose low-level RabbitMQ client types through ordinary public APIs.",
+          "Provide exactly-once processing or retry ambiguous accepted publishes invisibly."
+        ],
+        "public_package_identifier": "rabbitmq",
+        "primary_entry_packages": [
+          "github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq"
+        ],
+        "package_selection": {
+          "github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq": "Use with the root rabbitstream policy when connecting to supported RabbitMQ Streams and Super Streams through the pinned RabbitMQ Go client."
+        },
+        "lifecycle_status": "active",
+        "maturity": "stable",
+        "construction_styles": [
+          "new-config",
+          "open"
+        ],
+        "lifecycle_styles": [
+          "close",
+          "run"
+        ],
+        "ownership": {
+          "configuration": "caller",
+          "mutable_inputs": [
+            "copy"
+          ],
+          "runtime_resources": "package",
+          "background_work": "package"
+        },
+        "optional_owned_dependencies": [],
+        "adapters": [],
+        "companions": [
+          "github.com/faustbrian/go-transactional-outbox/adapters/gorabbitstream"
+        ],
+        "supported_go": {
+          "minimum": "1.26.6",
+          "tested": [
+            "1.26.6"
+          ]
+        },
+        "supported_platforms": [
+          "portable-go"
+        ],
+        "supported_backends": [
+          "rabbitmq"
+        ],
+        "supported_protocols": [
+          "amqp-1-0",
+          "rabbitmq-streams"
+        ],
+        "documentation": {
+          "readme": "adapters/rabbitmq/README.md",
+          "api": "https://pkg.go.dev/github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq",
+          "adoption": "adapters/rabbitmq/README.md",
+          "security": "SECURITY.md",
+          "compatibility": "adapters/rabbitmq/COMPATIBILITY.md",
+          "performance": "docs/operations.md",
+          "examples": "adapters/rabbitmq/example_test.go",
+          "faq": "adapters/rabbitmq/README.md",
+          "changelog": "adapters/rabbitmq/CHANGELOG.md",
+          "pkg_go_dev": "https://pkg.go.dev/github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq",
+          "ecosystem_index": "https://github.com/faustbrian/go-library-tools/blob/v1.4.0/docs/ecosystem/README.md"
+        },
+        "known_good_compatibility_sets": [],
+        "delivery": {
+          "implementation": "in-progress",
+          "hardening": "in-progress",
+          "release": "not-started"
+        }
+      },
+      "gates": {
+        "api_compatibility": true,
+        "benchmarks": false,
+        "conformance": false,
+        "coverage": true,
+        "documentation": true,
+        "fuzz": false,
+        "lint": true,
+        "mutation": false,
         "race": true,
         "security": true,
         "tests": true
