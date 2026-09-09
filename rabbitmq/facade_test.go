@@ -2,6 +2,7 @@
 package rabbitmq_test
 
 import (
+	"context"
 	"errors"
 	"reflect"
 	"testing"
@@ -24,16 +25,17 @@ func TestFacadePreservesTypeAndErrorContracts(t *testing.T) {
 		}
 	}
 
+	var nilContext context.Context
 	producerConfig := rabbitstream.ProducerConfig{Stream: "events"}
-	legacyProducer, legacyErr := legacy.OpenProducer(nil, rabbitstream.ConnectionConfig{}, producerConfig)
-	canonicalProducer, canonicalErr := successor.OpenProducer(nil, rabbitstream.ConnectionConfig{}, producerConfig)
+	legacyProducer, legacyErr := legacy.OpenProducer(nilContext, rabbitstream.ConnectionConfig{}, producerConfig)
+	canonicalProducer, canonicalErr := successor.OpenProducer(nilContext, rabbitstream.ConnectionConfig{}, producerConfig)
 	if legacyProducer != canonicalProducer || !sameOperationError(legacyErr, canonicalErr) {
 		t.Fatalf("OpenProducer() = %#v, %v; successor = %#v, %v", legacyProducer, legacyErr, canonicalProducer, canonicalErr)
 	}
 
 	consumerConfig := rabbitstream.ConsumerConfig{Stream: "events", ConsumerName: "worker"}
-	legacyConsumer, legacyErr := legacy.OpenConsumer(nil, rabbitstream.ConnectionConfig{}, consumerConfig)
-	canonicalConsumer, canonicalErr := successor.OpenConsumer(nil, rabbitstream.ConnectionConfig{}, consumerConfig)
+	legacyConsumer, legacyErr := legacy.OpenConsumer(nilContext, rabbitstream.ConnectionConfig{}, consumerConfig)
+	canonicalConsumer, canonicalErr := successor.OpenConsumer(nilContext, rabbitstream.ConnectionConfig{}, consumerConfig)
 	if legacyConsumer != canonicalConsumer || !sameOperationError(legacyErr, canonicalErr) {
 		t.Fatalf("OpenConsumer() = %#v, %v; successor = %#v, %v", legacyConsumer, legacyErr, canonicalConsumer, canonicalErr)
 	}
