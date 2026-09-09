@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.1.1 - 2026-09-09
+
 ### Changed
 
 - Convert the released `otel` and `rabbitmq` modules into deprecated

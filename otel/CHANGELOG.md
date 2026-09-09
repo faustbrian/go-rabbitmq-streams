@@ -4,6 +4,8 @@ All notable changes to this module are documented here.
 
 ## Unreleased
 
+## 1.0.1 - 2026-09-09
+
 ### Deprecated
 
 - Delegate the released module to

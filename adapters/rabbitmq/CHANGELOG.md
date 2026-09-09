@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.0.1 - 2026-09-09
+
 ### Added
 
 - Own the RabbitMQ Streams specification decisions, pinned authorities,
