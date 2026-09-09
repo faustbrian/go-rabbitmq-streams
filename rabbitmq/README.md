@@ -1,7 +1,7 @@
 # rabbitstream/rabbitmq
 
 This nested module adapts the pinned RabbitMQ-supported Go Streams client to the
-stable policy types in the root [`rabbitstream`](..) module. It owns protocol
+stable policy types in the root [`rabbitstream`](https://pkg.go.dev/github.com/faustbrian/go-rabbitmq-streams) module. It owns protocol
 resources while keeping low-level client types out of ordinary public APIs.
 
 The dependency remains nested because the selected client brings its own
@@ -44,7 +44,7 @@ consumers.
 
 The compile-checked [producer and consumer examples](example_test.go) include
 complete imports, connection setup, publication, and handler execution. See the
-root [producer and consumer guide](../README.md) for the policy contract.
+root [producer and consumer guide](https://github.com/faustbrian/go-rabbitmq-streams/blob/main/README.md) for the policy contract.
 Production TLS is the default; plaintext is accepted only through the explicit
 development helper. Streams and Super Streams must already exist.
 
@@ -89,7 +89,7 @@ The adapter uses one AMQP 1.0 data section, standard message properties,
 application properties, and the reserved
 `x-rabbitstream-routing-key` annotation. Only string and binary annotation or
 application-property values are accepted. See the root
-[interoperability contract](../docs/interoperability.md).
+[interoperability contract](https://github.com/faustbrian/go-rabbitmq-streams/blob/main/docs/interoperability.md).
 
 ## Failure and lifecycle behavior
 
@@ -117,7 +117,7 @@ rendered root errors remain category-only. Applications must not log unwrapped
 causes without redaction.
 
 Use least-privilege RabbitMQ users for publishing, consuming/offset storage,
-and inspection. See the [operations guide](../docs/operations.md).
+and inspection. See the [operations guide](https://github.com/faustbrian/go-rabbitmq-streams/blob/main/docs/operations.md).
 
 ## Testing and interoperability boundary
 
@@ -163,8 +163,8 @@ The application. This adapter does not own a telemetry provider.
 
 See [CHANGELOG.md](CHANGELOG.md).
 
-See the [repository documentation](../docs/README.md) for package selection,
+See the [repository documentation](https://github.com/faustbrian/go-rabbitmq-streams/blob/main/docs/README.md) for package selection,
 operations, and interoperability guidance.
 
 For compatibility and upgrade policy, see [COMPATIBILITY.md](COMPATIBILITY.md).
-For adoption help, use the [parent support policy](../SUPPORT.md).
+For adoption help, use the [parent support policy](https://github.com/faustbrian/go-rabbitmq-streams/blob/main/SUPPORT.md).

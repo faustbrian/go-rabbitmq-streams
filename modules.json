@@ -327,9 +327,7 @@
         "rabbitstream"
       ],
       "build_tags": [],
-      "test_tags": [
-        "integration"
-      ],
+      "test_tags": [],
       "interoperability_tools": [],
       "specifications": [
         "RabbitMQ Streams 4.3.5 protocol and semantics"
@@ -614,9 +612,7 @@
         "rabbitstream"
       ],
       "build_tags": [],
-      "test_tags": [
-        "integration"
-      ],
+      "test_tags": [],
       "interoperability_tools": [],
       "specifications": [],
       "conformance_corpora": [],

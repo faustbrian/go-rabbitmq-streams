@@ -60,16 +60,16 @@ only after RabbitMQ Streams clients stop emitting observations.
 - [Documentation index](docs/README.md)
 - [Complete technical guide](docs/reference.md)
 - [Go API reference](https://pkg.go.dev/github.com/faustbrian/go-rabbitmq-streams/otel)
-- [Parent package documentation](../docs/README.md)
-- [Operations and FAQ](../docs/operations.md)
-- [Support](../SUPPORT.md)
-- [Private vulnerability reporting](../SECURITY.md)
+- [Parent package documentation](https://github.com/faustbrian/go-rabbitmq-streams/blob/main/docs/README.md)
+- [Operations and FAQ](https://github.com/faustbrian/go-rabbitmq-streams/blob/main/docs/operations.md)
+- [Support](https://github.com/faustbrian/go-rabbitmq-streams/blob/main/SUPPORT.md)
+- [Private vulnerability reporting](https://github.com/faustbrian/go-rabbitmq-streams/blob/main/SECURITY.md)
 
 ## Compatibility and support
 
 This stable module requires Go 1.26.6 and follows Semantic Versioning. Use the
-[parent support policy](../SUPPORT.md) for adoption help and report
-vulnerabilities through the [parent security policy](../SECURITY.md).
+[parent support policy](https://github.com/faustbrian/go-rabbitmq-streams/blob/main/SUPPORT.md) for adoption help and report
+vulnerabilities through the [parent security policy](https://github.com/faustbrian/go-rabbitmq-streams/blob/main/SECURITY.md).
 
 ## License
 

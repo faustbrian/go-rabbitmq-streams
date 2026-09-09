@@ -163,5 +163,6 @@ No. Only W3C Trace Context fields are supported.
 
 See [CHANGELOG.md](../CHANGELOG.md).
 
-See the [repository documentation](../../docs/README.md) for package selection,
+See the [repository documentation](https://github.com/faustbrian/go-rabbitmq-streams/blob/main/docs/README.md)
+for package selection,
 operations, and interoperability guidance.
