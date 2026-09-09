@@ -52,9 +52,9 @@ Use this order:
 1. stop accepting new publish requests;
 2. cancel consumer and replay contexts;
 3. wait for `Run` or `RunBatch` to return within the service drain deadline;
-4. call every consumer's `Close` with a bounded context;
+4. call every consumer's `Shutdown` with a bounded context;
 5. wait for accepted asynchronous publish outcomes;
-6. close producers with a bounded context;
+6. call every producer's `Shutdown` with a bounded context;
 7. flush and shut down caller-owned telemetry providers;
 8. terminate the process only after owned resources have closed or the outer
    deployment deadline forces termination.

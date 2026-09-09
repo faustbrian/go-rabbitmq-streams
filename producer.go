@@ -533,10 +533,12 @@ func hasDuplicateMetadataKey(entries []MetadataEntry) bool {
 	return false
 }
 
-// Close stops admission, waits for admitted publishes within their finite
-// confirmation bounds, then closes the transport. It is idempotent. A caller
-// cancellation stops waiting but does not undo the close already in progress.
-func (producer *Producer) Close(ctx context.Context) error {
+// Shutdown stops admission, waits for admitted publishes within their finite
+// confirmation bounds, then closes the transport. It is idempotent and safe
+// for concurrent use. Each caller's context bounds only that caller's wait;
+// cleanup continues once started and every caller that observes completion
+// receives the same terminal cleanup result.
+func (producer *Producer) Shutdown(ctx context.Context) error {
 	if ctx == nil {
 		return validationError(errors.New("close context is nil"))
 	}
@@ -553,6 +555,13 @@ func (producer *Producer) Close(ctx context.Context) error {
 	case <-ctx.Done():
 		return &OperationError{Operation: OperationClose, Category: CategoryCanceled, Cause: ctx.Err()}
 	}
+}
+
+// Close preserves the released context-bounded shutdown contract.
+//
+// Deprecated: use Shutdown.
+func (producer *Producer) Close(ctx context.Context) error {
+	return producer.Shutdown(ctx)
 }
 
 func (producer *Producer) close() {

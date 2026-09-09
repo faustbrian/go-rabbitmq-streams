@@ -44,7 +44,7 @@ func verifyMutationSafetyBoundaries() error {
 
 	consumer, err := NewConsumer(ConsumerConfig{
 		Stream: "stream", ConsumerName: "mutation-guard",
-		Policy: ConsumerPolicy{CloseTimeout: time.Nanosecond},
+		Policy: ConsumerPolicy{CloseTimeout: time.Second},
 	}, mutationGuardConsumerTransport{})
 	if err != nil {
 		return fmt.Errorf("consumer close guard: %w", err)

@@ -1,6 +1,6 @@
 schema_version: 1
-tool_version: v1.4.0
-tool_checksums_sha256: ba1b71d41dc9b58d5bfb411bc89ae2d45b6f3f778152714bfd1afeab0bef2f33
+tool_version: v1.6.1
+tool_checksums_sha256: 9a93685df9ad17819a9f96d0cc62e64750ea2b02e808a045d45ca6cf1e908a21
 
 manifest:
   modules: modules.json
@@ -27,6 +27,12 @@ api:
     - module: .
       mode: apidiff
       path: api/baseline.txt
+    - module: adapters/otel
+      mode: apidiff
+      path: adapters/otel/api/baseline.txt
+    - module: adapters/rabbitmq
+      mode: apidiff
+      path: adapters/rabbitmq/api/baseline.txt
     - module: otel
       mode: apidiff
       path: otel/api/baseline.txt

@@ -770,3 +770,73 @@ func TestConsumerCloseReportsNilCancellationTimeoutAndTransportFailure(t *testin
 		t.Fatalf("active Run() error = %v", err)
 	}
 }
+
+func TestConsumerShutdownBoundsEachCallerAndSharesTerminalResult(t *testing.T) {
+	t.Parallel()
+
+	release := make(chan struct{})
+	transport := newFakeConsumerTransport()
+	transport.closeBlock = release
+	transport.closeErr = ErrAuthorization
+	consumer, err := NewConsumer(
+		ConsumerConfig{Stream: "stream", ConsumerName: "consumer"},
+		transport,
+	)
+	if err != nil {
+		t.Fatalf("NewConsumer() error = %v", err)
+	}
+
+	canceled, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := consumer.Shutdown(canceled); !errors.Is(err, ErrCanceled) {
+		t.Fatalf("Shutdown(canceled) error = %v", err)
+	}
+
+	terminal := make(chan error, 1)
+	go func() { terminal <- consumer.Shutdown(boundedTestContext()) }()
+	select {
+	case err := <-terminal:
+		t.Fatalf("second Shutdown returned before terminal cleanup: %v", err)
+	case <-time.After(time.Millisecond):
+	}
+	close(release)
+	if err := receiveTest(t, terminal); !errors.Is(err, ErrAuthorization) {
+		t.Fatalf("Shutdown() terminal error = %v", err)
+	}
+	if err := consumer.Close(boundedTestContext()); !errors.Is(err, ErrAuthorization) {
+		t.Fatalf("Close() shared terminal error = %v", err)
+	}
+	transport.mutex.Lock()
+	closeCalls := transport.closeCount
+	transport.mutex.Unlock()
+	if closeCalls != 1 {
+		t.Fatalf("transport Close() calls = %d", closeCalls)
+	}
+}
+
+func TestConsumerShutdownBoundsTransportCloseAndSharesTimeout(t *testing.T) {
+	t.Parallel()
+
+	release := make(chan struct{})
+	transport := newFakeConsumerTransport()
+	transport.closeBlock = release
+	consumer, err := NewConsumer(ConsumerConfig{
+		Stream:       "stream",
+		ConsumerName: "consumer",
+		Policy:       ConsumerPolicy{CloseTimeout: time.Millisecond},
+	}, transport)
+	if err != nil {
+		t.Fatalf("NewConsumer() error = %v", err)
+	}
+	t.Cleanup(func() { close(release) })
+
+	if err := consumer.Shutdown(boundedTestContext()); !errors.Is(err, ErrTimeout) {
+		t.Fatalf("Shutdown() blocked transport error = %v", err)
+	}
+	if err := consumer.Shutdown(boundedTestContext()); !errors.Is(err, ErrTimeout) {
+		t.Fatalf("second Shutdown() terminal error = %v", err)
+	}
+	if err := consumer.Close(boundedTestContext()); !errors.Is(err, ErrTimeout) {
+		t.Fatalf("Close() terminal error = %v", err)
+	}
+}

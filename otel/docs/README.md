@@ -11,10 +11,10 @@
 
 ## Security and compatibility
 
-- [Parent security policy](../../SECURITY.md)
+- [Parent security policy](https://github.com/faustbrian/go-rabbitmq-streams/blob/main/SECURITY.md)
 - [Compatibility and limitations](reference.md)
 
 ## Project
 
 - [Changelog](../CHANGELOG.md)
-- [Parent package documentation](../../docs/README.md)
+- [Parent package documentation](https://github.com/faustbrian/go-rabbitmq-streams/blob/main/docs/README.md)
