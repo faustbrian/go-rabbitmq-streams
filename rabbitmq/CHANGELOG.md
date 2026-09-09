@@ -18,7 +18,7 @@
   repository-local cohesion validation entry point for this module.
 - Govern the adapter's RabbitMQ Streams protocol, wire mapping, confirmation,
   offset, replay, Super Stream, and transport-security choices through the
-  [specification decision register](https://github.com/faustbrian/go-rabbitmq-streams/blob/main/adapters/rabbitmq/docs/specification-decisions.md):
+  [historical specification decision register](https://github.com/faustbrian/go-rabbitmq-streams/blob/cb19d94b6e44bf08c46a0cdc45146205a2c58b04/rabbitmq/docs/specification-decisions.md):
   `RABBITMQ-STREAM-DEC-001 sha256:82351d241102d65c13bd391ad564b5bccd4483197919ecd337116b288ea77fd3`,
   `RABBITMQ-STREAM-DEC-002 sha256:faf727d2bbb98e5f944924b295de5848b5f6a5b41c6e241ebe7caf8e6e94da8a`,
   `RABBITMQ-STREAM-DEC-003 sha256:42dfa5d274b3e421be3328a4b447d322723853ecccc239090c329cbf924711dd`,
