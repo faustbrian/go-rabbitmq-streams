@@ -4,6 +4,8 @@
 
 - [Package overview](../README.md)
 - [Go package documentation](https://pkg.go.dev/github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq)
+- [Specification decisions](specification-decisions.md)
+- [Specification conformance matrix](../specification/README.md)
 
 ## Security and compatibility
 

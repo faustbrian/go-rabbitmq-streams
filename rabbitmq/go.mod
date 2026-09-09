@@ -3,8 +3,8 @@ module github.com/faustbrian/go-rabbitmq-streams/rabbitmq
 go 1.26.6
 
 require (
-	github.com/faustbrian/go-rabbitmq-streams v1.0.0
-	github.com/rabbitmq/rabbitmq-stream-go-client v1.8.3
+	github.com/faustbrian/go-rabbitmq-streams v1.1.0
+	github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq v1.0.0
 )
 
 require (
@@ -15,6 +15,7 @@ require (
 	github.com/klauspost/compress v1.19.1 // indirect
 	github.com/pierrec/lz4 v2.6.1+incompatible // indirect
 	github.com/pkg/errors v0.9.1 // indirect
+	github.com/rabbitmq/rabbitmq-stream-go-client v1.8.3 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/otel v1.44.0 // indirect

@@ -10,3 +10,7 @@ defaults.
 Changed protocol behavior requires compatibility, wire-format,
 provider-evidence, and migration review even when the earlier behavior was
 undocumented.
+
+The [specification decision register](docs/specification-decisions.md) and
+[conformance matrix](specification/README.md) are owned by this canonical
+module. The deprecated `rabbitmq` facade does not maintain a second copy.

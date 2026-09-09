@@ -4,6 +4,12 @@ All notable changes to this module are documented here.
 
 ## Unreleased
 
+### Deprecated
+
+- Delegate the released module to
+  `github.com/faustbrian/go-rabbitmq-streams/adapters/otel` while preserving
+  public type identities, errors, instrumentation scope, and behavior.
+
 ### Changed
 
 - Advance module verification and ecosystem navigation to the final

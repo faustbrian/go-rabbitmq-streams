@@ -44,7 +44,10 @@ vendor-neutral policy and transport seams. The
 [`adapters/rabbitmq`](adapters/rabbitmq/README.md) module adapts the supported
 RabbitMQ Go Streams client, and [`adapters/otel`](adapters/otel/README.md)
 provides optional OpenTelemetry metrics and W3C Trace Context propagation.
-The released `rabbitmq` and `otel` paths remain available during migration.
+The released `rabbitmq` and `otel` paths remain supported as deprecated,
+behavior-compatible facades. New code should use the canonical paths; existing
+code can migrate by changing only its import and module path. See the
+[migration guide](docs/migration.md).
 
 | Package | Use |
 | --- | --- |
