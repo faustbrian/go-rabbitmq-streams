@@ -7,6 +7,6 @@ replay semantics, Super Stream routing, transport security, and documented
 defaults.
 
 Observable protocol choices are stable entries in the
-[specification decision register](docs/specification-decisions.md). A changed
+[specification decision register](https://github.com/faustbrian/go-rabbitmq-streams/blob/main/adapters/rabbitmq/docs/specification-decisions.md). A changed
 decision requires compatibility, wire-format, provider-evidence, and migration
 review even when the earlier behavior was undocumented.
