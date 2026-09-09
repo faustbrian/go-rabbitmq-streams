@@ -1,10 +1,11 @@
+//nolint:staticcheck // This example intentionally documents the deprecated compatibility path.
 package rabbitstreamotel_test
 
 import (
 	"context"
 	"fmt"
 
-	"github.com/faustbrian/go-rabbitmq-streams"
+	rabbitstream "github.com/faustbrian/go-rabbitmq-streams"
 	rabbitstreamotel "github.com/faustbrian/go-rabbitmq-streams/otel"
 	metricnoop "go.opentelemetry.io/otel/metric/noop"
 )

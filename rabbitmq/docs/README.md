@@ -10,8 +10,8 @@
 - [Parent security policy](https://github.com/faustbrian/go-rabbitmq-streams/blob/main/SECURITY.md)
 - [Changelog](../CHANGELOG.md)
 - [Compatibility policy](../COMPATIBILITY.md)
-- [Specification decisions](specification-decisions.md)
-- [Specification conformance matrix](../specification/README.md)
+- [Canonical specification decisions](https://github.com/faustbrian/go-rabbitmq-streams/blob/main/adapters/rabbitmq/docs/specification-decisions.md)
+- [Canonical specification conformance matrix](https://github.com/faustbrian/go-rabbitmq-streams/blob/main/adapters/rabbitmq/specification/README.md)
 
 ## Related packages
 

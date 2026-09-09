@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Changed
+
+- Convert the released `otel` and `rabbitmq` modules into deprecated
+  behavior-compatible facades for their canonical adapter successors.
+
+### Documentation
+
+- Add import-only adapter migration guidance and move RabbitMQ specification
+  ownership to the canonical adapter module.
+
+## 1.1.0 - 2026-09-09
+
 ### Added
 
 - Add concurrency-safe `Producer.Shutdown` and `Consumer.Shutdown` lifecycles

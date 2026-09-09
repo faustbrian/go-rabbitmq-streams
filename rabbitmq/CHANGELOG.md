@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Deprecated
+
+- Delegate the released module to
+  `github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq` while
+  preserving public type identities, errors, and behavior.
+
 ### Changed
 
 - Advance module verification and ecosystem navigation to the final

@@ -15,12 +15,6 @@ mutation:
     - module: .
       archive: .verification/mutation/bootstrap/root.zip
       ledger: .verification/mutation/migration-ledger.json
-    - module: otel
-      archive: .verification/mutation/bootstrap/otel.zip
-      ledger: .verification/mutation/migration-ledger.json
-    - module: rabbitmq
-      archive: .verification/mutation/bootstrap/rabbitmq.zip
-      ledger: .verification/mutation/migration-ledger.json
 
 api:
   baselines:
@@ -41,7 +35,7 @@ api:
       path: rabbitmq/api/baseline.txt
 
 operations:
-  - module: rabbitmq
+  - module: adapters/rabbitmq
     gate: conformance
     steps:
       - type: go-test
@@ -75,7 +69,7 @@ operations:
         benchmark: .
         budget: 100ms
         timeout: 20m
-  - module: otel
+  - module: adapters/otel
     gate: fuzz
     steps:
       - type: go-test
@@ -88,7 +82,7 @@ operations:
         fuzz: '^FuzzObservationIsolation$'
         budget: 100x
         timeout: 2m
-  - module: otel
+  - module: adapters/otel
     gate: benchmark
     steps:
       - type: go-test
@@ -96,7 +90,7 @@ operations:
         benchmark: .
         budget: 100ms
         timeout: 20m
-  - module: rabbitmq
+  - module: adapters/rabbitmq
     gate: fuzz
     steps:
       - type: go-test
@@ -114,7 +108,7 @@ operations:
         fuzz: '^FuzzConfirmationClassification$'
         budget: 100x
         timeout: 2m
-  - module: rabbitmq
+  - module: adapters/rabbitmq
     gate: benchmark
     steps:
       - type: go-test

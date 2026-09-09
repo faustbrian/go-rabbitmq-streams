@@ -1,3 +1,4 @@
+//nolint:staticcheck // These examples intentionally document the deprecated compatibility path.
 package rabbitmq_test
 
 import (
@@ -7,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/faustbrian/go-rabbitmq-streams"
+	rabbitstream "github.com/faustbrian/go-rabbitmq-streams"
 	"github.com/faustbrian/go-rabbitmq-streams/rabbitmq"
 )
 
@@ -16,10 +17,7 @@ func ExampleOpenProducer() {
 	defer cancel()
 
 	connection := rabbitstream.ConnectionConfig{
-		Endpoints: []rabbitstream.Endpoint{{
-			Host: "rabbitmq.internal",
-			Port: 5551,
-		}},
+		Endpoints:   []rabbitstream.Endpoint{{Host: "rabbitmq.internal", Port: 5551}},
 		VirtualHost: "/",
 		Credentials: rabbitstream.StaticCredentials(
 			os.Getenv("RABBITMQ_STREAM_USER"),
@@ -39,13 +37,11 @@ func ExampleOpenProducer() {
 	defer func() {
 		closeCtx, closeCancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer closeCancel()
-		_ = producer.Close(closeCtx)
+		_ = producer.Shutdown(closeCtx)
 	}()
 
 	result, err := producer.Publish(ctx, rabbitstream.Message{
-		Stream:    "tracking.events",
-		MessageID: "event-123",
-		Payload:   []byte("opaque event bytes"),
+		Stream: "tracking.events", MessageID: "event-123", Payload: []byte("opaque event bytes"),
 	})
 	if err != nil {
 		panic(err)
@@ -60,10 +56,7 @@ func ExampleOpenConsumer() {
 	defer cancel()
 
 	connection := rabbitstream.ConnectionConfig{
-		Endpoints: []rabbitstream.Endpoint{{
-			Host: "rabbitmq.internal",
-			Port: 5551,
-		}},
+		Endpoints:   []rabbitstream.Endpoint{{Host: "rabbitmq.internal", Port: 5551}},
 		VirtualHost: "/",
 		Credentials: rabbitstream.StaticCredentials(
 			os.Getenv("RABBITMQ_STREAM_USER"),
@@ -77,9 +70,7 @@ func ExampleOpenConsumer() {
 	consumer, err := rabbitmq.OpenConsumer(ctx, connection, rabbitstream.ConsumerConfig{
 		Stream:       "tracking.events",
 		ConsumerName: "tracking-projector-v1",
-		Start: rabbitstream.StartPosition{
-			Kind: rabbitstream.OffsetStartStored,
-		},
+		Start:        rabbitstream.StartPosition{Kind: rabbitstream.OffsetStartStored},
 	})
 	if err != nil {
 		panic(err)
@@ -87,11 +78,11 @@ func ExampleOpenConsumer() {
 	defer func() {
 		closeCtx, closeCancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer closeCancel()
-		_ = consumer.Close(closeCtx)
+		_ = consumer.Shutdown(closeCtx)
 	}()
 
 	err = consumer.Run(ctx, func(_ context.Context, message rabbitstream.Message) error {
-		_ = message.Payload // Decode and apply the application event here.
+		_ = message.Payload
 		return nil
 	})
 	if err != nil && !errors.Is(err, context.DeadlineExceeded) {

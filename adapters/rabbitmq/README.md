@@ -135,6 +135,10 @@ The existence of these fixtures is not itself passing evidence. Use the
 repository gates and record the exact RabbitMQ image, client, Go, OS, and
 architecture for an interoperability claim.
 
+The canonical [specification decision register](docs/specification-decisions.md)
+and [conformance matrix](specification/README.md) define the maintained
+protocol interpretation boundary.
+
 Direct Laravel/PHP Streams compatibility is not claimed because the pinned
 RabbitMQ support baseline has no supported PHP Streams client.
 

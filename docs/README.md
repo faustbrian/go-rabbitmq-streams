@@ -21,7 +21,8 @@ Streams, with separate RabbitMQ and OpenTelemetry adapter modules.
 - [Delivery guarantees and responsibility boundaries](guarantees.md)
 - [Language-neutral interoperability](interoperability.md)
 - [Kafka semantic mapping and migration](kafka-mapping.md)
-- [Pinned RabbitMQ adapter sources](../rabbitmq/specification/sources.lock.json)
+- [Lifecycle and adapter-path migration](migration.md)
+- [Pinned RabbitMQ adapter sources](../adapters/rabbitmq/specification/sources.lock.json)
 
 ## Operations
 

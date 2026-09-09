@@ -2,7 +2,7 @@
 
 This document separates facts that are often collapsed into a misleading
 "delivery guarantee". The pinned source baseline is recorded in
-[`../rabbitmq/specification/sources.lock.json`](../rabbitmq/specification/sources.lock.json).
+[`../adapters/rabbitmq/specification/sources.lock.json`](../adapters/rabbitmq/specification/sources.lock.json).
 
 ## Responsibility matrix
 
