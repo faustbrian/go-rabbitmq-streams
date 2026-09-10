@@ -7,7 +7,7 @@
 [![Documentation](https://img.shields.io/badge/docs-checked_in_CI-blue)](docs/)
 [![Go Reference](https://pkg.go.dev/badge/github.com/faustbrian/go-rabbitmq-streams.svg)](https://pkg.go.dev/github.com/faustbrian/go-rabbitmq-streams)
 [![Release](https://img.shields.io/github/v/release/faustbrian/go-rabbitmq-streams?sort=semver)](https://github.com/faustbrian/go-rabbitmq-streams/releases)
-[![Go](https://img.shields.io/badge/go-1.26.6-00ADD8?logo=go)](https://go.dev/)
+[![Go](https://img.shields.io/badge/go-1.27.0-00ADD8?logo=go)](https://go.dev/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 `rabbitstream` is a policy layer for durable RabbitMQ Streams and Super Streams
@@ -17,7 +17,7 @@ RabbitMQ Streams protocol.
 
 The root policy library, RabbitMQ transport, and OpenTelemetry adapter are
 stable v1 modules. Their minimum supported Go version is 1.26.6; repository
-verification currently tests exactly Go 1.26.6.
+verification currently tests exactly Go 1.27.0.
 
 For the shared construction, ownership, lifecycle, and integration vocabulary,
 see the versioned [v1.4.0 Golib ecosystem

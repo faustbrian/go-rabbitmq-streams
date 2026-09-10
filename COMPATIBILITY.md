@@ -12,7 +12,7 @@ A directory prefix is never added to the root module's tag.
 
 All releasable modules are stable v1 libraries. Their minimum supported Go
 version is 1.26.6, and repository verification currently tests exactly Go
-1.26.6. The RabbitMQ transport's broker and client support matrix is documented
+1.27.0. The RabbitMQ transport's broker and client support matrix is documented
 in [`adapters/rabbitmq/COMPATIBILITY.md`](adapters/rabbitmq/COMPATIBILITY.md);
 OpenTelemetry support and limitations are documented in
 [`adapters/otel/docs/reference.md`](adapters/otel/docs/reference.md).
