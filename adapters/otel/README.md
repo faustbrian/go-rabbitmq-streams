@@ -68,7 +68,7 @@ only after RabbitMQ Streams clients stop emitting observations.
 
 ## Compatibility and support
 
-This stable module requires Go 1.26.6 and follows Semantic Versioning. Use the
+This stable module requires Go 1.27.0 and follows Semantic Versioning. Use the
 [parent support policy](https://github.com/faustbrian/go-rabbitmq-streams/blob/main/SUPPORT.md)
 for adoption help and report vulnerabilities through the
 [parent security policy](https://github.com/faustbrian/go-rabbitmq-streams/blob/main/SECURITY.md).

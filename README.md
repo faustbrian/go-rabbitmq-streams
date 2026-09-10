@@ -16,7 +16,7 @@ failure handling, lifecycle, and observations without implementing the
 RabbitMQ Streams protocol.
 
 The root policy library, RabbitMQ transport, and OpenTelemetry adapter are
-stable v1 modules. Their minimum supported Go version is 1.26.6; repository
+stable v1 modules. Their minimum supported Go version is 1.27.0; repository
 verification currently tests exactly Go 1.27.0.
 
 For the shared construction, ownership, lifecycle, and integration vocabulary,
