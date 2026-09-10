@@ -28,7 +28,7 @@ The released behavior retained by this facade remains documented in the
 canonical adapter's
 [specification decision register](https://github.com/faustbrian/go-rabbitmq-streams/blob/main/adapters/rabbitmq/docs/specification-decisions.md).
 
-This facade requires Go 1.26.6. Broker resources and lifecycle remain owned by
+This facade requires Go 1.27.0. Broker resources and lifecycle remain owned by
 the canonical adapter and returned root values. Use the parent
 [support](https://github.com/faustbrian/go-rabbitmq-streams/blob/main/SUPPORT.md)
 and [security](https://github.com/faustbrian/go-rabbitmq-streams/blob/main/SECURITY.md)

@@ -18,7 +18,7 @@ for package selection and shared lifecycle conventions.
 
 ## Install
 
-This stable module requires Go 1.26.6.
+This stable module requires Go 1.27.0.
 
 ```sh
 go get github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq@v1

@@ -1,12 +1,12 @@
 {
   "schema_version": 2,
   "repository": "github.com/faustbrian/go-rabbitmq-streams",
-  "go_version": "1.26.6",
+  "go_version": "1.27.0",
   "modules": [
     {
       "directory": ".",
       "module_path": "github.com/faustbrian/go-rabbitmq-streams",
-      "go_version": "1.26.6",
+      "go_version": "1.27.0",
       "packages": [
         {
           "module_directory": ".",
@@ -102,9 +102,9 @@
           "github.com/faustbrian/go-transactional-outbox/adapters/gorabbitstream"
         ],
         "supported_go": {
-          "minimum": "1.26.6",
+          "minimum": "1.27.0",
           "tested": [
-            "1.26.6"
+            "1.27.0"
           ]
         },
         "supported_platforms": [
@@ -153,7 +153,7 @@
     {
       "directory": "otel",
       "module_path": "github.com/faustbrian/go-rabbitmq-streams/otel",
-      "go_version": "1.26.6",
+      "go_version": "1.27.0",
       "packages": [
         {
           "module_directory": "otel",
@@ -234,9 +234,9 @@
         "adapters": [],
         "companions": [],
         "supported_go": {
-          "minimum": "1.26.6",
+          "minimum": "1.27.0",
           "tested": [
-            "1.26.6"
+            "1.27.0"
           ]
         },
         "supported_platforms": [
@@ -285,7 +285,7 @@
     {
       "directory": "rabbitmq",
       "module_path": "github.com/faustbrian/go-rabbitmq-streams/rabbitmq",
-      "go_version": "1.26.6",
+      "go_version": "1.27.0",
       "packages": [
         {
           "module_directory": "rabbitmq",
@@ -372,9 +372,9 @@
           "github.com/faustbrian/go-transactional-outbox/adapters/gorabbitstream"
         ],
         "supported_go": {
-          "minimum": "1.26.6",
+          "minimum": "1.27.0",
           "tested": [
-            "1.26.6"
+            "1.27.0"
           ]
         },
         "supported_platforms": [
@@ -424,7 +424,7 @@
     {
       "directory": "adapters/otel",
       "module_path": "github.com/faustbrian/go-rabbitmq-streams/adapters/otel",
-      "go_version": "1.26.6",
+      "go_version": "1.27.0",
       "packages": [
         {
           "module_directory": "adapters/otel",
@@ -511,9 +511,9 @@
         "adapters": [],
         "companions": [],
         "supported_go": {
-          "minimum": "1.26.6",
+          "minimum": "1.27.0",
           "tested": [
-            "1.26.6"
+            "1.27.0"
           ]
         },
         "supported_platforms": [
@@ -562,7 +562,7 @@
     {
       "directory": "adapters/rabbitmq",
       "module_path": "github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq",
-      "go_version": "1.26.6",
+      "go_version": "1.27.0",
       "packages": [
         {
           "module_directory": "adapters/rabbitmq",
@@ -661,9 +661,9 @@
           "github.com/faustbrian/go-transactional-outbox/adapters/gorabbitstream"
         ],
         "supported_go": {
-          "minimum": "1.26.6",
+          "minimum": "1.27.0",
           "tested": [
-            "1.26.6"
+            "1.27.0"
           ]
         },
         "supported_platforms": [

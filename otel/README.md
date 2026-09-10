@@ -26,7 +26,7 @@ unchanged. See the
 the [canonical adapter](https://pkg.go.dev/github.com/faustbrian/go-rabbitmq-streams/adapters/otel),
 and the [changelog](CHANGELOG.md).
 
-This facade requires Go 1.26.6. It owns no provider, exporter, background work,
+This facade requires Go 1.27.0. It owns no provider, exporter, background work,
 or shutdown lifecycle. Use the parent
 [support](https://github.com/faustbrian/go-rabbitmq-streams/blob/main/SUPPORT.md)
 and [security](https://github.com/faustbrian/go-rabbitmq-streams/blob/main/SECURITY.md)
