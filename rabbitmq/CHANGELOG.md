@@ -4,6 +4,9 @@
 
 ### Changed
 
+- Update the deprecated RabbitMQ adapter's indirect system dependency
+  to golang.org/x/sys 0.48.0 while retaining its client version.
+
 - Update the deprecated RabbitMQ adapter's indirect OpenTelemetry API,
   metric, and trace graph to 1.47.0 without changing its client version.
 

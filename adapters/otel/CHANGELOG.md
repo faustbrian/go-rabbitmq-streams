@@ -4,6 +4,9 @@
 
 ### Changed
 
+- Align the OpenTelemetry metric SDK and its resolved SDK dependencies
+  with API 1.47.0 while keeping providers and shutdown caller-owned.
+
 - Update the OpenTelemetry API, metric, and trace dependency graph to
   1.47.0 while retaining SDK 1.45.0 and caller-owned metric providers.
 

@@ -6,6 +6,9 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- Align the deprecated adapter's resolved OpenTelemetry metric SDK
+  with API 1.47.0 while preserving its legacy instrumentation scope.
+
 - Update the deprecated adapter's OpenTelemetry API, metric, and trace
   dependency graph to 1.47.0 while retaining SDK 1.45.0 and the legacy
   instrumentation scope.
