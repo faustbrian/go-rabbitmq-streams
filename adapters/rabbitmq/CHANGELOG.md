@@ -4,6 +4,9 @@
 
 ### Changed
 
+- Update the RabbitMQ client's indirect system dependency to
+  golang.org/x/sys 0.48.0 without changing the client version.
+
 - Update the indirect OpenTelemetry API, metric, and trace dependency
   graph to 1.47.0 while retaining the RabbitMQ Streams client version.
 
