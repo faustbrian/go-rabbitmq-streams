@@ -4,6 +4,9 @@
 
 ### Changed
 
+- Update the deprecated RabbitMQ adapter's indirect OpenTelemetry API,
+  metric, and trace graph to 1.47.0 without changing its client version.
+
 - Refresh the legacy RabbitMQ adapter's OpenTelemetry dependency
   graph to 1.45.0.
 

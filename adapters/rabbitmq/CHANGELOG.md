@@ -4,6 +4,9 @@
 
 ### Changed
 
+- Update the indirect OpenTelemetry API, metric, and trace dependency
+  graph to 1.47.0 while retaining the RabbitMQ Streams client version.
+
 - Refresh the RabbitMQ client's resolved OpenTelemetry dependencies
   to 1.45.0, together with its logging and system dependency graph.
 
