@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Changed
+
+- Refresh the legacy RabbitMQ adapter's OpenTelemetry dependency
+  graph to 1.45.0.
+
 ## 1.0.2 - 2026-09-09
 
 ### Deprecated
