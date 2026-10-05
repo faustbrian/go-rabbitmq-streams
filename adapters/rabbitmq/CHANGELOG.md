@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Changed
+
+- Refresh the RabbitMQ client's resolved OpenTelemetry dependencies
+  to 1.45.0, together with its logging and system dependency graph.
+
 ## 1.0.1 - 2026-09-09
 
 ### Added

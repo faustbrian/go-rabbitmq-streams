@@ -4,6 +4,11 @@ All notable changes to this module are documented here.
 
 ## Unreleased
 
+### Changed
+
+- Update the OpenTelemetry dependency graph to 1.45.0 for the
+  deprecated telemetry adapter.
+
 ## 1.0.1 - 2026-09-09
 
 ### Deprecated
