@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 1.1.0 - 2026-10-06
+
+### Changed
+
+- Require Go 1.27.0 rather than the previous 1.26.6 minimum. Upgrade
+  the toolchain before adopting this release.
+- Select the canonical rabbitmq adapter v1.1.0 while preserving the
+  released facade types and runtime behavior.
+
 ### Changed
 
 - Update the deprecated RabbitMQ adapter's indirect system dependency

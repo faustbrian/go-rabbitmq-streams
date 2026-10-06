@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 
 	rabbitstream "github.com/faustbrian/go-rabbitmq-streams"
@@ -91,4 +92,54 @@ type scopeMeterProvider struct {
 func (provider scopeMeterProvider) Meter(name string, options ...metric.MeterOption) metric.Meter {
 	provider.scopes <- name
 	return provider.MeterProvider.Meter(name, options...)
+}
+
+func TestFacadeForwardsConstructionErrors(t *testing.T) {
+	t.Parallel()
+	limits := rabbitstream.DefaultLimits()
+	limits.MaxPayloadBytes = -1
+	adapter, err := legacy.New(legacy.Config{MeterProvider: metricnoop.NewMeterProvider(), Limits: limits})
+	if adapter != nil || !errors.Is(err, rabbitstream.ErrInvalidConfiguration) {
+		t.Fatalf("invalid limits: adapter=%v error=%v", adapter, err)
+	}
+	var operation *rabbitstream.OperationError
+	if !errors.As(err, &operation) || operation.Operation != rabbitstream.OperationConnect || operation.Category != rabbitstream.CategoryInvalidConfiguration {
+		t.Fatalf("invalid limits classification: %v", err)
+	}
+	sentinel := errors.New("private exporter construction detail")
+	scopes := make(chan string, 1)
+	provider := failingInstrumentProvider{MeterProvider: metricnoop.NewMeterProvider(), scopes: scopes, cause: sentinel}
+	adapter, err = legacy.New(legacy.Config{MeterProvider: provider, Limits: rabbitstream.DefaultLimits()})
+	if adapter != nil || !errors.Is(err, sentinel) || !errors.Is(err, rabbitstream.ErrInvalidConfiguration) {
+		t.Fatalf("instrument failure: adapter=%v error=%v", adapter, err)
+	}
+	if !errors.As(err, &operation) || operation.Operation != rabbitstream.OperationConnect || operation.Category != rabbitstream.CategoryInvalidConfiguration {
+		t.Fatalf("instrument error classification: %v", err)
+	}
+	if strings.Contains(err.Error(), sentinel.Error()) {
+		t.Fatalf("rendered error exposes provider detail: %v", err)
+	}
+	if scope := <-scopes; scope != "github.com/faustbrian/go-rabbitmq-streams/otel" {
+		t.Fatalf("failed construction scope=%q", scope)
+	}
+}
+
+type failingInstrumentProvider struct {
+	metric.MeterProvider
+	scopes chan<- string
+	cause  error
+}
+
+func (provider failingInstrumentProvider) Meter(name string, options ...metric.MeterOption) metric.Meter {
+	provider.scopes <- name
+	return failingGaugeMeter{Meter: provider.MeterProvider.Meter(name, options...), cause: provider.cause}
+}
+
+type failingGaugeMeter struct {
+	metric.Meter
+	cause error
+}
+
+func (meter failingGaugeMeter) Int64Gauge(string, ...metric.Int64GaugeOption) (metric.Int64Gauge, error) {
+	return nil, meter.cause
 }
