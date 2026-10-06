@@ -2,8 +2,8 @@ github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UF
 github.com/cespare/xxhash/v2 v2.3.0/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
 github.com/faustbrian/go-rabbitmq-streams v1.1.0 h1:4cBUSNdeuxRqWVB8wSQbfbJgcoxYjExg0O3zNXFS2zg=
 github.com/faustbrian/go-rabbitmq-streams v1.1.0/go.mod h1:G+Eu/VdiBUxsFTeUNC0YK6867jIUwao0DJODi5ABN54=
-github.com/faustbrian/go-rabbitmq-streams/adapters/otel v1.0.0 h1:e31BC/RjiV5yYswT26KM9Lyeue3LRd0rrKy8VHXeop8=
-github.com/faustbrian/go-rabbitmq-streams/adapters/otel v1.0.0/go.mod h1:+u6/DMBh0xgaMAoVrUpFKboxzdM+pkxW2uoH4D04pDM=
+github.com/faustbrian/go-rabbitmq-streams/adapters/otel v1.1.0 h1:ODVFIfd+zJootPvEEu8K8a0osUiUU9YsF/+9NzNCgTU=
+github.com/faustbrian/go-rabbitmq-streams/adapters/otel v1.1.0/go.mod h1:WT96lEFgnLGf6kH7ijgXM0/H+DE6MGrIz9odeztbtGI=
 github.com/go-logr/logr v1.4.4 h1:tG4xh9yMsRCAiodLVTxyrkzSZ9+o0L1Kg/+cPVcbP/8=
 github.com/go-logr/logr v1.4.4/go.mod h1:9T104GzyrTigFIr8wt5mBrctHMim0Nb2HLGrmQ40KvY=
 github.com/go-logr/stdr v1.2.2 h1:hSWxHoqTgW2S2qGc0LTAI563KZ5YKYRhT3MFKZMbjag=
