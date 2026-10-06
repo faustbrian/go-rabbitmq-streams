@@ -4,17 +4,31 @@ All notable changes to this module are documented here.
 
 ## Unreleased
 
+The v1.1.0 facade entry below is release preparation. Canonical adapter
+v1.1.0 selection follows its public release; keep this facade unpublished
+until that dependency selection is complete.
+
+## 1.1.0 - 2026-10-06
+
+### Changed
+
+- Require Go 1.27.0 rather than the previous 1.26.6 minimum. Upgrade
+  the toolchain before adopting this release.
+- Select the canonical otel adapter v1.1.0 while preserving the
+  released facade types and legacy instrumentation scope.
+
 ### Changed
 
 - Align the deprecated adapter's resolved OpenTelemetry metric SDK
   with API 1.47.0 while preserving its legacy instrumentation scope.
 
-- Update the deprecated adapter's OpenTelemetry API, metric, and trace
-  dependency graph to 1.47.0 while retaining SDK 1.45.0 and the legacy
-  instrumentation scope.
+- Earlier preparation updated the deprecated adapter's API, metric,
+  and trace graph to 1.47.0 while retaining SDK 1.45.0 and its legacy
+  scope. The final SDK 1.47.0 alignment above supersedes that retained
+  SDK version.
 
-- Update the OpenTelemetry dependency graph to 1.45.0 for the
-  deprecated telemetry adapter.
+- Earlier preparation updated the deprecated adapter graph to 1.45.0;
+  the final 1.47.0 graph supersedes that intermediate selection.
 
 ## 1.0.1 - 2026-09-09
 

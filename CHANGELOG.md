@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 1.2.0 - 2026-10-06
+
+### Changed
+
+- Require Go 1.27.0 rather than the previous 1.26.6 minimum. Upgrade
+  the toolchain before adopting this release.
+
 ## 1.1.1 - 2026-09-09
 
 ### Changed

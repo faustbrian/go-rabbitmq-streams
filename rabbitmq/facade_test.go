@@ -4,6 +4,7 @@ package rabbitmq_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -66,4 +67,67 @@ func sameOperationError(left error, right error) bool {
 	return errors.As(left, &leftOperation) && errors.As(right, &rightOperation) &&
 		leftOperation.Operation == rightOperation.Operation &&
 		leftOperation.Category == rightOperation.Category
+}
+
+func TestFacadeConstructorsAndReadOnlyDelegates(t *testing.T) {
+	t.Parallel()
+	var nilContext context.Context
+	for _, limits := range []rabbitstream.Limits{{}, rabbitstream.DefaultLimits()} {
+		t.Run(fmt.Sprintf("limits-%d", limits.MaxStreamNameBytes), func(t *testing.T) {
+			credentials := &unresolvedCredentials{t: t}
+			connection := rabbitstream.ConnectionConfig{Endpoints: []rabbitstream.Endpoint{{Host: "rabbitmq.invalid", Port: 5551}}, Credentials: credentials, Security: rabbitstream.DevelopmentPlaintextSecurity()}
+			inspector, err := legacy.NewInspector(connection, limits)
+			if err != nil || inspector == nil {
+				t.Fatalf("NewInspector=%v, %v", inspector, err)
+			}
+			replayer, err := legacy.NewReplayer(connection, limits)
+			if err != nil || replayer == nil {
+				t.Fatalf("NewReplayer=%v, %v", replayer, err)
+			}
+			result, err := inspector.Inspect(nilContext, rabbitstream.InspectionRequest{Stream: "events"})
+			if !reflect.DeepEqual(result, rabbitstream.InspectionResult{}) {
+				t.Fatalf("invalid inspection result=%#v", result)
+			}
+			assertFacadeError(t, err, rabbitstream.OperationInspect, rabbitstream.CategoryInvalidConfiguration)
+			offset, err := inspector.StoredOffset(nilContext, "events", "worker")
+			if offset != nil {
+				t.Fatalf("invalid stored offset=%v", offset)
+			}
+			assertFacadeError(t, err, rabbitstream.OperationInspect, rabbitstream.CategoryInvalidConfiguration)
+			health := inspector.Health(nilContext)
+			if health.State != rabbitstream.DependencyUnavailable || health.Category != rabbitstream.CategoryInvalidConfiguration || health.ObservedAt.IsZero() {
+				t.Fatalf("health=%#v", health)
+			}
+			retained, err := replayer.Inspect(nilContext, rabbitstream.ReplayRequest{Stream: "events"})
+			if retained != (rabbitstream.RetainedRange{}) {
+				t.Fatalf("invalid retained range=%#v", retained)
+			}
+			assertFacadeError(t, err, rabbitstream.OperationReplay, rabbitstream.CategoryValidation)
+			assertFacadeError(t, replayer.Run(context.Background(), rabbitstream.ReplayRequest{Stream: "events"}, nil), rabbitstream.OperationReplay, rabbitstream.CategoryValidation)
+			invalid := rabbitstream.DefaultLimits()
+			invalid.MaxPayloadBytes = -1
+			badInspector, err := legacy.NewInspector(connection, invalid)
+			if badInspector != nil || !errors.Is(err, rabbitstream.ErrValidation) {
+				t.Fatalf("invalid inspector=%v, %v", badInspector, err)
+			}
+			badReplayer, err := legacy.NewReplayer(connection, invalid)
+			if badReplayer != nil || !errors.Is(err, rabbitstream.ErrValidation) {
+				t.Fatalf("invalid replayer=%v, %v", badReplayer, err)
+			}
+		})
+	}
+}
+
+type unresolvedCredentials struct{ t *testing.T }
+
+func (provider *unresolvedCredentials) Credentials(context.Context) (rabbitstream.Credentials, error) {
+	provider.t.Error("validation unexpectedly resolved credentials")
+	return rabbitstream.Credentials{}, errors.New("unexpected credential resolution")
+}
+func assertFacadeError(t *testing.T, err error, operation rabbitstream.Operation, category rabbitstream.ErrorCategory) {
+	t.Helper()
+	var actual *rabbitstream.OperationError
+	if !errors.As(err, &actual) || actual.Operation != operation || actual.Category != category {
+		t.Fatalf("error=%v, want %s/%s", err, operation, category)
+	}
 }
