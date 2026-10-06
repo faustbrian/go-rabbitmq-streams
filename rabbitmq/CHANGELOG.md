@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+The v1.1.0 facade entry below is release preparation. Canonical adapter
+v1.1.0 selection follows its public release; keep this facade unpublished
+until that dependency selection is complete.
+
 ## 1.1.0 - 2026-10-06
 
 ### Changed

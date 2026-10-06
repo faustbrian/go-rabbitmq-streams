@@ -4,7 +4,7 @@ go 1.27.0
 
 require (
 	github.com/faustbrian/go-rabbitmq-streams v1.1.0
-	github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq v1.1.0
+	github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq v1.0.0
 )
 
 require (
@@ -13,6 +13,7 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/golang/snappy v1.0.0 // indirect
 	github.com/klauspost/compress v1.19.1 // indirect
+	github.com/kr/text v0.2.0 // indirect
 	github.com/pierrec/lz4 v2.6.1+incompatible // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/rabbitmq/rabbitmq-stream-go-client v1.8.3 // indirect
@@ -22,4 +23,5 @@ require (
 	go.opentelemetry.io/otel/log v1.47.0 // indirect
 	go.opentelemetry.io/otel/metric v1.47.0 // indirect
 	go.opentelemetry.io/otel/trace v1.47.0 // indirect
+	golang.org/x/sys v0.48.0 // indirect
 )
