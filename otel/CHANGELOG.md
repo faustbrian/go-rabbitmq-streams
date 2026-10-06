@@ -8,6 +8,9 @@ The v1.1.0 facade entry below is release preparation. Canonical adapter
 v1.1.0 selection follows its public release; keep this facade unpublished
 until that dependency selection is complete.
 
+The canonical v1.1.0 dependency is now publicly available and selected,
+completing that publication-order prerequisite.
+
 ## 1.1.0 - 2026-10-06
 
 ### Changed
