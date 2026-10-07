@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Changed
+
+- Select root module v1.1.1 for the deprecated compatibility facade.
+  Public types and runtime behavior remain unchanged.
+
 The v1.1.0 facade entry below is release preparation. Canonical adapter
 v1.1.0 selection follows its public release; keep this facade unpublished
 until that dependency selection is complete.
