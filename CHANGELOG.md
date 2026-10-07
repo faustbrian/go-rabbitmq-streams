@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Changed
+
+- Align the shared verification workflow and tooling source while retaining
+  the checksum-verified v1.8.4 CLI.
+
 ## 1.2.0 - 2026-10-06
 
 ### Changed
