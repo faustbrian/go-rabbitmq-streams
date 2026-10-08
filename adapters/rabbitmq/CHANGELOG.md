@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Fixed
+
+- Close partially opened native environments and sessions before returning an
+  opening failure or retrying. Successful opens still transfer ownership to
+  the caller; cancellation retains its original classification and priority.
+
 ## 1.1.0 - 2026-10-06
 
 ### Changed

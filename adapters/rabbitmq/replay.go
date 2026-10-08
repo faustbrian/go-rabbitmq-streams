@@ -531,7 +531,16 @@ func acceptOpenedResource[T closeableResource](
 		closeLateResource(opened.resource)
 		return zero, err
 	}
-	return opened.resource, opened.err
+	if opened.err != nil {
+		// Upstream opens can return a partial resource with their error.
+		// Retrying callers never receive ownership of failed resources.
+		closeLateResource(opened.resource)
+		if err := ctx.Err(); err != nil {
+			return zero, err
+		}
+		return zero, opened.err
+	}
+	return opened.resource, nil
 }
 
 func closeLateResource[T closeableResource](resource T) {
