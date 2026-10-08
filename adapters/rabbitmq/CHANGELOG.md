@@ -4,6 +4,10 @@
 
 ### Fixed
 
+- Apply configured decoded-delivery byte and metadata-count limits before native
+  adapter copies and key sorting in live consumption and replay. This does not
+  bound allocations already made by the upstream frame decoder.
+
 - Close partially opened native environments and sessions before returning an
   opening failure or retrying. Successful opens still transfer ownership to
   the caller; cancellation retains its original classification and priority.

@@ -478,6 +478,7 @@ func (transport *rabbitConsumerSession) accept(
 		return
 	}
 	delivery, conversionErr := fromWireMessage(
+		transport.config.Limits,
 		transport.config.SuperStream,
 		partition,
 		uint64(offset),

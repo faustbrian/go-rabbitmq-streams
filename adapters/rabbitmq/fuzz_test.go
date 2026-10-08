@@ -15,7 +15,11 @@ func FuzzWireMessageRoundTrip(f *testing.F) {
 			Stream: "tracking.events", RoutingKey: routingKey, ContentType: contentType,
 			MessageID: messageID, Payload: []byte(payload),
 		}
-		delivery, err := fromWireMessage("", "tracking.events", 41, toWireMessage(outbound))
+		limits := rabbitstream.DefaultLimits()
+		if err := outbound.Validate(limits); err != nil {
+			return
+		}
+		delivery, err := fromWireMessage(limits, "", "tracking.events", 41, toWireMessage(outbound))
 		if err != nil {
 			t.Fatalf("wire round trip: %v", err)
 		}

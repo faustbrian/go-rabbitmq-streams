@@ -260,6 +260,7 @@ func (cursor *replayCursor) accept(offset int64, wireMessage *amqp.Message) {
 		return
 	}
 	message, conversionErr := fromWireMessage(
+		cursor.limits,
 		cursor.superStream, cursor.target, uint64(offset), wireMessage,
 	)
 	if conversionErr == nil {

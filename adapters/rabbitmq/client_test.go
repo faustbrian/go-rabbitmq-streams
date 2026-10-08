@@ -1274,7 +1274,7 @@ func TestWireDeliveryCopiesAndNormalizesLanguageNeutralMetadata(t *testing.T) {
 		Properties: []rabbitstream.MetadataEntry{{Key: "schema", Value: []byte("tracking.v1")}},
 	})
 
-	delivery, err := fromWireMessage("tracking", "tracking-0", 41, wire)
+	delivery, err := fromWireMessage(rabbitstream.DefaultLimits(), "tracking", "tracking-0", 41, wire)
 	if err != nil {
 		t.Fatalf("fromWireMessage() error = %v", err)
 	}

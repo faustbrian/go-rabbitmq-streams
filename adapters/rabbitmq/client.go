@@ -574,11 +574,16 @@ func toWireMessage(outbound rabbitstream.Message) *amqp.AMQP10 {
 }
 
 func fromWireMessage(
+	limits rabbitstream.Limits,
 	superStream string,
 	partition string,
 	offset uint64,
 	wireMessage any,
 ) (rabbitstream.Message, error) {
+	identity := rabbitstream.Message{Stream: partition, Partition: partition, SuperStream: superStream, HasOffset: true}
+	if err := identity.ValidateDelivery(limits); err != nil {
+		return rabbitstream.Message{}, err
+	}
 	var data [][]byte
 	var properties *amqp.MessageProperties
 	var annotations amqp.Annotations
@@ -602,6 +607,9 @@ func fromWireMessage(
 			Operation: rabbitstream.OperationConsume,
 			Category:  rabbitstream.CategoryValidation,
 		}
+	}
+	if err := admitWireSizes(limits, data, properties, annotations, applicationProperties); err != nil {
+		return rabbitstream.Message{}, err
 	}
 	delivery := rabbitstream.Message{
 		Stream:      partition,
@@ -660,7 +668,91 @@ func fromWireMessage(
 		}
 		delivery.Properties = append(delivery.Properties, rabbitstream.MetadataEntry{Key: key, Value: value})
 	}
+	if err := delivery.ValidateDelivery(limits); err != nil {
+		return rabbitstream.Message{}, err
+	}
 	return delivery, nil
+}
+
+// admitWireSizes bounds decoded input before copying values or allocating and
+// sorting key slices. It cannot bound allocations already made by the SDK.
+func admitWireSizes(
+	limits rabbitstream.Limits,
+	data [][]byte,
+	properties *amqp.MessageProperties,
+	annotations amqp.Annotations,
+	applicationProperties map[string]any,
+) error {
+	if len(data) == 1 && len(data[0]) > limits.MaxPayloadBytes {
+		return &rabbitstream.OperationError{
+			Operation: rabbitstream.OperationConsume, Category: rabbitstream.CategoryValidation,
+			Cause: rabbitstream.ErrMessageTooLarge,
+		}
+	}
+	entries := len(annotations)
+	if _, hasRoutingKey := annotations[routingKeyAnnotation]; hasRoutingKey {
+		entries--
+	}
+	if entries > limits.MaxMetadataEntries || len(applicationProperties) > limits.MaxMetadataEntries-entries {
+		return unsupportedWireMetadata()
+	}
+	remaining := limits.MaxMetadataBytes
+	charge := func(size int) bool {
+		if size > remaining {
+			return false
+		}
+		remaining -= size
+		return true
+	}
+	if properties != nil {
+		for _, value := range []any{properties.ContentType, properties.MessageID, properties.CorrelationID} {
+			size, valid := wireValueSize(value, true)
+			if !valid || size > limits.MaxMetadataValueBytes || !charge(size) {
+				return unsupportedWireMetadata()
+			}
+		}
+	}
+	for rawKey, value := range annotations {
+		key, valid := rawKey.(string)
+		if !valid {
+			return unsupportedWireMetadata()
+		}
+		size, valid := wireValueSize(value, false)
+		if !valid {
+			return unsupportedWireMetadata()
+		}
+		if key == routingKeyAnnotation {
+			if size > limits.MaxRoutingKeyBytes {
+				return unsupportedWireMetadata()
+			}
+			continue
+		}
+		if len(key) > limits.MaxMetadataKeyBytes || size > limits.MaxMetadataValueBytes ||
+			!charge(len(key)) || !charge(size) {
+			return unsupportedWireMetadata()
+		}
+	}
+	for key, value := range applicationProperties {
+		size, valid := wireValueSize(value, false)
+		if !valid || len(key) > limits.MaxMetadataKeyBytes || size > limits.MaxMetadataValueBytes ||
+			!charge(len(key)) || !charge(size) {
+			return unsupportedWireMetadata()
+		}
+	}
+	return nil
+}
+
+func wireValueSize(value any, allowNil bool) (int, bool) {
+	switch typed := value.(type) {
+	case nil:
+		return 0, allowNil
+	case string:
+		return len(typed), true
+	case []byte:
+		return len(typed), true
+	default:
+		return 0, false
+	}
 }
 
 func stringProperty(value any) (string, error) {

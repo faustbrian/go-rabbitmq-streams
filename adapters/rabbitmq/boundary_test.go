@@ -59,7 +59,7 @@ func TestAdapterMutationBoundariesFailFast(t *testing.T) {
 		}
 	}
 
-	delivery, err := fromWireMessage("tracking", "tracking-0", 1, &amqp.Message{
+	delivery, err := fromWireMessage(rabbitstream.DefaultLimits(), "tracking", "tracking-0", 1, &amqp.Message{
 		Data: [][]byte{[]byte("payload")},
 		Annotations: amqp.Annotations{
 			routingKeyAnnotation: "carrier.ups",
@@ -612,7 +612,7 @@ func TestWireDeliveryRejectsUnsupportedMetadataWithoutLeakingIt(t *testing.T) {
 		wire := wire
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			_, err := fromWireMessage("", "tracking.events", 1, wire)
+			_, err := fromWireMessage(rabbitstream.DefaultLimits(), "", "tracking.events", 1, wire)
 			if !errors.Is(err, rabbitstream.ErrValidation) || err.Error() != "rabbitstream consume failed: validation" {
 				t.Fatalf("fromWireMessage() error = %v", err)
 			}
@@ -623,7 +623,7 @@ func TestWireDeliveryRejectsUnsupportedMetadataWithoutLeakingIt(t *testing.T) {
 func TestWireDeliveryAcceptsStringAndByteMetadataRepresentations(t *testing.T) {
 	t.Parallel()
 
-	delivery, err := fromWireMessage("", "tracking.events", 1, &amqp.Message{
+	delivery, err := fromWireMessage(rabbitstream.DefaultLimits(), "", "tracking.events", 1, &amqp.Message{
 		Properties:            &amqp.MessageProperties{MessageID: []byte("event"), CorrelationID: "correlation"},
 		Annotations:           amqp.Annotations{"bytes": []byte("header"), "string": "header"},
 		ApplicationProperties: map[string]any{"bytes": []byte("property"), "string": "property"},

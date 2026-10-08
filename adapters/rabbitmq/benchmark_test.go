@@ -27,7 +27,7 @@ func BenchmarkWireMessagePolicy(b *testing.B) {
 			b.SetBytes(int64(payloadBytes))
 			b.ReportAllocs()
 			for b.Loop() {
-				delivery, err := fromWireMessage("", "tracking.events", 1, wire)
+				delivery, err := fromWireMessage(rabbitstream.DefaultLimits(), "", "tracking.events", 1, wire)
 				if err != nil || len(delivery.Payload) != payloadBytes {
 					b.Fatalf("fromWireMessage() = %d bytes, %v", len(delivery.Payload), err)
 				}
