@@ -91,10 +91,10 @@ func NewReplayer(limits Limits, source ReplaySource, observer Observer) (*Replay
 
 // Inspect returns the exact currently retained range without opening a cursor.
 func (replayer *Replayer) Inspect(ctx context.Context, request ReplayRequest) (RetainedRange, error) {
-	request = request.owned()
 	if err := replayer.validateRequest(ctx, request); err != nil {
 		return RetainedRange{}, err
 	}
+	request = request.owned()
 	retained, err := replayer.source.RetainedRange(ctx, request)
 	if err != nil {
 		return RetainedRange{}, &OperationError{
@@ -116,10 +116,13 @@ func (replayer *Replayer) Run(
 	request ReplayRequest,
 	handler ReplayHandler,
 ) (runErr error) {
-	request = request.owned()
 	if handler == nil {
 		return &OperationError{Operation: OperationReplay, Category: CategoryValidation}
 	}
+	if err := replayer.validateRequest(ctx, request); err != nil {
+		return err
+	}
+	request = request.owned()
 	retained, err := replayer.Inspect(ctx, request)
 	if err != nil {
 		return err

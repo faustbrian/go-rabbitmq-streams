@@ -231,25 +231,40 @@ func ValidateBatch(messages []Message, limits Limits) error {
 	if len(messages) == 0 || len(messages) > limits.MaxBatchMessages {
 		return validationError(errors.New("batch count exceeds limit"))
 	}
-	total := 0
+	remaining := limits.MaxBatchBytes
 	for _, message := range messages {
 		if err := message.Validate(limits); err != nil {
 			return err
 		}
-		total += len(message.Payload)
-		total += len(message.ContentType) + len(message.MessageID) + len(message.CorrelationID)
-		for _, entry := range message.Headers {
-			total += len(entry.Key) + len(entry.Value)
-		}
-		for _, entry := range message.Properties {
-			total += len(entry.Key) + len(entry.Value)
-		}
-		for _, entry := range message.BrokerMetadata {
-			total += len(entry.Key) + len(entry.Value)
-		}
-		if total > limits.MaxBatchBytes {
+		var admitted bool
+		remaining, admitted = remainingMessageBytes(message, remaining)
+		if !admitted {
 			return validationError(errors.New("aggregate batch bytes exceed limit"))
 		}
 	}
 	return nil
+}
+
+// remainingMessageBytes charges components separately so neither a message's
+// total nor a batch aggregate can overflow before its allowance is checked.
+func remainingMessageBytes(message Message, remaining int) (int, bool) {
+	for _, size := range []int{len(message.Payload), len(message.ContentType), len(message.MessageID), len(message.CorrelationID)} {
+		if size > remaining {
+			return 0, false
+		}
+		remaining -= size
+	}
+	for _, entries := range [][]MetadataEntry{message.Headers, message.Properties, message.BrokerMetadata} {
+		for _, entry := range entries {
+			if len(entry.Key) > remaining {
+				return 0, false
+			}
+			remaining -= len(entry.Key)
+			if len(entry.Value) > remaining {
+				return 0, false
+			}
+			remaining -= len(entry.Value)
+		}
+	}
+	return remaining, true
 }

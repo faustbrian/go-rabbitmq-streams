@@ -4,6 +4,13 @@
 
 ### Changed
 
+- Enforce the consumer batch byte allowance across payloads and all metadata.
+  Flush a partition's admitted batch before the next record would cross the
+  allowance and reject individually oversized records before retention,
+  handler calls or offset storage. Preserve partition ordering and advance
+  offsets only after each successfully handled bounded batch.
+- Reject invalid replay topology before retaining its partition list.
+
 - Align the shared verification workflow and tooling source while retaining
   the checksum-verified v1.8.4 CLI.
 

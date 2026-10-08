@@ -443,6 +443,7 @@ func (consumer *Consumer) RunBatch(
 
 type pendingConsumerBatch struct {
 	messages []Message
+	bytes    int
 	deadline time.Time
 }
 
@@ -494,6 +495,9 @@ func (consumer *Consumer) consumeBatch(
 				Operation: OperationConsume, Category: categoryForError(err, CategoryConnection), Cause: err,
 			}
 		}
+		if _, admitted := remainingMessageBytes(message, consumer.config.Limits.MaxBatchBytes); !admitted {
+			return &OperationError{Operation: OperationConsume, Category: CategoryValidation}
+		}
 		observe(consumer.config.Observer, Observation{
 			Kind: ObservationConsumerMessage, Count: 1, Bytes: uint64(len(message.Payload)),
 		})
@@ -531,13 +535,26 @@ func (consumer *Consumer) runBatchWorker(
 		case <-ctx.Done():
 			return nil
 		case message := <-queue:
+			remaining, admitted := remainingMessageBytes(message, consumer.config.Limits.MaxBatchBytes)
+			if !admitted {
+				return &OperationError{Operation: OperationConsume, Category: CategoryValidation}
+			}
+			messageBytes := consumer.config.Limits.MaxBatchBytes - remaining
 			batch := batches[message.Partition]
+			if batch != nil && messageBytes > consumer.config.Limits.MaxBatchBytes-batch.bytes {
+				if err := consumer.processBatch(ctx, handler, batch.messages); err != nil {
+					return err
+				}
+				delete(batches, message.Partition)
+				batch = nil
+			}
 			if batch == nil {
 				batch = &pendingConsumerBatch{deadline: time.Now().Add(policy.MaxWait)}
 				batches[message.Partition] = batch
 			}
 			batch.messages = append(batch.messages, message)
-			if len(batch.messages) >= policy.MaxMessages {
+			batch.bytes += messageBytes
+			if len(batch.messages) >= policy.MaxMessages || batch.bytes == consumer.config.Limits.MaxBatchBytes {
 				if err := consumer.processBatch(ctx, handler, batch.messages); err != nil {
 					return err
 				}
