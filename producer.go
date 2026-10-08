@@ -50,7 +50,7 @@ type ProducerPolicy struct {
 	MaxOutstanding int
 	// ConfirmationTimeout bounds how long a sent message awaits broker certainty.
 	ConfirmationTimeout time.Duration
-	// CloseTimeout bounds confirmation draining during shutdown.
+	// CloseTimeout bounds each shutdown caller's wait for cleanup.
 	CloseTimeout time.Duration
 	// Deduplication selects explicit broker publishing-ID deduplication policy.
 	Deduplication DeduplicationPolicy
@@ -533,11 +533,12 @@ func hasDuplicateMetadataKey(entries []MetadataEntry) bool {
 	return false
 }
 
-// Shutdown stops admission, waits for admitted publishes within their finite
-// confirmation bounds, then closes the transport. It is idempotent and safe
-// for concurrent use. Each caller's context bounds only that caller's wait;
-// cleanup continues once started and every caller that observes completion
-// receives the same terminal cleanup result.
+// Shutdown stops admission and starts exactly one cleanup owner, which joins
+// admitted publishes before closing the transport. It is safe for concurrent
+// use. Context and CloseTimeout bound each caller's wait, not cleanup completion.
+// Cleanup remains joinable after either wait expires; callers observing
+// completion receive the actual cleanup result. Trusted transport Send and
+// contextless Close must eventually return.
 func (producer *Producer) Shutdown(ctx context.Context) error {
 	if ctx == nil {
 		return validationError(errors.New("close context is nil"))
@@ -552,12 +553,21 @@ func (producer *Producer) Shutdown(ctx context.Context) error {
 	select {
 	case <-producer.closeDone:
 		return producer.closeErr
+	default:
+	}
+	timer := time.NewTimer(producer.config.Policy.CloseTimeout)
+	defer timer.Stop()
+	select {
+	case <-producer.closeDone:
+		return producer.closeErr
 	case <-ctx.Done():
 		return &OperationError{Operation: OperationClose, Category: CategoryCanceled, Cause: ctx.Err()}
+	case <-timer.C:
+		return &OperationError{Operation: OperationClose, Category: CategoryTimeout, Cause: ErrTimeout}
 	}
 }
 
-// Close preserves the released context-bounded shutdown contract.
+// Close delegates to the current Shutdown contract.
 //
 // Deprecated: use Shutdown.
 func (producer *Producer) Close(ctx context.Context) error {
@@ -574,19 +584,9 @@ func (producer *Producer) close() {
 	}()
 	producer.asyncActive.Wait()
 	producer.active.Wait()
-	transportResult := make(chan error, 1)
-	go func() { transportResult <- producer.transport.Close() }()
-
-	timer := time.NewTimer(producer.config.Policy.CloseTimeout)
-	defer timer.Stop()
-	select {
-	case err := <-transportResult:
-		if err != nil {
-			producer.closeErr = &OperationError{
-				Operation: OperationClose, Category: categoryForError(err, CategoryConnection), Cause: err,
-			}
+	if err := producer.transport.Close(); err != nil {
+		producer.closeErr = &OperationError{
+			Operation: OperationClose, Category: categoryForError(err, CategoryConnection), Cause: err,
 		}
-	case <-timer.C:
-		producer.closeErr = &OperationError{Operation: OperationClose, Category: CategoryTimeout, Cause: ErrTimeout}
 	}
 }

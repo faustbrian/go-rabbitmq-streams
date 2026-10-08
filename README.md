@@ -141,9 +141,12 @@ idempotent or reconcile duplicates.
 
 Root producer and consumer values own bounded background work after successful
 construction and require a bounded `Shutdown` call. Each caller independently
-bounds its wait while all callers observe one shared terminal cleanup result.
-The deprecated context-taking `Close` method remains behavior-compatible. Stop
-new publications, cancel
+bounds its wait with context and `CloseTimeout`. Wait expiry is not cleanup
+completion: one owner continues joining admitted work and closing transport,
+and later callers can observe the actual shared result. The deprecated
+context-taking `Close` method delegates to the same contract. This unreleased
+change requires the next major release; trusted callbacks and contextless
+supplier operations must still return. Stop new publications, cancel
 and join consumer runs, close consumers, then close producers. The RabbitMQ
 adapter owns the protocol connections and sessions it opens. The OpenTelemetry
 adapter starts no goroutines, owns no provider or exporter, and exposes no

@@ -48,9 +48,9 @@ const (
 	ObservationConsumerLag ObservationKind = "consumer_lag"
 	// ObservationReplayProgress reports one replay progress point.
 	ObservationReplayProgress ObservationKind = "replay_progress"
-	// ObservationProducerShutdown reports bounded producer close duration.
+	// ObservationProducerShutdown reports completed producer cleanup duration.
 	ObservationProducerShutdown ObservationKind = "producer_shutdown"
-	// ObservationConsumerShutdown reports bounded consumer close duration.
+	// ObservationConsumerShutdown reports completed consumer cleanup duration.
 	ObservationConsumerShutdown ObservationKind = "consumer_shutdown"
 )
 

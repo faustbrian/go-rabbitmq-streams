@@ -4,6 +4,14 @@
 
 ### Changed
 
+- Keep transport cleanup owned and joinable after shutdown caller or policy
+  timeouts. Bound each caller's entire wait, including producer draining, and
+  report cleanup completion only after transport close returns. A wait timeout
+  is no longer a permanent cleanup result; a later caller can observe the
+  actual result. This changed shutdown contract requires the next major release.
+  Trusted callbacks and contextless supplier operations must still return;
+  this correction does not provide preemptive supplier cancellation.
+
 - Enforce the consumer batch byte allowance across payloads and all metadata.
   Flush a partition's admitted batch before the next record would cross the
   allowance and reject individually oversized records before retention,

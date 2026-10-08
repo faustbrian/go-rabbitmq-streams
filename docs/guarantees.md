@@ -91,8 +91,12 @@ side effects transactional or idempotent.
 
 ## Lifecycle
 
-Opened clients own their transport resources. Close is idempotent and bounded,
-but a caller cancellation can stop waiting before internal cleanup finishes.
+Opened clients own their transport resources. Shutdown starts cleanup once;
+context and `CloseTimeout` bound each caller's wait, not resource reclamation.
+A wait timeout does not publish completion or abandon transport cleanup.
+Later callers can join the same owner and observe the actual close result.
+Trusted handlers, sends and contextless supplier close operations must return;
+the library cannot preempt them. This is the unreleased next-major contract.
 Applications must stop admission, cancel consumers, wait for handlers, close
 producers and consumers, then flush caller-owned telemetry.
 

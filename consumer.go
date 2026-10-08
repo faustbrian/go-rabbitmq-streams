@@ -92,7 +92,7 @@ type ConsumerPolicy struct {
 	MaxConcurrency int
 	// HandlerTimeout bounds one handler or batch invocation.
 	HandlerTimeout time.Duration
-	// CloseTimeout bounds graceful consumer draining.
+	// CloseTimeout bounds each shutdown caller's wait for cleanup.
 	CloseTimeout time.Duration
 	// OffsetStoreEveryMessages bounds the processed-but-not-stored crash window.
 	OffsetStoreEveryMessages int
@@ -954,10 +954,11 @@ func callHandler(ctx context.Context, handler MessageHandler, message Message) (
 	return handler(ctx, message)
 }
 
-// Shutdown cancels an active Run, waits within caller and policy bounds, and
-// closes the owned transport exactly once. Each caller's context bounds only
-// that caller's wait; cleanup continues once started and every caller that
-// observes completion receives the same terminal cleanup result.
+// Shutdown cancels an active Run and starts exactly one cleanup owner, which
+// joins Run before closing the transport. Context and CloseTimeout bound each
+// caller's wait, not cleanup completion. Cleanup remains joinable after either
+// wait expires; callers observing completion receive the actual cleanup result.
+// Trusted handlers and contextless transport Close must eventually return.
 func (consumer *Consumer) Shutdown(ctx context.Context) error {
 	if ctx == nil {
 		return validationError(errors.New("close context is nil"))
@@ -975,12 +976,21 @@ func (consumer *Consumer) Shutdown(ctx context.Context) error {
 	select {
 	case <-consumer.closeDone:
 		return consumer.closeErr
+	default:
+	}
+	timer := time.NewTimer(consumer.config.Policy.CloseTimeout)
+	defer timer.Stop()
+	select {
+	case <-consumer.closeDone:
+		return consumer.closeErr
 	case <-ctx.Done():
 		return &OperationError{Operation: OperationClose, Category: CategoryCanceled, Cause: ctx.Err()}
+	case <-timer.C:
+		return &OperationError{Operation: OperationClose, Category: CategoryTimeout, Cause: ErrTimeout}
 	}
 }
 
-// Close preserves the released context-bounded shutdown contract.
+// Close delegates to the current Shutdown contract.
 //
 // Deprecated: use Shutdown.
 func (consumer *Consumer) Close(ctx context.Context) error {
@@ -995,26 +1005,12 @@ func (consumer *Consumer) close(runDone <-chan struct{}) {
 		})
 		close(consumer.closeDone)
 	}()
-	timer := time.NewTimer(consumer.config.Policy.CloseTimeout)
-	defer timer.Stop()
 	if runDone != nil {
-		select {
-		case <-runDone:
-		case <-timer.C:
-			consumer.closeErr = &OperationError{Operation: OperationClose, Category: CategoryTimeout, Cause: ErrTimeout}
-			return
-		}
+		<-runDone
 	}
-	transportResult := make(chan error, 1)
-	go func() { transportResult <- consumer.transport.Close() }()
-	select {
-	case err := <-transportResult:
-		if err != nil {
-			consumer.closeErr = &OperationError{
-				Operation: OperationClose, Category: categoryForError(err, CategoryConnection), Cause: err,
-			}
+	if err := consumer.transport.Close(); err != nil {
+		consumer.closeErr = &OperationError{
+			Operation: OperationClose, Category: categoryForError(err, CategoryConnection), Cause: err,
 		}
-	case <-timer.C:
-		consumer.closeErr = &OperationError{Operation: OperationClose, Category: CategoryTimeout, Cause: ErrTimeout}
 	}
 }

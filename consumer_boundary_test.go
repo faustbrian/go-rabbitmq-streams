@@ -740,7 +740,12 @@ func TestConsumerCloseReportsNilCancellationTimeoutAndTransportFailure(t *testin
 	timed, _ := NewConsumer(ConsumerConfig{
 		Stream: "stream", ConsumerName: "consumer", Policy: ConsumerPolicy{CloseTimeout: time.Millisecond},
 	}, newFakeConsumerTransport())
-	timed.runDone = make(chan struct{})
+	timedRunDone := make(chan struct{})
+	timed.runDone = timedRunDone
+	t.Cleanup(func() {
+		close(timedRunDone)
+		awaitShutdownCompletion(t, timed.closeDone)
+	})
 	if err := timed.Close(boundedTestContext()); !errors.Is(err, ErrTimeout) {
 		t.Fatalf("Close(timeout) error = %v", err)
 	}
