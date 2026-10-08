@@ -495,6 +495,12 @@ func (consumer *Consumer) consumeBatch(
 				Operation: OperationConsume, Category: categoryForError(err, CategoryConnection), Cause: err,
 			}
 		}
+		if ctx.Err() != nil {
+			return consumerCancellationError(ctx, workerErrors)
+		}
+		if err := message.ValidateDelivery(consumer.config.Limits); err != nil {
+			return err
+		}
 		if _, admitted := remainingMessageBytes(message, consumer.config.Limits.MaxBatchBytes); !admitted {
 			return &OperationError{Operation: OperationConsume, Category: CategoryValidation}
 		}
@@ -751,6 +757,12 @@ func (consumer *Consumer) consume(
 			return &OperationError{
 				Operation: OperationConsume, Category: categoryForError(err, CategoryConnection), Cause: err,
 			}
+		}
+		if ctx.Err() != nil {
+			return consumerCancellationError(ctx, workerErrors)
+		}
+		if err := message.ValidateDelivery(consumer.config.Limits); err != nil {
+			return err
 		}
 		observe(consumer.config.Observer, Observation{
 			Kind: ObservationConsumerMessage, Count: 1, Bytes: uint64(len(message.Payload)),

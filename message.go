@@ -207,7 +207,8 @@ func (message Message) Validate(limits Limits) error {
 // replay, and telemetry. A Super Stream delivery carries both its logical
 // SuperStream and its backing Stream/Partition identity.
 func (message Message) ValidateDelivery(limits Limits) error {
-	if message.Partition == "" || message.Partition != message.Stream || !message.HasOffset ||
+	if len(message.Stream) > limits.MaxStreamNameBytes || len(message.Partition) > limits.MaxStreamNameBytes ||
+		message.Partition == "" || message.Partition != message.Stream || !message.HasOffset ||
 		(message.SuperStream != "" && invalidIdentifier(message.SuperStream, limits.MaxStreamNameBytes)) {
 		return &OperationError{Operation: OperationConsume, Category: CategoryValidation}
 	}

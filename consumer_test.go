@@ -13,7 +13,7 @@ func TestConsumerStoresOffsetOnlyAfterSuccessfulHandler(t *testing.T) {
 	t.Parallel()
 
 	transport := newFakeConsumerTransport(Message{
-		Stream: "tracking.events", Partition: "tracking.events-0", Offset: 41,
+		Stream: "tracking.events", Partition: "tracking.events", Offset: 41, HasOffset: true,
 		Payload: []byte("payload"),
 	})
 	consumer, err := NewConsumer(ConsumerConfig{
@@ -46,7 +46,7 @@ func TestConsumerStoresOffsetOnlyAfterSuccessfulHandler(t *testing.T) {
 		t.Fatal(err)
 	}
 	stored := receiveTest(t, transport.stored)
-	if stored.partition != "tracking.events-0" || stored.offset != 41 {
+	if stored.partition != "tracking.events" || stored.offset != 41 {
 		t.Fatalf("stored offset = %#v", stored)
 	}
 	cancel()
@@ -281,7 +281,7 @@ func TestConsumerHandlerFailureDoesNotAdvanceOffset(t *testing.T) {
 	t.Parallel()
 
 	transport := newFakeConsumerTransport(Message{
-		Stream: "tracking.events", Partition: "tracking.events-0", Offset: 41,
+		Stream: "tracking.events", Partition: "tracking.events", Offset: 41, HasOffset: true,
 	})
 	consumer, err := NewConsumer(ConsumerConfig{
 		Stream: "tracking.events", ConsumerName: "tracking-indexer",
@@ -355,7 +355,7 @@ func TestConsumerPreservesStableTransportAuthorizationCategory(t *testing.T) {
 func TestConsumerContainsHandlerPanicAndRemainsClosable(t *testing.T) {
 	t.Parallel()
 
-	transport := newFakeConsumerTransport(Message{Stream: "tracking.events", Offset: 1})
+	transport := newFakeConsumerTransport(Message{Stream: "tracking.events", Partition: "tracking.events", Offset: 1, HasOffset: true})
 	consumer, err := NewConsumer(ConsumerConfig{
 		Stream: "tracking.events", ConsumerName: "tracking-indexer",
 	}, transport)
@@ -377,7 +377,7 @@ func TestConsumerContainsHandlerPanicAndRemainsClosable(t *testing.T) {
 func TestConsumerRetriesWithinFinitePolicyBeforeStoringOffset(t *testing.T) {
 	t.Parallel()
 
-	transport := newFakeConsumerTransport(Message{Stream: "tracking.events", Offset: 7})
+	transport := newFakeConsumerTransport(Message{Stream: "tracking.events", Partition: "tracking.events", Offset: 7, HasOffset: true})
 	consumer, err := NewConsumer(ConsumerConfig{
 		Stream:       "tracking.events",
 		ConsumerName: "tracking-indexer",

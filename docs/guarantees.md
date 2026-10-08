@@ -35,6 +35,14 @@ order, stops at the first failure, and reports later entries as not sent.
 
 ## Consumption and offset storage
 
+Live, batch and replay root ingress validate each delivery's payload, ordered
+metadata and backing stream/partition identity before routing, copying or
+calling handlers. Configured limits apply even to custom transports and replay
+sources. Invalid records do not reach retry/dead-letter publication or offset
+storage. An explicit offset is required, including zero. This stricter root
+admission is an unreleased next-major change; it cannot bound allocations that
+a native protocol client already performed before returning the delivery.
+
 The default consumer is at least once. It invokes a handler before storing that
 delivery's offset. If the process fails after the side effect but before offset
 storage, the event is redelivered. Handlers must therefore be idempotent or

@@ -4,6 +4,14 @@
 
 ### Changed
 
+- Enforce configured delivery shape, payload and metadata limits at live,
+  batch and replay root admission before routing, retention or handlers.
+  Invalid deliveries cannot advance offsets or reach failure publication.
+  Custom transports and replay sources must now supply a bounded backing
+  stream/partition identity and an explicit offset, including offset zero.
+  This stricter admission is part of the next major release; native client
+  predecode allocations remain a separate transport responsibility.
+
 - Keep transport cleanup owned and joinable after shutdown caller or policy
   timeouts. Bound each caller's entire wait, including producer draining, and
   report cleanup completion only after transport close returns. A wait timeout

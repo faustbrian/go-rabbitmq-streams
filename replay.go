@@ -189,8 +189,11 @@ func (replayer *Replayer) Run(
 				Cause:     nextErr,
 			}
 		}
-		if !message.HasOffset || message.Partition == "" || message.Partition != message.Stream {
-			return &OperationError{Operation: OperationReplay, Category: CategoryValidation}
+		if ctx.Err() != nil {
+			return &OperationError{Operation: OperationReplay, Category: CategoryCanceled, Cause: ctx.Err()}
+		}
+		if err := message.ValidateDelivery(replayer.limits); err != nil {
+			return &OperationError{Operation: OperationReplay, Category: CategoryValidation, Cause: err}
 		}
 		if !seen && hasExactStart && message.Offset > startOffset {
 			return &OperationError{Operation: OperationReplay, Category: CategoryRetentionGap}

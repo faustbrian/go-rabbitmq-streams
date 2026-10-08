@@ -66,7 +66,12 @@ func TestConsumerDrainTimeoutRetainsEventualTransportCleanup(t *testing.T) {
 		run <- consumer.Run(boundedTestContext(), func(context.Context, Message) error { close(entered); <-release; return nil })
 	}()
 	awaitShutdownCompletion(t, entered)
-	defer func() { releaseShutdownFixture(release); receiveTest(t, run) }()
+	defer func() {
+		releaseShutdownFixture(release)
+		if err := receiveTest(t, run); !errors.Is(err, ErrCanceled) {
+			t.Errorf("canceled Run: %v", err)
+		}
+	}()
 	if err := consumer.Shutdown(boundedTestContext()); !errors.Is(err, ErrTimeout) {
 		t.Fatalf("drain wait: %v", err)
 	}
@@ -114,7 +119,9 @@ func TestProducerPolicyBoundsDrainWaitWithoutLosingCleanup(t *testing.T) {
 	awaitShutdownCompletion(t, transport.entered)
 	defer func() {
 		releaseShutdownFixture(transport.release)
-		receiveTest(t, published)
+		if err := receiveTest(t, published); err != nil {
+			t.Errorf("admitted publish: %v", err)
+		}
 		awaitShutdownCompletion(t, producer.closeDone)
 	}()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)

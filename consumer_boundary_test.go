@@ -638,6 +638,10 @@ func (transport *cancelingSequenceTransport) Next(context.Context) (Message, err
 func (*cancelingSequenceTransport) StoreOffset(context.Context, string, uint64) error { return nil }
 func (*cancelingSequenceTransport) Close() error                                      { return nil }
 
+type consumerAdmissionObserver func(Observation)
+
+func (observer consumerAdmissionObserver) Observe(observation Observation) { observer(observation) }
+
 func TestConsumerLoopsReturnCanceledEnqueueFailures(t *testing.T) {
 	t.Parallel()
 
@@ -651,9 +655,18 @@ func TestConsumerLoopsReturnCanceledEnqueueFailures(t *testing.T) {
 	for _, batch := range []bool{false, true} {
 		baseCtx, cancel := context.WithCancel(context.Background())
 		ctx := &signalingCancelContext{Context: baseCtx, signal: make(chan struct{})}
-		transport := &cancelingSequenceTransport{messages: messages, cancelAt: 3, cancel: cancel}
+		transport := &cancelingSequenceTransport{messages: messages}
+		admitted := 0
+		observer := consumerAdmissionObserver(func(observation Observation) {
+			if observation.Kind == ObservationConsumerMessage {
+				admitted++
+				if admitted == 3 {
+					cancel()
+				}
+			}
+		})
 		consumer, err := NewConsumer(ConsumerConfig{
-			Stream: "stream", ConsumerName: "consumer", Limits: limits,
+			Stream: "stream", ConsumerName: "consumer", Limits: limits, Observer: observer,
 		}, transport)
 		if err != nil {
 			t.Fatalf("NewConsumer() error = %v", err)
