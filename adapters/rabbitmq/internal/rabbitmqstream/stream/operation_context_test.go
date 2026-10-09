@@ -322,7 +322,19 @@ func TestEnvironmentRetryUsesFreshSocketAndOpeningContextDetaches(t *testing.T) 
 		}
 	}()
 	serverDone := make(chan error, 1)
+	serverRelease := make(chan struct{})
+	serverStopped := make(chan struct{})
+	t.Cleanup(func() {
+		_ = success.Close()
+		close(serverRelease)
+		select {
+		case <-serverStopped:
+		case <-time.After(3 * time.Second):
+			t.Error("fixture server did not stop")
+		}
+	})
 	go func() {
+		defer close(serverStopped)
 		conn, err := success.Accept()
 		if err != nil {
 			serverDone <- err
@@ -340,6 +352,9 @@ func TestEnvironmentRetryUsesFreshSocketAndOpeningContextDetaches(t *testing.T) 
 			err = fmt.Errorf("fixture marker differs")
 		}
 		serverDone <- err
+		// A peer close here races the writer's final deadline reset, which is
+		// unrelated to detachment from the caller's opening context.
+		<-serverRelease
 	}()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
