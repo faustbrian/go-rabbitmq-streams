@@ -586,6 +586,11 @@ func (session *rabbitProducerSession) Send(
 			return nil
 		}
 		session.mutex.Lock()
+		if session.pending[wireMessage] != pending {
+			// Abort owns the terminal outcome; retry would duplicate publication.
+			session.mutex.Unlock()
+			return nil
+		}
 		delete(session.pending, wireMessage)
 		session.mutex.Unlock()
 		if errors.Is(err, stream.FrameTooLarge) {
@@ -594,6 +599,11 @@ func (session *rabbitProducerSession) Send(
 		if errors.Is(err, stream.ErrPendingPublishingID) || errors.Is(err, stream.ErrUnconfirmedCapacity) {
 			// A caller admission refusal does not invalidate healthy confirmations.
 			return rabbitstream.ErrValidation
+		}
+		if errors.Is(err, context.Canceled) && ctx.Err() == nil {
+			// Native lifetime retirement is session loss, not caller cancellation.
+			// This branch precedes admission; attempted writes remain ambiguous above.
+			return errProducerSessionClosed
 		}
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			return err

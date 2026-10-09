@@ -15,6 +15,10 @@
 
 ### Fixed
 
+- Reconnect after native producer lifetime cancellation before publication
+  admission when the caller remains active. Preserve actual caller cancellation
+  and ambiguous attempted writes without silently retrying those writes.
+
 - Reject already-canceled or expired environment opening before invoking
   credentials or connection observations, including inspection, stored-offset
   lookup, and dependency-health requests.

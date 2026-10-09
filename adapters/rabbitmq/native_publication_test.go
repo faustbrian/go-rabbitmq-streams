@@ -105,3 +105,76 @@ func TestProducerSessionPreservesPreAdmissionCancellation(t *testing.T) {
 		t.Fatalf("pre-admission cancellation: err=%v callbacks=%d pending=%d", err, calls, len(session.pending))
 	}
 }
+
+func TestProducerTransportReconnectsAfterNativeLifetimeCancellation(t *testing.T) {
+	first := newRabbitProducerSessionForTest(func(message.StreamMessage) error {
+		// A native lifetime can stop without canceling its caller's operation.
+		return context.Canceled
+	})
+	second := newFakeProducerSession()
+	opens := 0
+	transport, err := newReconnectingProducerTransport(t.Context(), func(context.Context) (producerSession, error) {
+		opens++
+		if opens == 1 {
+			return first, nil
+		}
+		return second, nil
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = transport.Close() })
+	calls := 0
+	err = transport.Send(t.Context(), rabbitstream.Message{Stream: "tracking.events"}, func(result rabbitstream.TransportConfirmation) {
+		calls++
+		if !result.Confirmed || result.Ambiguous {
+			t.Errorf("recovered publication = %+v", result)
+		}
+	})
+	if err != nil || opens != 2 || calls != 0 || !first.aborted || len(first.pending) != 0 {
+		t.Fatalf("native lifetime recovery: err=%v opens=%d callbacks=%d aborted=%t pending=%d", err, opens, calls, first.aborted, len(first.pending))
+	}
+	second.mutex.Lock()
+	confirm := second.confirm
+	second.mutex.Unlock()
+	if confirm == nil {
+		t.Fatal("replacement session did not admit the publication")
+	}
+	confirm(rabbitstream.TransportConfirmation{Confirmed: true})
+	if calls != 1 {
+		t.Fatalf("recovered confirmation callbacks = %d", calls)
+	}
+}
+
+func TestProducerTransportDoesNotRetryNativeCancellationClaimedByAbort(t *testing.T) {
+	var first *rabbitProducerSession
+	first = newRabbitProducerSessionForTest(func(message.StreamMessage) error {
+		first.Abort(context.Canceled)
+		return context.Canceled
+	})
+	opens := 0
+	transport, err := newReconnectingProducerTransport(t.Context(), func(context.Context) (producerSession, error) {
+		opens++
+		if opens != 1 {
+			t.Error("ambiguous publication opened a replacement session")
+			return nil, rabbitstream.ErrConnection
+		}
+		return first, nil
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = transport.Close() })
+	calls := 0
+	err = transport.Send(t.Context(), rabbitstream.Message{
+		Stream: "tracking.events", HasPublishingID: true, PublishingID: 42,
+	}, func(result rabbitstream.TransportConfirmation) {
+		calls++
+		if !result.Ambiguous || result.Confirmed || result.PublishingID != 42 {
+			t.Errorf("retirement outcome = %+v", result)
+		}
+	})
+	if err != nil || opens != 1 || calls != 1 || len(first.pending) != 0 {
+		t.Fatalf("claimed cancellation: err=%v opens=%d callbacks=%d pending=%d", err, opens, calls, len(first.pending))
+	}
+}
