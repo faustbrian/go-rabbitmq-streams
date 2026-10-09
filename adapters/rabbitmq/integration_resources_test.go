@@ -70,7 +70,7 @@ func TestRepeatedProducerLifecycleReleasesConnectionsGoroutinesAndTimers(t *test
 
 func BenchmarkIdleProducerResources(b *testing.B) {
 	connection, environment := benchmarkBroker(b, false)
-	defer closeBenchmarkEnvironment(b, environment)
+	b.Cleanup(func() { closeBenchmarkEnvironment(b, environment) })
 	streamName := declareBenchmarkStream(b, environment, "idle-resources")
 	producer, err := OpenProducer(context.Background(), connection, rabbitstream.ProducerConfig{Stream: streamName})
 	if err != nil {
