@@ -174,7 +174,7 @@ func inspectStreamStats(
 ) (rabbitstream.StreamInspection, error) {
 	target := inspection.Stream
 	if first, firstErr := stats.FirstOffset(); firstErr == nil && nonNegativeBrokerOffset(first) {
-		value := uint64(first)
+		value := uint64(first) // #nosec G115 -- The enclosing nonNegativeBrokerOffset predicate rejects negative broker offsets.
 		inspection.FirstOffset = &value
 		last, lastErr := snapshotLastOffset(ctx, environment, target)
 		if lastErr != nil {
@@ -183,7 +183,7 @@ func inspectStreamStats(
 		inspection.LastOffset = &last
 	}
 	if committed, committedErr := stats.CommittedChunkId(); committedErr == nil && nonNegativeBrokerOffset(committed) {
-		value := uint64(committed)
+		value := uint64(committed) // #nosec G115 -- The enclosing nonNegativeBrokerOffset predicate rejects negative broker offsets.
 		inspection.CommittedChunkID = &value
 	}
 	if consumerName != "" {

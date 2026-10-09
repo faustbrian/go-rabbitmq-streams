@@ -192,7 +192,7 @@ func (source *replaySource) Open(
 	ctx context.Context,
 	request rabbitstream.ReplayRequest,
 ) (rabbitstream.ReplayCursor, error) {
-	if request.EndOffset == nil {
+	if request.EndOffset == nil || !consumerStartOffsetFits(request.Start) {
 		return nil, rabbitstream.ErrReplayRange
 	}
 	environment, err := source.openEnvironment(ctx)
@@ -473,7 +473,7 @@ func openFreshEnvironmentWith(
 }
 
 func connectionAttemptNumber(attempt int) uint64 {
-	return uint64(attempt + 1)
+	return uint64(attempt + 1) // #nosec G115 -- The sole caller's loop admits 0 <= attempt < MaxReconnectAttempts; increment remains a positive representable int.
 }
 
 func closeLateEnvironment(environment producerEnvironment) {

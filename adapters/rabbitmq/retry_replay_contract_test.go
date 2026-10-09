@@ -3,7 +3,9 @@ package rabbitmq
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
+	"math"
 	"sync"
 	"testing"
 	"time"
@@ -11,6 +13,31 @@ import (
 	rabbitstream "github.com/faustbrian/go-rabbitmq-streams"
 	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/amqp"
 )
+
+func TestReplayRejectsUnrepresentableStartBeforeAcquisition(t *testing.T) {
+	for _, offset := range []uint64{math.MaxInt64, math.MaxInt64 + 1, math.MaxUint64} {
+		t.Run(fmt.Sprint(offset), func(t *testing.T) {
+			acquisition := errors.New("environment acquisition reached")
+			opened := false
+			source := &replaySource{openEnvironment: func(context.Context) (rabbitEnvironment, error) {
+				opened = true
+				return nil, acquisition
+			}}
+			end := uint64(math.MaxUint64)
+			cursor, err := source.Open(t.Context(), rabbitstream.ReplayRequest{
+				Start:     rabbitstream.StartPosition{Kind: rabbitstream.OffsetStartExplicit, Offset: offset},
+				EndOffset: &end,
+			})
+			if offset <= math.MaxInt64 {
+				if cursor != nil || !errors.Is(err, acquisition) || !opened {
+					t.Fatal("representable start did not reach acquisition")
+				}
+			} else if cursor != nil || !errors.Is(err, rabbitstream.ErrReplayRange) || opened {
+				t.Fatal("unrepresentable replay start reached environment acquisition")
+			}
+		})
+	}
+}
 
 func TestSessionOpeningPreservesPermanentAndExhaustedFailures(t *testing.T) {
 	t.Parallel()

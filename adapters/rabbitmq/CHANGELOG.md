@@ -4,6 +4,9 @@
 
 ### Fixed
 
+- Reject explicit replay starts outside the native signed offset range before
+  acquiring a broker environment, preserving the maximum representable offset.
+
 - Apply configured decoded-delivery byte and metadata-count limits before native
   adapter copies and key sorting in live consumption and replay. This does not
   bound allocations already made by the upstream frame decoder.

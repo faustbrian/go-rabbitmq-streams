@@ -544,7 +544,7 @@ func (session *rabbitProducerSession) Send(
 func toWireMessage(outbound rabbitstream.Message) *amqp.AMQP10 {
 	wireMessage := amqp.NewMessage(append([]byte(nil), outbound.Payload...))
 	if outbound.HasPublishingID {
-		wireMessage.SetPublishingId(int64(outbound.PublishingID))
+		wireMessage.SetPublishingId(int64(outbound.PublishingID)) // #nosec G115 -- Root producer admission rejects explicit publishing IDs above MaxInt64 before transport Send.
 	}
 	if outbound.ContentType != "" || outbound.MessageID != "" ||
 		outbound.CorrelationID != "" || !outbound.Timestamp.IsZero() {
@@ -794,7 +794,7 @@ func toOffsetSpecification(start rabbitstream.StartPosition) stream.OffsetSpecif
 	case rabbitstream.OffsetStartEnd:
 		return specification.Next()
 	case rabbitstream.OffsetStartExplicit:
-		return specification.Offset(int64(start.Offset))
+		return specification.Offset(int64(start.Offset)) // #nosec G115 -- Both consumer opening and replay Open admit explicit offsets only through consumerStartOffsetFits.
 	case rabbitstream.OffsetStartTimestamp:
 		return specification.Timestamp(start.Timestamp.UnixMilli())
 	default:
@@ -844,7 +844,7 @@ func (session *rabbitProducerSession) handleConfirmation(
 	confirmation := classifyConfirmation(
 		status.IsConfirmed(),
 		status.GetError(),
-		uint64(status.GetPublishingId()),
+		uint64(status.GetPublishingId()), // #nosec G115 -- Native confirmation IDs carry the same 64 wire bits in int64; restore the root unsigned representation.
 	)
 	confirmation.Partition = partition
 	pending := session.pending[wireMessage]
