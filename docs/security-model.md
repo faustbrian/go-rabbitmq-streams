@@ -44,3 +44,24 @@ These responsibilities are explicit limitations, not a claim that checks or
 releases have passed. The root's delivery/admission and joinable-shutdown tests
 are the executable policy evidence; adapter/provider and release checks must
 qualify their own boundaries independently.
+
+## Coverage acceptance for the retained v1 adapter
+
+The retained `adapters/rabbitmq` module collects statement evidence rather than
+requiring execution of every defensive branch. Its wire admission checks reject
+unsupported metadata types before conversion; the later type-conversion errors
+are not separate reachable hostile-input scenarios for an unchanged decoded
+message. Semantic identifier validation is still required after byte admission:
+empty or whitespace metadata keys and whitespace routing values must return a
+validation error without a delivery. Conversion tests cover that refusal and
+a valid control. The consumer's additional validation repeats the successful
+conversion check. Direct helper checks are not a substitute for testing the
+admitted delivery contract.
+
+The root and other modules keep their existing exact statement policy. Adapter
+tests, race checks, conformance, fuzzing, mutation qualification and security
+scanners remain required. Coverage counts do not certify security or readiness.
+The coordinator owns this acceptance decision and must reconsider the exercised
+scenarios when admission, conversion, wire ownership or dependencies change. The
+retained upstream SDK's protocol risks remain unresolved by a root-only release;
+the separately reviewed private-client adapter must qualify those boundaries.

@@ -9,6 +9,11 @@ manifest:
 evidence:
   root: .verification
 
+coverage:
+  modules:
+    - module: adapters/rabbitmq
+      mode: evidence
+
 mutation:
   root: .verification/mutation
   imports:
