@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "packages": [
+    {
+      "module_directory": ".",
+      "package_directory": ".",
+      "source_digest": "a5071cfead45904c2f7f200b99c54f62c909dac5f6b01cc9e02df6032a19bd6d",
+      "gremlins_version": "v0.6.0",
+      "gremlins_verifier_sha256": "390cf4085a0063fe5dcaa29ce942ea4cb8c7876347da90376b65dc8c5c811104",
+      "mutations": [
+        {
+          "file_name": "message.go",
+          "type": "INVERT_LOGICAL",
+          "line": 210,
+          "column": 53,
+          "contract_domain": "All ValidateDelivery inputs, including accepted deliveries and exported error cause chains",
+          "reason": "Unequal Stream and Partition already fail the unchanged identity comparison. Equal names have equal byte lengths, so their two length predicates have equal truth values and OR versus AND cannot change acceptance or the returned error."
+        }
+      ]
+    }
+  ]
+}
