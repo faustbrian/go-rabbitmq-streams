@@ -177,14 +177,18 @@ func TestNativeOwnerRetainsRetiredClientTasks(t *testing.T) {
 
 func TestNativeReaderCloseDoesNotJoinItself(t *testing.T) {
 	c, _, peer := pipeContextClient(t)
-	if !c.startTask(nil, c.handleResponse) {
+	readerReturned := make(chan struct{})
+	if !c.startTask(nil, func() {
+		c.handleResponse()
+		close(readerReturned)
+	}) {
 		t.Fatal("reader admission")
 	}
 	_ = peer.Close()
 	select {
-	case <-c.socket.done:
+	case <-readerReturned:
 	case <-time.After(time.Second):
-		t.Fatal("reader failed terminal stop")
+		t.Fatal("reader failed to return from terminal stop")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
