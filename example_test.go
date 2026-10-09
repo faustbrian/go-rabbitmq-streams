@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/faustbrian/go-rabbitmq-streams"
+	"github.com/faustbrian/go-rabbitmq-streams/v2"
 )
 
 func ExampleNewProducer() {

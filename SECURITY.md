@@ -13,10 +13,15 @@ timelines depend on severity and verification.
 
 ## Supported Versions
 
-The root, OpenTelemetry, and RabbitMQ modules each have a published stable v1
-line. The latest v1 patch release for each module receives security fixes unless
-announced otherwise. Fixes land on the default branch before the affected
-module is released independently. Support windows are documented in
+Root delivery-admission and shutdown corrections target v2, not a v1 backport.
+Root-v1 users must migrate to root v2 and compatible adapters to obtain those
+corrections once the releases are published. Publication and consumer
+verification remain separate from source availability on main.
+
+Unchanged OpenTelemetry modules retain their published root-v1 cohort; this
+does not certify root-v1 remediation. RabbitMQ adapter/facade remediation is
+released separately and must not be inferred from a root release. Support and
+major-cohort compatibility are documented in
 [`COMPATIBILITY.md`](COMPATIBILITY.md).
 
 ## Security Gates
@@ -30,6 +35,10 @@ Security fixes MUST include a regression test that does not publish weaponized
 details or real secrets. Credentials MUST be redacted from logs and evidence.
 
 ## Repository Assurance
+
+The versioned [root security model](docs/security-model.md) records root-owned
+controls and residual collaborator responsibilities. It does not certify a
+protocol implementation, broker, or older public release.
 
 The repository [safety and concurrency policy](AGENTS.md#safety-and-concurrency)
 and [supply-chain policy](AGENTS.md#dependencies-and-supply-chain) define shared

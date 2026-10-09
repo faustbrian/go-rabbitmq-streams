@@ -4,6 +4,11 @@
 
 ### Changed
 
+- Prepare the root v2 module path and release metadata for the documented
+  delivery-admission and shutdown contract changes. Root source stays on main
+  at the repository root. Require Go 1.27.2; unrelated v1 adapter cohorts are
+  not migrated or released by this root change.
+
 - Enforce configured delivery shape, payload and metadata limits at live,
   batch and replay root admission before routing, retention or handlers.
   Invalid deliveries cannot advance offsets or reach failure publication.

@@ -10,9 +10,12 @@ errors, instrumentation scope where applicable, and runtime behavior while
 delegating to the canonical modules. See the [migration guide](docs/migration.md).
 A directory prefix is never added to the root module's tag.
 
-All releasable modules are stable v1 libraries. Their minimum supported Go
-version is 1.27.0, and repository verification currently tests exactly Go
-1.27.0. The RabbitMQ transport's broker and client support matrix is documented
+The root's next release is v2 with the required `/v2` module suffix and a
+Go 1.27.2 minimum. Source remains at the repository root on main; major releases
+use Git tags, not version-specific directories or branches. Existing v1 adapter
+modules retain their root-v1 dependency cohort until explicitly migrated and
+released. Root-v1 and root-v2 public types are distinct and must not be mixed.
+The RabbitMQ transport's broker and client support matrix is documented
 in [`adapters/rabbitmq/COMPATIBILITY.md`](adapters/rabbitmq/COMPATIBILITY.md);
 OpenTelemetry support and limitations are documented in
 [`adapters/otel/docs/reference.md`](adapters/otel/docs/reference.md).

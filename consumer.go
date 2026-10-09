@@ -814,6 +814,7 @@ func consumerWorker(partition string, workerCount int) int {
 		hash ^= uint32(partition[index])
 		hash *= 16777619
 	}
+	// #nosec G115 -- both dispatch callers use Normalized's positive maximumConsumerWorkers-bounded worker count
 	return int(hash % uint32(workerCount))
 }
 
@@ -932,6 +933,7 @@ func (consumer *Consumer) publishFailure(ctx context.Context, source Message, at
 		MetadataEntry{Key: FailureSourceStreamMetadata, Value: []byte(source.Stream)},
 		MetadataEntry{Key: FailureSourcePartitionMetadata, Value: []byte(source.Partition)},
 		MetadataEntry{Key: FailureSourceOffsetMetadata, Value: []byte(strconv.FormatUint(source.Offset, 10))},
+		// #nosec G115 -- handler loops pass a positive attempt count bounded by Normalized's maximumRetryAttempts
 		MetadataEntry{Key: FailureAttemptMetadata, Value: []byte(strconv.FormatUint(uint64(attempts), 10))},
 		MetadataEntry{Key: FailureCategoryMetadata, Value: []byte(CategoryHandler)},
 	)

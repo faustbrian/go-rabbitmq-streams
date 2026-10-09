@@ -1,5 +1,27 @@
 # Lifecycle and adapter-path migration
 
+## Root v2
+
+Change root imports to `github.com/faustbrian/go-rabbitmq-streams/v2` and use
+Go 1.27.2 or newer. Root v2 has distinct public type identities; replace the
+entire root cohort used by an application rather than mixing v1 and v2 values.
+Repository directories and the main branch do not change. Root tags are
+`v2.x.y`; nested module tags retain their directory prefix.
+
+The RabbitMQ adapter and facade require their own v2 releases to adopt these
+root identities. Root publication does not claim that those releases are
+available. The unchanged OpenTelemetry adapter/facade remain on their published
+root-v1 cohort and are not compatible with root-v2 observer/configuration types.
+
+Custom transports and replay sources must provide an explicit offset (including
+offset zero), a bounded backing stream/partition identity, and messages within
+the configured payload/metadata limits. Rejected deliveries cannot reach
+handlers, failure publication, or offset storage. Shutdown timeouts bound the
+individual caller's wait; they do not prove or permanently finalize cleanup.
+Trusted callbacks and contextless transport operations must still return.
+
+## Existing v1 adapter-path migration
+
 The canonical optional integrations are now target-oriented modules:
 
 | Released path | Canonical successor |

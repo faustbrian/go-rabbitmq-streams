@@ -5,9 +5,9 @@
 [![Coverage](https://img.shields.io/badge/coverage-100%25_required-blue)](CONTRIBUTING.md#verification)
 [![Mutation](https://img.shields.io/badge/mutation-100%25_required-blue)](CONTRIBUTING.md#verification)
 [![Documentation](https://img.shields.io/badge/docs-checked_in_CI-blue)](docs/)
-[![Go Reference](https://pkg.go.dev/badge/github.com/faustbrian/go-rabbitmq-streams.svg)](https://pkg.go.dev/github.com/faustbrian/go-rabbitmq-streams)
+[![Go Reference](https://pkg.go.dev/badge/github.com/faustbrian/go-rabbitmq-streams/v2.svg)](https://pkg.go.dev/github.com/faustbrian/go-rabbitmq-streams/v2)
 [![Release](https://img.shields.io/github/v/release/faustbrian/go-rabbitmq-streams?sort=semver)](https://github.com/faustbrian/go-rabbitmq-streams/releases)
-[![Go](https://img.shields.io/badge/go-1.27.0-00ADD8?logo=go)](https://go.dev/)
+[![Go](https://img.shields.io/badge/go-1.27.2-00ADD8?logo=go)](https://go.dev/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 `rabbitstream` is a policy layer for durable RabbitMQ Streams and Super Streams
@@ -15,9 +15,10 @@ workloads. It provides bounded publishing, consumption, replay, inspection,
 failure handling, lifecycle, and observations without implementing the
 RabbitMQ Streams protocol.
 
-The root policy library, RabbitMQ transport, and OpenTelemetry adapter are
-stable v1 modules. Their minimum supported Go version is 1.27.0; repository
-verification currently tests exactly Go 1.27.0.
+The root policy library targets v2 and requires Go 1.27.2. Modules are released
+independently from main. Existing v1 adapters retain root-v1 type identities;
+they cannot be mixed with root-v2 configurations, producers, or consumers.
+See the [migration guide](docs/migration.md) for the supported cohorts.
 
 For the shared construction, ownership, lifecycle, and integration vocabulary,
 see the versioned [v1.4.0 Golib ecosystem
@@ -34,9 +35,7 @@ and its [Integration and data movement family](https://github.com/faustbrian/go-
 ## Install
 
 ```sh
-go get github.com/faustbrian/go-rabbitmq-streams@v1
-go get github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq@v1
-go get github.com/faustbrian/go-rabbitmq-streams/adapters/otel@v1
+go get github.com/faustbrian/go-rabbitmq-streams/v2@v2
 ```
 
 Install only the modules an application imports. The root module defines
@@ -44,14 +43,15 @@ vendor-neutral policy and transport seams. The
 [`adapters/rabbitmq`](adapters/rabbitmq/README.md) module adapts the supported
 RabbitMQ Go Streams client, and [`adapters/otel`](adapters/otel/README.md)
 provides optional OpenTelemetry metrics and W3C Trace Context propagation.
-The released `rabbitmq` and `otel` paths remain supported as deprecated,
-behavior-compatible facades. New code should use the canonical paths; existing
-code can migrate by changing only its import and module path. See the
+Select an adapter that explicitly supports the root major used by the
+application. The published v1 OpenTelemetry adapter and facade remain on the
+root-v1 cohort; their release is not implied by a root-v2 release. RabbitMQ
+adapter/facade v2 publication is a separate delivery boundary. See the
 [migration guide](docs/migration.md).
 
 | Package | Use |
 | --- | --- |
-| `github.com/faustbrian/go-rabbitmq-streams` | Define bounded messages, delivery policy, producer and consumer contracts, replay, and inspection. |
+| `github.com/faustbrian/go-rabbitmq-streams/v2` | Define bounded messages, delivery policy, producer and consumer contracts, replay, and inspection. |
 | `github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq` | Open RabbitMQ Streams protocol resources through the supported Go client. |
 | `github.com/faustbrian/go-rabbitmq-streams/adapters/otel` | Translate observations to caller-owned OpenTelemetry metrics and propagate W3C Trace Context. |
 

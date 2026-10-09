@@ -6,7 +6,7 @@
       "module_directory": ".",
       "directory": ".",
       "name": "rabbitstream",
-      "import_path": "github.com/faustbrian/go-rabbitmq-streams",
+      "import_path": "github.com/faustbrian/go-rabbitmq-streams/v2",
       "kind": "public",
       "production": true,
       "executable": true,
