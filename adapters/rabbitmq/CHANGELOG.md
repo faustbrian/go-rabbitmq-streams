@@ -15,6 +15,9 @@
 
 ### Fixed
 
+- Preserve caller cancellation when a consumer session failure races with it,
+  without discarding a delivery that was successfully received.
+
 - Reconnect after native producer lifetime cancellation before publication
   admission when the caller remains active. Preserve actual caller cancellation
   and ambiguous attempted writes without silently retrying those writes.

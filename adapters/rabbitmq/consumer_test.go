@@ -3,6 +3,7 @@ package rabbitmq
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
 	"sync"
 	"testing"
@@ -322,6 +323,41 @@ func TestConsumerTransportDoesNotRetryTerminalReconnectOpenFailure(t *testing.T)
 	}
 	if openCalls != 2 {
 		t.Fatalf("terminal open calls = %d", openCalls)
+	}
+}
+
+func TestConsumerTransportPreservesCancellationAfterFailedNext(t *testing.T) {
+	for _, successful := range []bool{false, true} {
+		t.Run(fmt.Sprintf("successful=%t", successful), func(t *testing.T) {
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			session := &fakeConsumerSession{
+				nextResult: func(context.Context) (rabbitstream.Message, error) {
+					cancel()
+					if successful {
+						return rabbitstream.Message{Stream: "events", Offset: 42}, nil
+					}
+					return rabbitstream.Message{}, rabbitstream.ErrConnection
+				},
+			}
+			transport, err := newReconnectingConsumerTransport(t.Context(),
+				func(context.Context, bool) (consumerSession, error) { return session, nil }, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { _ = transport.Close() })
+			message, err := transport.Next(ctx)
+			if successful {
+				if err != nil || message.Offset != 42 {
+					t.Fatalf("owned delivery = %#v, %v", message, err)
+				}
+			} else if !errors.Is(err, context.Canceled) {
+				t.Fatalf("failed Next after cancellation = %v", err)
+			}
+			if session.CloseCalls() != 0 {
+				t.Fatal("caller cancellation retired the session")
+			}
+		})
 	}
 }
 
@@ -927,6 +963,7 @@ func newRabbitConsumerSessionForTest() *rabbitConsumerSession {
 type fakeConsumerSession struct {
 	messages    chan rabbitstream.Message
 	nextErr     error
+	nextResult  func(context.Context) (rabbitstream.Message, error)
 	nextCalled  chan struct{}
 	nextRelease chan struct{}
 	storeErr    error
@@ -938,6 +975,9 @@ type fakeConsumerSession struct {
 }
 
 func (session *fakeConsumerSession) Next(ctx context.Context) (rabbitstream.Message, error) {
+	if session.nextResult != nil {
+		return session.nextResult(ctx)
+	}
 	if session.nextCalled != nil {
 		session.nextCalled <- struct{}{}
 	}

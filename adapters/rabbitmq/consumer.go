@@ -332,7 +332,11 @@ func (transport *consumerTransport) Next(ctx context.Context) (rabbitstream.Mess
 			return rabbitstream.Message{}, err
 		}
 		message, err := session.Next(ctx)
-		if shouldReturnConsumerMessage(err, ctx.Err()) {
+		ctxErr := ctx.Err()
+		if err != nil && ctxErr != nil {
+			return rabbitstream.Message{}, ctxErr
+		}
+		if shouldReturnConsumerMessage(err, ctxErr) {
 			return message, err
 		}
 		transport.invalidate(session, err)
