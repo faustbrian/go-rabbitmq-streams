@@ -463,6 +463,9 @@ func openFreshEnvironmentWith(
 			}
 			backoff = nextReconnectBackoff(backoff, connection.MaxReconnectBackoff)
 		}
+		if err := operationCtx.Err(); err != nil {
+			return nil, err
+		}
 		safeObserve(connection.Observer, rabbitstream.Observation{
 			Kind: rabbitstream.ObservationConnectionConnecting, Count: 1, Value: connectionAttemptNumber(attempt),
 		})

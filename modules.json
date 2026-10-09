@@ -625,7 +625,7 @@
       "family_label": "Integration And Data Movement",
       "family_description": "Bounded external I/O, data movement, provider boundaries, and derived search state.",
       "family_order": 7,
-      "version": "2.0.0",
+      "version": "2.0.1",
       "tag_prefix": "adapters/rabbitmq/v",
       "owned_dependencies": [
         "github.com/faustbrian/go-rabbitmq-streams/v2"

@@ -15,6 +15,10 @@
 
 ### Fixed
 
+- Reject already-canceled or expired environment opening before invoking
+  credentials or connection observations, including inspection, stored-offset
+  lookup, and dependency-health requests.
+
 - Preserve healthy sessions and original confirmation ownership when native
   publication admission rejects a pending publishing ID or capacity. Report
   validation refusal without silently reconnecting or retrying.
