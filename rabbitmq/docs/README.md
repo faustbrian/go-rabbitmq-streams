@@ -3,7 +3,7 @@
 ## Getting started
 
 - [Package overview](../README.md)
-- [Go package documentation](https://pkg.go.dev/github.com/faustbrian/go-rabbitmq-streams/rabbitmq)
+- [Go package documentation](https://pkg.go.dev/github.com/faustbrian/go-rabbitmq-streams/rabbitmq/v2)
 
 ## Security and compatibility
 

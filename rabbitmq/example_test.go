@@ -8,8 +8,8 @@ import (
 	"os"
 	"time"
 
-	rabbitstream "github.com/faustbrian/go-rabbitmq-streams"
-	"github.com/faustbrian/go-rabbitmq-streams/rabbitmq"
+	"github.com/faustbrian/go-rabbitmq-streams/rabbitmq/v2"
+	rabbitstream "github.com/faustbrian/go-rabbitmq-streams/v2"
 )
 
 func ExampleOpenProducer() {

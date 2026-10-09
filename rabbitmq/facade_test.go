@@ -8,9 +8,9 @@ import (
 	"reflect"
 	"testing"
 
-	rabbitstream "github.com/faustbrian/go-rabbitmq-streams"
-	successor "github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq"
-	legacy "github.com/faustbrian/go-rabbitmq-streams/rabbitmq"
+	successor "github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2"
+	legacy "github.com/faustbrian/go-rabbitmq-streams/rabbitmq/v2"
+	rabbitstream "github.com/faustbrian/go-rabbitmq-streams/v2"
 )
 
 func TestFacadePreservesTypeAndErrorContracts(t *testing.T) {
@@ -21,7 +21,7 @@ func TestFacadePreservesTypeAndErrorContracts(t *testing.T) {
 		"Replayer":  (*legacy.Replayer)(nil),
 	} {
 		got := reflect.TypeOf(value).Elem()
-		if got.PkgPath() != "github.com/faustbrian/go-rabbitmq-streams/rabbitmq" || got.Name() != name {
+		if got.PkgPath() != "github.com/faustbrian/go-rabbitmq-streams/rabbitmq/v2" || got.Name() != name {
 			t.Fatalf("%s reflection identity = %s.%s", name, got.PkgPath(), got.Name())
 		}
 	}

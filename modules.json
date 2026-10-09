@@ -33,7 +33,8 @@
       "tag_prefix": "v",
       "owned_dependencies": [],
       "reverse_owned_dependencies": [
-        "github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2"
+        "github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2",
+        "github.com/faustbrian/go-rabbitmq-streams/rabbitmq/v2"
       ],
       "external_runtime_dependencies": [],
       "required_services": [],
@@ -276,14 +277,14 @@
     },
     {
       "directory": "rabbitmq",
-      "module_path": "github.com/faustbrian/go-rabbitmq-streams/rabbitmq",
-      "go_version": "1.27.0",
+      "module_path": "github.com/faustbrian/go-rabbitmq-streams/rabbitmq/v2",
+      "go_version": "1.27.2",
       "packages": [
         {
           "module_directory": "rabbitmq",
           "directory": ".",
           "name": "rabbitmq",
-          "import_path": "github.com/faustbrian/go-rabbitmq-streams/rabbitmq",
+          "import_path": "github.com/faustbrian/go-rabbitmq-streams/rabbitmq/v2",
           "kind": "public",
           "production": true,
           "executable": true,
@@ -292,7 +293,7 @@
           "build_tags": []
         }
       ],
-      "purpose": "Deprecated v1 compatibility facade for the target-oriented RabbitMQ Streams adapter.",
+      "purpose": "Deprecated v2 compatibility facade for the canonical adapter-v2/root-v2 cohort.",
       "lifecycle": "deprecated",
       "kind": "public library",
       "releasable": true,
@@ -300,15 +301,13 @@
       "family_label": "Integration And Data Movement",
       "family_description": "Bounded external I/O, data movement, provider boundaries, and derived search state.",
       "family_order": 7,
-      "version": "1.1.1",
+      "version": "2.0.0",
       "tag_prefix": "rabbitmq/v",
       "owned_dependencies": [
-        "github.com/faustbrian/go-rabbitmq-streams",
-        "github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq"
+        "github.com/faustbrian/go-rabbitmq-streams/v2",
+        "github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2"
       ],
-      "reverse_owned_dependencies": [
-        "github.com/faustbrian/go-transactional-outbox/adapters/gorabbitstream"
-      ],
+      "reverse_owned_dependencies": [],
       "external_runtime_dependencies": [],
       "required_services": [],
       "build_tags": [],
@@ -329,16 +328,16 @@
           "resilience-and-admission",
           "transport-and-networking"
         ],
-        "responsibility": "Preserve the released RabbitMQ Streams adapter import path, public type identities, errors, and behavior while delegating to adapters/rabbitmq.",
+        "responsibility": "Provide the deprecated v2 facade and nominal identities while delegating transport, inspection and replay to adapters/rabbitmq/v2.",
         "non_goals": [
           "Own protocol resources, wire conversion, recovery, replay, inspection, or new adapter behavior."
         ],
         "public_package_identifier": "rabbitmq",
         "primary_entry_packages": [
-          "github.com/faustbrian/go-rabbitmq-streams/rabbitmq"
+          "github.com/faustbrian/go-rabbitmq-streams/rabbitmq/v2"
         ],
         "package_selection": {
-          "github.com/faustbrian/go-rabbitmq-streams/rabbitmq": "Use only to preserve the released import path during migration; new code uses adapters/rabbitmq."
+          "github.com/faustbrian/go-rabbitmq-streams/rabbitmq/v2": "Use the deprecated v2 facade only within the root-v2 cohort; new code uses adapters/rabbitmq/v2."
         },
         "lifecycle_status": "deprecated",
         "maturity": "stable",
@@ -360,13 +359,11 @@
         },
         "optional_owned_dependencies": [],
         "adapters": [],
-        "companions": [
-          "github.com/faustbrian/go-transactional-outbox/adapters/gorabbitstream"
-        ],
+        "companions": [],
         "supported_go": {
-          "minimum": "1.27.0",
+          "minimum": "1.27.2",
           "tested": [
-            "1.27.0"
+            "1.27.2"
           ]
         },
         "supported_platforms": [
@@ -381,7 +378,7 @@
         ],
         "documentation": {
           "readme": "rabbitmq/README.md",
-          "api": "https://pkg.go.dev/github.com/faustbrian/go-rabbitmq-streams/rabbitmq",
+          "api": "https://pkg.go.dev/github.com/faustbrian/go-rabbitmq-streams/rabbitmq/v2",
           "adoption": "rabbitmq/README.md",
           "security": "SECURITY.md",
           "compatibility": "rabbitmq/COMPATIBILITY.md",
@@ -389,7 +386,7 @@
           "examples": "rabbitmq/example_test.go",
           "faq": "rabbitmq/README.md",
           "changelog": "rabbitmq/CHANGELOG.md",
-          "pkg_go_dev": "https://pkg.go.dev/github.com/faustbrian/go-rabbitmq-streams/rabbitmq",
+          "pkg_go_dev": "https://pkg.go.dev/github.com/faustbrian/go-rabbitmq-streams/rabbitmq/v2",
           "ecosystem_index": "https://github.com/faustbrian/go-library-tools/blob/v1.4.0/docs/ecosystem/README.md"
         },
         "known_good_compatibility_sets": [],
@@ -630,7 +627,9 @@
       "owned_dependencies": [
         "github.com/faustbrian/go-rabbitmq-streams/v2"
       ],
-      "reverse_owned_dependencies": [],
+      "reverse_owned_dependencies": [
+        "github.com/faustbrian/go-rabbitmq-streams/rabbitmq/v2"
+      ],
       "external_runtime_dependencies": [
         "github.com/golang/snappy",
         "github.com/klauspost/compress",

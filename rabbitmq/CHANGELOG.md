@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Changed
+
+- Adopt the facade-v2 module identity and the canonical adapter-v2/root-v2
+  cohort with Go 1.27.2. Migrate imports together; v1 nominal types remain
+  separate. Native transport bounds and shutdown follow the v2 adapter.
+- Select adapter v2.0.1 so already-canceled inspection, stored-offset lookup
+  and dependency-health requests are refused before credential resolution.
+
 The v1.1.0 facade entry below is release preparation. Canonical adapter
 v1.1.0 selection follows its public release; keep this facade unpublished
 until that dependency selection is complete.

@@ -1,14 +1,14 @@
-// Package rabbitmq preserves the released RabbitMQ Streams client adapter
-// import path while delegating behavior to the target-oriented successor.
+// Package rabbitmq provides the deprecated RabbitMQ Streams facade in the
+// root-v2 type cohort, delegating behavior to the canonical v2 adapter.
 //
-// Deprecated: use github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq.
+// Deprecated: use github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2.
 package rabbitmq
 
 import (
 	"context"
 
-	rabbitstream "github.com/faustbrian/go-rabbitmq-streams"
-	successor "github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq"
+	successor "github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2"
+	rabbitstream "github.com/faustbrian/go-rabbitmq-streams/v2"
 )
 
 // OpenProducer preserves the released producer construction contract.

@@ -54,6 +54,7 @@ delivery boundary. See the
 | --- | --- |
 | `github.com/faustbrian/go-rabbitmq-streams/v2` | Define bounded messages, delivery policy, producer and consumer contracts, replay, and inspection. |
 | `github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2` | Open RabbitMQ Streams protocol resources through the bounded, attributed private client. |
+| `github.com/faustbrian/go-rabbitmq-streams/rabbitmq/v2` | Use the deprecated compatibility facade within the root-v2/adapter-v2 cohort. |
 | `github.com/faustbrian/go-rabbitmq-streams/adapters/otel` | Translate observations to caller-owned OpenTelemetry metrics and propagate W3C Trace Context. |
 
 ## Producer

@@ -1,10 +1,10 @@
-module github.com/faustbrian/go-rabbitmq-streams/rabbitmq
+module github.com/faustbrian/go-rabbitmq-streams/rabbitmq/v2
 
-go 1.27.0
+go 1.27.2
 
 require (
-	github.com/faustbrian/go-rabbitmq-streams v1.1.1
-	github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq v1.1.0
+	github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2 v2.0.1
+	github.com/faustbrian/go-rabbitmq-streams/v2 v2.0.0
 )
 
 require (
@@ -13,9 +13,9 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/golang/snappy v1.0.0 // indirect
 	github.com/klauspost/compress v1.19.1 // indirect
+	github.com/kr/text v0.2.0 // indirect
 	github.com/pierrec/lz4 v2.6.1+incompatible // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/rabbitmq/rabbitmq-stream-go-client v1.8.3 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/otel v1.47.0 // indirect

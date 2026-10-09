@@ -30,7 +30,7 @@
       "module_directory": "rabbitmq",
       "directory": ".",
       "name": "rabbitmq",
-      "import_path": "github.com/faustbrian/go-rabbitmq-streams/rabbitmq",
+      "import_path": "github.com/faustbrian/go-rabbitmq-streams/rabbitmq/v2",
       "kind": "public",
       "production": true,
       "executable": true,
