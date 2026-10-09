@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/faustbrian/go-rabbitmq-streams"
-	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/message"
-	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/stream"
+	"github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2/internal/rabbitmqstream/message"
+	"github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2/internal/rabbitmqstream/stream"
+	"github.com/faustbrian/go-rabbitmq-streams/v2"
 )
 
 func TestOpenProducerHonorsCancellationBeforeCredentialResolution(t *testing.T) {
@@ -369,8 +369,11 @@ func TestSessionOpeningRejectsLateSuccessAfterConnectionDeadline(t *testing.T) {
 		session, err := openSessionWithRetries(
 			context.Background(),
 			connection,
-			func(context.Context, rabbitstream.ConnectionConfig) (producerSession, error) {
-				<-release
+			func(openCtx context.Context, _ rabbitstream.ConnectionConfig) (producerSession, error) {
+				select {
+				case <-release:
+				case <-openCtx.Done():
+				}
 				return late, nil
 			},
 		)
@@ -751,13 +754,16 @@ func TestProducerTransportReconnectWaitAndCloseTransitions(t *testing.T) {
 	openCalls := 0
 	transport, err := newReconnectingProducerTransport(
 		context.Background(),
-		func(context.Context) (producerSession, error) {
+		func(openCtx context.Context) (producerSession, error) {
 			openCalls++
 			if openCalls == 1 {
 				return first, nil
 			}
 			close(reconnectStarted)
-			<-releaseReconnect
+			select {
+			case <-releaseReconnect:
+			case <-openCtx.Done():
+			}
 			return second, nil
 		},
 		nil,
@@ -1023,7 +1029,7 @@ func TestRabbitProducerSessionClassifiesPreAdmissionOutcomes(t *testing.T) {
 				sent = wireMessage
 				return test.sendErr
 			})
-			err := session.Send(rabbitstream.Message{Stream: "tracking.events", Payload: []byte("event")}, func(rabbitstream.TransportConfirmation) {})
+			err := session.Send(context.Background(), rabbitstream.Message{Stream: "tracking.events", Payload: []byte("event")}, func(rabbitstream.TransportConfirmation) {})
 			if !errors.Is(err, test.want) || (test.want == nil && err != nil) {
 				t.Fatalf("Send() error = %v, want %v", err, test.want)
 			}
@@ -1041,7 +1047,7 @@ func TestRabbitProducerSessionClassifiesPreAdmissionOutcomes(t *testing.T) {
 
 	aborted := newRabbitProducerSessionForTest(func(message.StreamMessage) error { return nil })
 	aborted.Abort(rabbitstream.ErrConnection)
-	if err := aborted.Send(rabbitstream.Message{Stream: "tracking.events"}, func(rabbitstream.TransportConfirmation) {}); !errors.Is(err, errProducerSessionClosed) {
+	if err := aborted.Send(context.Background(), rabbitstream.Message{Stream: "tracking.events"}, func(rabbitstream.TransportConfirmation) {}); !errors.Is(err, errProducerSessionClosed) {
 		t.Fatalf("aborted Send() error = %v", err)
 	}
 }
@@ -1053,11 +1059,11 @@ func TestRabbitSuperProducerSessionRoutesAndRejectsUnavailablePartitions(t *test
 	session := newRabbitProducerSessionForTest(nil)
 	session.send = nil
 	session.partitions = []string{"tracking-0", "tracking-1"}
-	session.partitionSenders = map[string]func(message.StreamMessage) error{
-		"tracking-0": func(message.StreamMessage) error { selected = "tracking-0"; return nil },
-		"tracking-1": func(message.StreamMessage) error { selected = "tracking-1"; return nil },
+	session.partitionSenders = map[string]func(context.Context, message.StreamMessage) error{
+		"tracking-0": func(context.Context, message.StreamMessage) error { selected = "tracking-0"; return nil },
+		"tracking-1": func(context.Context, message.StreamMessage) error { selected = "tracking-1"; return nil },
 	}
-	if err := session.Send(rabbitstream.Message{SuperStream: "tracking", RoutingKey: "tracking-123"}, func(rabbitstream.TransportConfirmation) {}); err != nil {
+	if err := session.Send(context.Background(), rabbitstream.Message{SuperStream: "tracking", RoutingKey: "tracking-123"}, func(rabbitstream.TransportConfirmation) {}); err != nil {
 		t.Fatalf("routed Send() error = %v", err)
 	}
 	if selected == "" {
@@ -1065,11 +1071,11 @@ func TestRabbitSuperProducerSessionRoutesAndRejectsUnavailablePartitions(t *test
 	}
 
 	session.partitions = nil
-	if err := session.Send(rabbitstream.Message{SuperStream: "tracking", RoutingKey: "tracking-123"}, func(rabbitstream.TransportConfirmation) {}); err == nil {
+	if err := session.Send(context.Background(), rabbitstream.Message{SuperStream: "tracking", RoutingKey: "tracking-123"}, func(rabbitstream.TransportConfirmation) {}); err == nil {
 		t.Fatal("Send() accepted an empty Super Stream topology")
 	}
 	session.partitions = []string{"tracking-missing"}
-	if err := session.Send(rabbitstream.Message{SuperStream: "tracking", RoutingKey: "tracking-123"}, func(rabbitstream.TransportConfirmation) {}); !errors.Is(err, rabbitstream.ErrPartitionUnavailable) {
+	if err := session.Send(context.Background(), rabbitstream.Message{SuperStream: "tracking", RoutingKey: "tracking-123"}, func(rabbitstream.TransportConfirmation) {}); !errors.Is(err, rabbitstream.ErrPartitionUnavailable) {
 		t.Fatalf("unavailable partition Send() error = %v", err)
 	}
 }
@@ -1121,7 +1127,7 @@ func TestRabbitProducerSessionDeliversSynchronousConfirmationAfterAdmission(t *t
 
 	result := make(chan rabbitstream.TransportConfirmation, 1)
 	session := newRabbitProducerSessionForTest(nil)
-	session.send = func(wireMessage message.StreamMessage) error {
+	session.send = func(_ context.Context, wireMessage message.StreamMessage) error {
 		session.mutex.Lock()
 		session.pending[wireMessage].result = &rabbitstream.TransportConfirmation{
 			Confirmed: true, Partition: "tracking.events", PublishingID: 41,
@@ -1129,7 +1135,7 @@ func TestRabbitProducerSessionDeliversSynchronousConfirmationAfterAdmission(t *t
 		session.mutex.Unlock()
 		return nil
 	}
-	if err := session.Send(rabbitstream.Message{Stream: "tracking.events"}, func(confirmation rabbitstream.TransportConfirmation) {
+	if err := session.Send(context.Background(), rabbitstream.Message{Stream: "tracking.events"}, func(confirmation rabbitstream.TransportConfirmation) {
 		result <- confirmation
 	}); err != nil {
 		t.Fatalf("Send() error = %v", err)
@@ -1217,11 +1223,12 @@ func TestRabbitProducerSessionCloseNormalizesOwnedResourceFailures(t *testing.T)
 
 func newRabbitProducerSessionForTest(send func(message.StreamMessage) error) *rabbitProducerSession {
 	return &rabbitProducerSession{
-		send:             send,
+		send:             func(_ context.Context, wireMessage message.StreamMessage) error { return send(wireMessage) },
 		producerClosers:  []func() error{func() error { return nil }},
 		environmentClose: func() error { return nil },
 		pending:          make(map[message.StreamMessage]*pendingConfirmation),
 		failures:         make(chan error, 1),
+		done:             make(chan struct{}),
 	}
 }
 
@@ -1391,6 +1398,7 @@ func newFakeProducerSession() *fakeProducerSession {
 }
 
 func (session *fakeProducerSession) Send(
+	_ context.Context,
 	_ rabbitstream.Message,
 	confirm func(rabbitstream.TransportConfirmation),
 ) error {

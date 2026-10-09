@@ -2,18 +2,50 @@
 
 ## Unreleased
 
+### Changed
+
+- Use the adapter-v2 module path with root-v2 policy types and Go 1.27.2.
+  Migrate root and adapter imports together; root-v1 values are not compatible.
+
+- Package the attributed private RabbitMQ client source closure with native
+  context-aware transport operations, finite frame/AMQP/decompression admission,
+  and disabled implicit process-global client logging and metric registration.
+  Previously accepted wire inputs
+  outside these bounds are rejected; this belongs to the next major release.
+
 ### Fixed
+
+- Preserve healthy sessions and original confirmation ownership when native
+  publication admission rejects a pending publishing ID or capacity. Report
+  validation refusal without silently reconnecting or retrying.
+
+- Join producer failure watchers and retired session cleanup before shutdown
+  completes, including sessions retired by a send failure. Preserve their
+  cleanup errors in the terminal shutdown result.
+
+- Reject decoded map keys containing non-comparable described values without
+  panicking, while preserving comparable map keys.
+
+- Join adapter-owned consumer and replay terminal-notification workers before
+  shutdown returns.
 
 - Reject explicit replay starts outside the native signed offset range before
   acquiring a broker environment, preserving the maximum representable offset.
 
 - Apply configured decoded-delivery byte and metadata-count limits before native
-  adapter copies and key sorting in live consumption and replay. This does not
-  bound allocations already made by the upstream frame decoder.
+  adapter copies and key sorting in live consumption and replay, alongside the
+  private client's independent pre-decode frame and allocation bounds.
 
 - Close partially opened native environments and sessions before returning an
   opening failure or retrying. Successful opens still transfer ownership to
   the caller; cancellation retains its original classification and priority.
+
+- Preserve ambiguous publication outcomes after an attempted native write,
+  without silently retrying or duplicating callbacks during concurrent abort.
+  Preserve cancellation errors when no write was admitted.
+
+- Cancel and join reconnect opening during producer and consumer transport
+  shutdown, closing any late resource before shutdown returns.
 
 ## 1.1.0 - 2026-10-06
 

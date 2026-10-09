@@ -1,14 +1,17 @@
 package rabbitmq
 
 import (
-	"github.com/faustbrian/go-rabbitmq-streams"
-	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/message"
-	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/stream"
+	"context"
+	"errors"
+
+	"github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2/internal/rabbitmqstream/message"
+	"github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2/internal/rabbitmqstream/stream"
+	"github.com/faustbrian/go-rabbitmq-streams/v2"
 )
 
 type rabbitProducer interface {
 	// Send submits one supported-client wire message.
-	Send(message.StreamMessage) error
+	SendContext(context.Context, message.StreamMessage) error
 	// NotifyPublishConfirmation returns the producer confirmation stream.
 	NotifyPublishConfirmation() stream.ChannelPublishConfirm
 	// NotifyClose returns the producer terminal event stream.
@@ -21,7 +24,7 @@ type rabbitProducer interface {
 
 type rabbitConsumer interface {
 	// StoreCustomOffset submits one broker offset-tracking command.
-	StoreCustomOffset(int64) error
+	StoreCustomOffsetContext(context.Context, int64) error
 	// NotifyClose returns the consumer terminal event stream.
 	NotifyClose() stream.ChannelClose
 	// Close releases the supported-client consumer.
@@ -30,15 +33,15 @@ type rabbitConsumer interface {
 
 type rabbitEnvironment interface {
 	// QueryPartitions returns the broker's ordered Super Stream backing streams.
-	QueryPartitions(string) ([]string, error)
+	QueryPartitions(context.Context, string) ([]string, error)
 	// StreamExists reports whether a direct stream exists.
-	StreamExists(string) (bool, error)
+	StreamExists(context.Context, string) (bool, error)
 	// StreamStats returns supported-client stream statistics.
-	StreamStats(string) (*stream.StreamStats, error)
+	StreamStats(context.Context, string) (*stream.StreamStats, error)
 	// QueryOffset returns a named consumer's broker-stored offset.
-	QueryOffset(string, string) (int64, error)
+	QueryOffset(context.Context, string, string) (int64, error)
 	// NewConsumer opens one supported-client consumer.
-	NewConsumer(string, stream.MessagesHandler, *stream.ConsumerOptions) (rabbitConsumer, error)
+	NewConsumer(context.Context, string, stream.MessagesHandler, *stream.ConsumerOptions) (rabbitConsumer, error)
 	// Close releases the supported-client environment.
 	Close() error
 }
@@ -46,7 +49,7 @@ type rabbitEnvironment interface {
 type producerEnvironment interface {
 	rabbitEnvironment
 	// NewProducer opens one supported-client producer.
-	NewProducer(string, *stream.ProducerOptions) (rabbitProducer, error)
+	NewProducer(context.Context, string, *stream.ProducerOptions) (rabbitProducer, error)
 }
 
 type streamEnvironment struct{ environment *stream.Environment }
@@ -73,38 +76,43 @@ func validSuperStreamPartitions(partitions []string, limits rabbitstream.Limits)
 }
 
 // QueryPartitions delegates ordered topology lookup to the supported client.
-func (environment *streamEnvironment) QueryPartitions(name string) ([]string, error) {
-	return environment.environment.QueryPartitions(name)
+func (environment *streamEnvironment) QueryPartitions(ctx context.Context, name string) ([]string, error) {
+	return environment.environment.QueryPartitionsContext(ctx, name)
 }
 
 // StreamExists delegates existence lookup to the supported client.
-func (environment *streamEnvironment) StreamExists(name string) (bool, error) {
-	return environment.environment.StreamExists(name)
+func (environment *streamEnvironment) StreamExists(ctx context.Context, name string) (bool, error) {
+	return environment.environment.StreamExistsContext(ctx, name)
 }
 
 // StreamStats delegates stream-statistics lookup to the supported client.
-func (environment *streamEnvironment) StreamStats(name string) (*stream.StreamStats, error) {
-	return environment.environment.StreamStats(name)
+func (environment *streamEnvironment) StreamStats(ctx context.Context, name string) (*stream.StreamStats, error) {
+	return environment.environment.StreamStatsContext(ctx, name)
 }
 
 // QueryOffset delegates broker offset lookup to the supported client.
-func (environment *streamEnvironment) QueryOffset(consumerName string, streamName string) (int64, error) {
-	return environment.environment.QueryOffset(consumerName, streamName)
+func (environment *streamEnvironment) QueryOffset(ctx context.Context, consumerName string, streamName string) (int64, error) {
+	return environment.environment.QueryOffsetContext(ctx, consumerName, streamName)
 }
 
 // NewConsumer wraps a supported-client consumer behind the private boundary.
 func (environment *streamEnvironment) NewConsumer(
+	ctx context.Context,
 	name string,
 	handler stream.MessagesHandler,
 	options *stream.ConsumerOptions,
 ) (rabbitConsumer, error) {
-	return environment.environment.NewConsumer(name, handler, options)
+	return environment.environment.NewConsumerContext(ctx, name, handler, options)
 }
 
 // NewProducer wraps a supported-client producer behind the private boundary.
-func (environment *streamEnvironment) NewProducer(name string, options *stream.ProducerOptions) (rabbitProducer, error) {
-	return environment.environment.NewProducer(name, options)
+func (environment *streamEnvironment) NewProducer(ctx context.Context, name string, options *stream.ProducerOptions) (rabbitProducer, error) {
+	return environment.environment.NewProducerContext(ctx, name, options)
 }
 
-// Close releases the wrapped supported-client environment.
-func (environment *streamEnvironment) Close() error { return environment.environment.Close() }
+// Close joins native cleanup; the root shutdown owner bounds individual callers.
+func (environment *streamEnvironment) Close() error {
+	closeErr := environment.environment.Close()
+	joinErr := environment.environment.WaitContext(context.Background())
+	return errors.Join(closeErr, joinErr)
+}

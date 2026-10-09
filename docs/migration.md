@@ -20,6 +20,25 @@ handlers, failure publication, or offset storage. Shutdown timeouts bound the
 individual caller's wait; they do not prove or permanently finalize cleanup.
 Trusted callbacks and contextless transport operations must still return.
 
+## RabbitMQ adapter and facade v2
+
+Use `github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2` with
+root-v2 values, or `github.com/faustbrian/go-rabbitmq-streams/rabbitmq/v2`
+for the deprecated facade within that same cohort. Change imports together.
+Facade-v2 publication follows adapter-v2; the existing v1 facade does not
+silently adopt these types or controls.
+Repository directories and main remain unchanged; tags are
+`adapters/rabbitmq/v2.x.y` and `rabbitmq/v2.x.y`.
+
+The adapter packages an attributed private client rather than relying on
+downstream vendoring or replacement directives. Native frame, chunk, AMQP
+count/depth and decompression limits can reject wire shapes previously
+accepted by v1. Context cancellation reaches native opening, RPC and socket
+operations; shutdown joins owned workers. Applications still own cooperative
+callbacks, broker permissions, topology and end-to-end side-effect idempotency.
+See the [security model](security-model.md) and
+[source maintenance record](../adapters/rabbitmq/THIRD_PARTY_RABBITMQ_STREAM.md).
+
 ## Existing v1 adapter-path migration
 
 The canonical optional integrations are now target-oriented modules:

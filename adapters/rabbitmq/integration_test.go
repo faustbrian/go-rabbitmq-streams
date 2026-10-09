@@ -18,8 +18,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/faustbrian/go-rabbitmq-streams"
-	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/stream"
+	"github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2/internal/rabbitmqstream/stream"
+	"github.com/faustbrian/go-rabbitmq-streams/v2"
 )
 
 func TestTLSMutualAuthenticationAndCustomCAPublish(t *testing.T) {
@@ -540,7 +540,7 @@ func TestProducerRecoversAfterNetworkInterruptionAndBoundsReconnectStorm(t *test
 	proxyDisabled := false
 	t.Cleanup(func() {
 		if proxyDisabled {
-			setIntegrationProxyEnabled(t, proxyAPI, proxyName, true)
+			setIntegrationProxyEnabledContext(t, context.Background(), proxyAPI, proxyName, true)
 			proxyDisabled = false
 			waitForIntegrationBroker(t, connection)
 		}
@@ -582,6 +582,7 @@ func TestProducerRecoversAfterNetworkInterruptionAndBoundsReconnectStorm(t *test
 	cancelLoss()
 
 	const publishers = 8
+	beforeStorm := observer.Count(rabbitstream.ObservationReconnectAttempt)
 	results := make(chan error, publishers)
 	for range publishers {
 		go func() {
@@ -598,7 +599,7 @@ func TestProducerRecoversAfterNetworkInterruptionAndBoundsReconnectStorm(t *test
 			t.Fatal("publish unexpectedly confirmed while broker network was disconnected")
 		}
 	}
-	reconnects := observer.Count(rabbitstream.ObservationReconnectAttempt)
+	reconnects := observer.Count(rabbitstream.ObservationReconnectAttempt) - beforeStorm
 	if reconnects == 0 || reconnects > publishers {
 		t.Fatalf("reconnect attempts during storm = %d, want 1..%d", reconnects, publishers)
 	}
@@ -1438,6 +1439,11 @@ func restartIntegrationContainer(t *testing.T, container string) {
 
 func setIntegrationProxyEnabled(t *testing.T, api string, name string, enabled bool) {
 	t.Helper()
+	setIntegrationProxyEnabledContext(t, t.Context(), api, name, enabled)
+}
+
+func setIntegrationProxyEnabledContext(t *testing.T, parent context.Context, api string, name string, enabled bool) {
+	t.Helper()
 	parsed, err := url.Parse(api)
 	if err != nil {
 		t.Fatal("network-interruption proxy must be the exact task-owned loopback fixture")
@@ -1453,7 +1459,7 @@ func setIntegrationProxyEnabled(t *testing.T, api string, name string, enabled b
 	if enabled {
 		body = `{"enabled":true}`
 	}
-	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(parent, 10*time.Second)
 	defer cancel()
 	request, err := http.NewRequestWithContext(
 		ctx, http.MethodPost, api+"/proxies/"+url.PathEscape(name), strings.NewReader(body),

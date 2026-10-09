@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/faustbrian/go-rabbitmq-streams"
+	"github.com/faustbrian/go-rabbitmq-streams/v2"
 )
 
 func BenchmarkWireMessagePolicy(b *testing.B) {

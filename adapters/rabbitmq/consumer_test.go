@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/faustbrian/go-rabbitmq-streams"
-	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/amqp"
-	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/stream"
+	"github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2/internal/rabbitmqstream/amqp"
+	"github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2/internal/rabbitmqstream/stream"
+	"github.com/faustbrian/go-rabbitmq-streams/v2"
 )
 
 func TestConsumerOpenErrorPreservesContextOutcome(t *testing.T) {
@@ -48,7 +48,7 @@ func TestStoredStartResolvesTheBrokerOffsetBeforeOpeningTheConsumer(t *testing.T
 	session := newRabbitConsumerSession(environment, config, []string{config.Stream})
 	t.Cleanup(func() { _ = session.Close() })
 
-	if err := session.open([]string{config.Stream}); err != nil {
+	if err := session.open(context.Background(), []string{config.Stream}); err != nil {
 		t.Fatalf("open stored-offset consumer: %v", err)
 	}
 	if environment.queryOffsetCalls != 1 {
@@ -75,7 +75,7 @@ func TestStoredStartHandlesMissingAndFailedBrokerOffsets(t *testing.T) {
 		config,
 		[]string{config.Stream},
 	)
-	offset, err := missing.startOffset(config.Stream)
+	offset, err := missing.startOffset(context.Background(), config.Stream)
 	if err != nil || offset.String() != "first" {
 		t.Fatalf("missing stored offset = %q, %v; want first", offset.String(), err)
 	}
@@ -86,7 +86,7 @@ func TestStoredStartHandlesMissingAndFailedBrokerOffsets(t *testing.T) {
 		config,
 		[]string{config.Stream},
 	)
-	if _, err := failed.startOffset(config.Stream); !errors.Is(err, want) {
+	if _, err := failed.startOffset(context.Background(), config.Stream); !errors.Is(err, want) {
 		t.Fatalf("failed stored offset query = %v, want %v", err, want)
 	}
 }
@@ -589,13 +589,16 @@ func TestConsumerTransportReconnectWaitAndCloseTransitions(t *testing.T) {
 	openCalls := 0
 	transport, err := newReconnectingConsumerTransport(
 		context.Background(),
-		func(context.Context, bool) (consumerSession, error) {
+		func(openCtx context.Context, _ bool) (consumerSession, error) {
 			openCalls++
 			if openCalls == 1 {
 				return first, nil
 			}
 			close(reconnectStarted)
-			<-releaseReconnect
+			select {
+			case <-releaseReconnect:
+			case <-openCtx.Done():
+			}
 			return second, nil
 		},
 		nil,
@@ -858,7 +861,7 @@ func TestRabbitConsumerSessionStoresOnlyOwnedBoundedOffsets(t *testing.T) {
 	session := newRabbitConsumerSessionForTest()
 	stored := int64(-1)
 	session.partitions["tracking.events"] = struct{}{}
-	session.stores["tracking.events"] = func(offset int64) error { stored = offset; return nil }
+	session.stores["tracking.events"] = func(_ context.Context, offset int64) error { stored = offset; return nil }
 	if err := session.StoreOffset(context.Background(), "tracking.events", 41); err != nil || stored != 41 {
 		t.Fatalf("StoreOffset() = %v, stored %d", err, stored)
 	}
@@ -881,7 +884,7 @@ func TestRabbitConsumerSessionStoresOnlyOwnedBoundedOffsets(t *testing.T) {
 	if err := session.StoreOffset(context.Background(), "tracking.events", 1); !errors.Is(err, rabbitstream.ErrPartitionUnavailable) {
 		t.Fatalf("unavailable StoreOffset() error = %v", err)
 	}
-	session.stores["tracking.events"] = func(int64) error { return rabbitstream.ErrOffset }
+	session.stores["tracking.events"] = func(context.Context, int64) error { return rabbitstream.ErrOffset }
 	if err := session.StoreOffset(context.Background(), "tracking.events", 1); !errors.Is(err, rabbitstream.ErrOffset) {
 		t.Fatalf("broker StoreOffset() error = %v", err)
 	}
@@ -913,7 +916,7 @@ func newRabbitConsumerSessionForTest() *rabbitConsumerSession {
 	return &rabbitConsumerSession{
 		config:     rabbitstream.ConsumerConfig{Limits: rabbitstream.DefaultLimits()},
 		partitions: make(map[string]struct{}),
-		stores:     make(map[string]func(int64) error),
+		stores:     make(map[string]func(context.Context, int64) error),
 		closeEnv:   func() error { return nil },
 		messages:   make(chan rabbitstream.Message, 1),
 		done:       make(chan struct{}),

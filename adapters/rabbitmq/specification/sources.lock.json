@@ -37,6 +37,6 @@
     "linux_arm64_digest": "sha256:94de4824d7697c5f8f31d10cce84d36f63f4edf7a13fc9822246236ec026c30c"
   },
   "go": {
-    "version": "1.26.6"
+    "version": "1.27.2"
   }
 }

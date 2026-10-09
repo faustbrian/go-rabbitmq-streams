@@ -45,14 +45,15 @@ RabbitMQ Go Streams client, and [`adapters/otel`](adapters/otel/README.md)
 provides optional OpenTelemetry metrics and W3C Trace Context propagation.
 Select an adapter that explicitly supports the root major used by the
 application. The published v1 OpenTelemetry adapter and facade remain on the
-root-v1 cohort; their release is not implied by a root-v2 release. RabbitMQ
-adapter/facade v2 publication is a separate delivery boundary. See the
+root-v1 cohort; their release is not implied by a root-v2 release. Select
+RabbitMQ adapter/facade v2 with root v2. Their publication is a separate
+delivery boundary. See the
 [migration guide](docs/migration.md).
 
 | Package | Use |
 | --- | --- |
 | `github.com/faustbrian/go-rabbitmq-streams/v2` | Define bounded messages, delivery policy, producer and consumer contracts, replay, and inspection. |
-| `github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq` | Open RabbitMQ Streams protocol resources through the supported Go client. |
+| `github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2` | Open RabbitMQ Streams protocol resources through the bounded, attributed private client. |
 | `github.com/faustbrian/go-rabbitmq-streams/adapters/otel` | Translate observations to caller-owned OpenTelemetry metrics and propagate W3C Trace Context. |
 
 ## Producer

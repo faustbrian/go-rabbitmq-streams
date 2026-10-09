@@ -2,13 +2,16 @@
 
 This nested module adapts the pinned RabbitMQ-supported Go Streams client to the
 stable policy types in the root
-[`rabbitstream`](https://pkg.go.dev/github.com/faustbrian/go-rabbitmq-streams)
+[`rabbitstream`](https://pkg.go.dev/github.com/faustbrian/go-rabbitmq-streams/v2)
 module. It owns protocol
 resources while keeping low-level client types out of ordinary public APIs.
 
-The dependency remains nested because the selected client brings its own
-dependency graph, including OpenTelemetry. Importing the root policy module
-does not require it.
+The adapter contains an attributed, privately patched source closure of the
+pinned client. This makes its transport bounds part of the published module,
+without dependency vendoring or a downstream `replace` directive. See the
+[source identity and patch inventory](THIRD_PARTY_RABBITMQ_STREAM.md).
+Its dependency graph, including OpenTelemetry, remains isolated from imports
+of the root policy module.
 
 This adapter belongs to Golib's integration and data movement family. See the
 versioned [v1.4.0 ecosystem
@@ -18,10 +21,10 @@ for package selection and shared lifecycle conventions.
 
 ## Install
 
-This stable module requires Go 1.27.0.
+This stable module requires Go 1.27.2.
 
 ```sh
-go get github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq@v1
+go get github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2@v2
 ```
 
 ## API
@@ -107,6 +110,13 @@ an already accepted message invisibly. Consumer reads reconnect after
 connection-class failures; permanent authorization, offset, and partition
 failures are returned.
 
+Operation cancellation reaches native connection opening, protocol waits,
+publication and offset writes. A cancellation before native write admission
+remains a not-sent error. Once a write has been attempted, its failure is
+ambiguous: the broker may have accepted part or all of the publication. The
+adapter does not silently republish it, and each pending outcome is resolved
+only once even when abort and the write failure race.
+
 Fresh environments used by replay and inspection avoid retaining a stale
 locator. They are closed after each bounded operation. Replay cursor goroutines
 have explicit terminal channels and close ownership.
@@ -118,6 +128,18 @@ The root connection policy enforces verified TLS 1.2 or newer and rejects
 `tls.Config`. Broker errors are preserved for `errors.Is` and `errors.As`, but
 rendered root errors remain category-only. Applications must not log unwrapped
 causes without redaction.
+
+Native decoding applies independent finite frame, encoded-message, decoded
+chunk, record-count and AMQP structural budgets before count-driven allocation.
+Compressed output is charged as it is read, rather than trusting declared
+sizes. Adapter payload and metadata limits are converted to a checked encoded
+wire allowance; they are not reused as aggregate chunk limits. Messages or
+frames outside these allowances are rejected, including previously accepted
+inputs. The exact defaults and upstream update procedure are documented in the
+[private client inventory](THIRD_PARTY_RABBITMQ_STREAM.md). Private SDK process
+logging and implicit global metric registration are disabled; the
+application-supplied Observer is the lifecycle
+observability boundary.
 
 Use least-privilege RabbitMQ users for publishing, consuming/offset storage,
 and inspection. See the

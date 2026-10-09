@@ -1,6 +1,6 @@
 package rabbitmq
 
-import "github.com/faustbrian/go-rabbitmq-streams"
+import "github.com/faustbrian/go-rabbitmq-streams/v2"
 
 func safeObserve(observer rabbitstream.Observer, observation rabbitstream.Observation) {
 	if observer == nil {

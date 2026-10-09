@@ -32,7 +32,9 @@
       "version": "2.0.0",
       "tag_prefix": "v",
       "owned_dependencies": [],
-      "reverse_owned_dependencies": [],
+      "reverse_owned_dependencies": [
+        "github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2"
+      ],
       "external_runtime_dependencies": [],
       "required_services": [],
       "build_tags": [],
@@ -551,15 +553,63 @@
     },
     {
       "directory": "adapters/rabbitmq",
-      "module_path": "github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq",
-      "go_version": "1.27.0",
+      "module_path": "github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2",
+      "go_version": "1.27.2",
       "packages": [
         {
           "module_directory": "adapters/rabbitmq",
           "directory": ".",
           "name": "rabbitmq",
-          "import_path": "github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq",
+          "import_path": "github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2",
           "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        },
+        {
+          "module_directory": "adapters/rabbitmq",
+          "directory": "internal/rabbitmqstream/amqp",
+          "name": "amqp",
+          "import_path": "github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2/internal/rabbitmqstream/amqp",
+          "kind": "internal",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        },
+        {
+          "module_directory": "adapters/rabbitmq",
+          "directory": "internal/rabbitmqstream/logs",
+          "name": "logs",
+          "import_path": "github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2/internal/rabbitmqstream/logs",
+          "kind": "internal",
+          "production": true,
+          "executable": false,
+          "coverage_required": false,
+          "build_required": true,
+          "build_tags": []
+        },
+        {
+          "module_directory": "adapters/rabbitmq",
+          "directory": "internal/rabbitmqstream/message",
+          "name": "message",
+          "import_path": "github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2/internal/rabbitmqstream/message",
+          "kind": "internal",
+          "production": true,
+          "executable": false,
+          "coverage_required": false,
+          "build_required": true,
+          "build_tags": []
+        },
+        {
+          "module_directory": "adapters/rabbitmq",
+          "directory": "internal/rabbitmqstream/stream",
+          "name": "stream",
+          "import_path": "github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2/internal/rabbitmqstream/stream",
+          "kind": "internal",
           "production": true,
           "executable": true,
           "coverage_required": true,
@@ -575,16 +625,20 @@
       "family_label": "Integration And Data Movement",
       "family_description": "Bounded external I/O, data movement, provider boundaries, and derived search state.",
       "family_order": 7,
-      "version": "1.1.0",
+      "version": "2.0.0",
       "tag_prefix": "adapters/rabbitmq/v",
       "owned_dependencies": [
-        "github.com/faustbrian/go-rabbitmq-streams"
+        "github.com/faustbrian/go-rabbitmq-streams/v2"
       ],
-      "reverse_owned_dependencies": [
-        "github.com/faustbrian/go-rabbitmq-streams/rabbitmq"
-      ],
+      "reverse_owned_dependencies": [],
       "external_runtime_dependencies": [
-        "github.com/rabbitmq/rabbitmq-stream-go-client"
+        "github.com/golang/snappy",
+        "github.com/klauspost/compress",
+        "github.com/pierrec/lz4",
+        "github.com/pkg/errors",
+        "github.com/spaolacci/murmur3",
+        "go.opentelemetry.io/otel",
+        "go.opentelemetry.io/otel/metric"
       ],
       "required_services": [
         "rabbitstream"
@@ -624,10 +678,10 @@
         ],
         "public_package_identifier": "rabbitmq",
         "primary_entry_packages": [
-          "github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq"
+          "github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2"
         ],
         "package_selection": {
-          "github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq": "Use with the root rabbitstream policy when connecting to supported RabbitMQ Streams and Super Streams through the pinned RabbitMQ Go client."
+          "github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2": "Use with the root rabbitstream policy when connecting to supported RabbitMQ Streams and Super Streams through the pinned RabbitMQ Go client."
         },
         "lifecycle_status": "active",
         "maturity": "stable",
@@ -653,9 +707,9 @@
           "github.com/faustbrian/go-transactional-outbox/adapters/gorabbitstream"
         ],
         "supported_go": {
-          "minimum": "1.27.0",
+          "minimum": "1.27.2",
           "tested": [
-            "1.27.0"
+            "1.27.2"
           ]
         },
         "supported_platforms": [
@@ -670,7 +724,7 @@
         ],
         "documentation": {
           "readme": "adapters/rabbitmq/README.md",
-          "api": "https://pkg.go.dev/github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq",
+          "api": "https://pkg.go.dev/github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2",
           "adoption": "adapters/rabbitmq/README.md",
           "security": "SECURITY.md",
           "compatibility": "adapters/rabbitmq/COMPATIBILITY.md",
@@ -678,7 +732,7 @@
           "examples": "adapters/rabbitmq/example_test.go",
           "faq": "adapters/rabbitmq/README.md",
           "changelog": "adapters/rabbitmq/CHANGELOG.md",
-          "pkg_go_dev": "https://pkg.go.dev/github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq",
+          "pkg_go_dev": "https://pkg.go.dev/github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2",
           "ecosystem_index": "https://github.com/faustbrian/go-library-tools/blob/v1.4.0/docs/ecosystem/README.md"
         },
         "known_good_compatibility_sets": [],

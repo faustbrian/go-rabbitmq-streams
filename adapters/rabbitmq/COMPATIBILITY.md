@@ -2,6 +2,8 @@
 
 The adapter follows semantic versioning under
 `adapters/rabbitmq/v<version>`.
+The v2 module is `github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2`
+and consumes root-v2 types. Existing root-v1 adapter cohorts remain separate.
 Compatibility includes exported Go APIs, error classification, AMQP 1.0
 mapping, RabbitMQ Streams confirmation and offset behavior, start-position and
 replay semantics, Super Stream routing, transport security, and documented

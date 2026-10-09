@@ -10,10 +10,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/faustbrian/go-rabbitmq-streams"
-	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/amqp"
-	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/message"
-	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/stream"
+	"github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2/internal/rabbitmqstream/amqp"
+	"github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2/internal/rabbitmqstream/message"
+	"github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2/internal/rabbitmqstream/stream"
+	"github.com/faustbrian/go-rabbitmq-streams/v2"
 )
 
 const routingKeyAnnotation = rabbitstream.RoutingKeyMetadata
@@ -113,7 +113,7 @@ func openProducerSession(
 		attemptConnection rabbitstream.ConnectionConfig,
 	) (producerSession, error) {
 		return openProducerSessionWithEnvironment(openCtx, config, func(environmentCtx context.Context) (producerEnvironment, error) {
-			return openFreshEnvironment(environmentCtx, attemptConnection)
+			return openFreshEnvironment(environmentCtx, attemptConnection, config.Limits)
 		})
 	})
 }
@@ -198,7 +198,7 @@ func openProducerSessionWithEnvironment(
 		producerOptions = producerOptions.SetProducerName(config.Policy.ProducerName)
 	}
 	if config.Stream != "" {
-		producer, err := environment.NewProducer(config.Stream, producerOptions)
+		producer, err := environment.NewProducer(ctx, config.Stream, producerOptions)
 		if err != nil {
 			_ = environment.Close()
 			return nil, err
@@ -206,7 +206,7 @@ func openProducerSessionWithEnvironment(
 		return newRabbitProducerSession(environment, producer), nil
 	}
 
-	partitions, err := environment.QueryPartitions(config.SuperStream)
+	partitions, err := environment.QueryPartitions(ctx, config.SuperStream)
 	if err != nil || !validSuperStreamPartitions(partitions, config.Limits) ||
 		(config.ExpectedPartitions != 0 && len(partitions) != config.ExpectedPartitions) {
 		_ = environment.Close()
@@ -217,7 +217,7 @@ func openProducerSessionWithEnvironment(
 	}
 	producers := make(map[string]rabbitProducer, len(partitions))
 	for _, partition := range partitions {
-		partitionProducer, producerErr := environment.NewProducer(partition, producerOptions)
+		partitionProducer, producerErr := environment.NewProducer(ctx, partition, producerOptions)
 		if producerErr != nil {
 			for _, opened := range producers {
 				_ = opened.Close()
@@ -232,7 +232,7 @@ func openProducerSessionWithEnvironment(
 
 type producerSession interface {
 	// Send submits one message and registers one terminal confirmation callback.
-	Send(rabbitstream.Message, func(rabbitstream.TransportConfirmation)) error
+	Send(context.Context, rabbitstream.Message, func(rabbitstream.TransportConfirmation)) error
 	// Failures reports the first terminal session failure.
 	Failures() <-chan error
 	// Abort resolves every admitted pending message as ambiguous.
@@ -242,18 +242,20 @@ type producerSession interface {
 }
 
 type producerTransport struct {
-	mutex        sync.Mutex
-	opener       func(context.Context) (producerSession, error)
-	current      producerSession
-	reconnecting chan struct{}
-	lastErr      error
-	retryAfter   time.Time
-	retryDelay   time.Duration
-	closed       bool
-	done         chan struct{}
-	closeOnce    sync.Once
-	closeErr     error
-	observer     rabbitstream.Observer
+	mutex           sync.Mutex
+	opener          func(context.Context) (producerSession, error)
+	current         producerSession
+	reconnecting    chan struct{}
+	reconnectCancel context.CancelFunc
+	lastErr         error
+	retryAfter      time.Time
+	retryDelay      time.Duration
+	closed          bool
+	done            chan struct{}
+	closeOnce       sync.Once
+	closeErr        error
+	observer        rabbitstream.Observer
+	workers         sync.WaitGroup // Watchers and detached session cleanup share this owner.
 }
 
 func newReconnectingProducerTransport(
@@ -280,7 +282,15 @@ func newReconnectingProducerTransport(
 }
 
 func (transport *producerTransport) watch(session producerSession) {
+	transport.mutex.Lock()
+	if transport.closed {
+		transport.mutex.Unlock()
+		return
+	}
+	transport.workers.Add(1)
+	transport.mutex.Unlock()
 	go func() {
+		defer transport.workers.Done()
 		select {
 		case err, ok := <-session.Failures():
 			if !ok || err == nil {
@@ -298,17 +308,23 @@ func (transport *producerTransport) invalidate(session producerSession, cause er
 		transport.mutex.Unlock()
 		return
 	}
+	// Register retirement before making it invisible to Close's current snapshot.
+	transport.workers.Add(1)
 	transport.current = nil
 	transport.lastErr = cause
 	transport.retryAfter = time.Now().Add(transport.retryDelay)
 	transport.mutex.Unlock()
+	defer transport.workers.Done()
 	safeObserve(transport.observer, rabbitstream.Observation{
 		Kind: rabbitstream.ObservationConnectionLost, Count: 1,
 		Category: brokerErrorCategory(cause),
 	})
 
 	session.Abort(cause)
-	_ = session.Close()
+	closeErr := session.Close()
+	transport.mutex.Lock()
+	transport.closeErr = errors.Join(transport.closeErr, closeErr)
+	transport.mutex.Unlock()
 }
 
 func (transport *producerTransport) session(ctx context.Context) (producerSession, error) {
@@ -349,14 +365,17 @@ func (transport *producerTransport) session(ctx context.Context) (producerSessio
 			continue
 		}
 		done := make(chan struct{})
+		openCtx, cancelOpen := context.WithCancel(ctx)
 		transport.reconnecting = done
+		transport.reconnectCancel = cancelOpen
 		opener := transport.opener
 		transport.mutex.Unlock()
 		safeObserve(transport.observer, rabbitstream.Observation{
 			Kind: rabbitstream.ObservationReconnectAttempt, Count: 1,
 		})
 
-		session, err := opener(ctx)
+		session, err := opener(openCtx)
+		cancelOpen()
 		transport.mutex.Lock()
 		if err == nil && !transport.closed {
 			transport.current = session
@@ -366,16 +385,21 @@ func (transport *producerTransport) session(ctx context.Context) (producerSessio
 			transport.lastErr = err
 			transport.retryAfter = time.Now().Add(transport.retryDelay)
 		}
-		transport.reconnecting = nil
-		close(done)
 		closed := transport.closed
 		transport.mutex.Unlock()
+		if closed && session != nil {
+			_ = session.Close()
+		}
+		transport.mutex.Lock()
+		transport.reconnecting = nil
+		transport.reconnectCancel = nil
+		close(done)
+		transport.mutex.Unlock()
+		if closed {
+			return nil, rabbitstream.ErrClosed
+		}
 		if err != nil {
 			return nil, err
-		}
-		if closed {
-			_ = session.Close()
-			return nil, rabbitstream.ErrClosed
 		}
 		safeObserve(transport.observer, rabbitstream.Observation{
 			Kind: rabbitstream.ObservationConnectionReady, Count: 1,
@@ -402,7 +426,7 @@ func (transport *producerTransport) Send(
 		if err != nil {
 			return err
 		}
-		err = session.Send(outbound, confirm)
+		err = session.Send(ctx, outbound, confirm)
 		if !errors.Is(err, errProducerSessionClosed) && !errors.Is(err, rabbitstream.ErrConnection) {
 			return err
 		}
@@ -418,18 +442,29 @@ func (transport *producerTransport) Close() error {
 		transport.closed = true
 		session := transport.current
 		transport.current = nil
+		reconnecting, cancelOpen := transport.reconnecting, transport.reconnectCancel
 		close(transport.done)
 		transport.mutex.Unlock()
-		if session != nil {
-			transport.closeErr = session.Close()
+		if cancelOpen != nil {
+			cancelOpen()
 		}
+		if session != nil {
+			closeErr := session.Close()
+			transport.mutex.Lock()
+			transport.closeErr = errors.Join(transport.closeErr, closeErr)
+			transport.mutex.Unlock()
+		}
+		if reconnecting != nil {
+			<-reconnecting
+		}
+		transport.workers.Wait()
 	})
 	return transport.closeErr
 }
 
 type rabbitProducerSession struct {
-	send             func(message.StreamMessage) error
-	partitionSenders map[string]func(message.StreamMessage) error
+	send             func(context.Context, message.StreamMessage) error
+	partitionSenders map[string]func(context.Context, message.StreamMessage) error
 	producerClosers  []func() error
 	environmentClose func() error
 	partitions       []string
@@ -442,13 +477,16 @@ type rabbitProducerSession struct {
 	failureOnce sync.Once
 	closeOnce   sync.Once
 	closeErr    error
+	done        chan struct{}
+	workers     sync.WaitGroup
 }
 
 type pendingConfirmation struct {
-	partition string
-	confirm   func(rabbitstream.TransportConfirmation)
-	admitted  bool
-	result    *rabbitstream.TransportConfirmation
+	partition    string
+	publishingID uint64
+	confirm      func(rabbitstream.TransportConfirmation)
+	admitted     bool
+	result       *rabbitstream.TransportConfirmation
 }
 
 func newRabbitProducerSession(
@@ -456,15 +494,15 @@ func newRabbitProducerSession(
 	producer rabbitProducer,
 ) *rabbitProducerSession {
 	session := &rabbitProducerSession{
-		send:             producer.Send,
+		send:             producer.SendContext,
 		producerClosers:  []func() error{producer.Close},
 		environmentClose: environment.Close,
 		pending:          make(map[message.StreamMessage]*pendingConfirmation),
 		failures:         make(chan error, 1),
+		done:             make(chan struct{}),
 	}
 	confirmations := producer.NotifyPublishConfirmation()
-	go session.handleConfirmations(confirmations, producer.GetStreamName())
-	go session.watchProducer(producer.NotifyClose())
+	session.watchNotifications(confirmations, producer.NotifyClose(), producer.GetStreamName())
 	return session
 }
 
@@ -474,28 +512,32 @@ func newRabbitSuperProducerSession(
 	partitions []string,
 ) *rabbitProducerSession {
 	session := &rabbitProducerSession{
-		partitionSenders: make(map[string]func(message.StreamMessage) error, len(producers)),
+		partitionSenders: make(map[string]func(context.Context, message.StreamMessage) error, len(producers)),
 		producerClosers:  make([]func() error, 0, len(producers)),
 		environmentClose: environment.Close,
 		partitions:       append([]string(nil), partitions...),
 		pending:          make(map[message.StreamMessage]*pendingConfirmation),
 		failures:         make(chan error, 1),
+		done:             make(chan struct{}),
 	}
 	for partition, producer := range producers {
-		session.partitionSenders[partition] = producer.Send
+		session.partitionSenders[partition] = producer.SendContext
 		session.producerClosers = append(session.producerClosers, producer.Close)
 		confirmations := producer.NotifyPublishConfirmation()
-		go session.handleConfirmations(confirmations, partition)
-		go session.watchProducer(producer.NotifyClose())
+		session.watchNotifications(confirmations, producer.NotifyClose(), partition)
 	}
 	return session
 }
 
 // Send copies a message to the wire model and tracks its confirmation callback.
 func (session *rabbitProducerSession) Send(
+	ctx context.Context,
 	outbound rabbitstream.Message,
 	confirm func(rabbitstream.TransportConfirmation),
 ) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	wireMessage := toWireMessage(outbound)
 	send := session.send
 	partition := outbound.Stream
@@ -517,14 +559,44 @@ func (session *rabbitProducerSession) Send(
 		return errProducerSessionClosed
 	}
 	pending := &pendingConfirmation{partition: partition, confirm: confirm}
+	if outbound.HasPublishingID {
+		pending.publishingID = outbound.PublishingID
+	}
 	session.pending[wireMessage] = pending
 	session.mutex.Unlock()
-	if err := send(wireMessage); err != nil {
+	if err := send(ctx, wireMessage); err != nil {
+		var admitted *stream.WriteAdmittedError
+		if errors.As(err, &admitted) {
+			session.mutex.Lock()
+			if session.pending[wireMessage] != pending {
+				// Abort already claimed this callback while the native write ran.
+				session.mutex.Unlock()
+				return nil
+			}
+			result := pending.result
+			delete(session.pending, wireMessage)
+			session.mutex.Unlock()
+			if result == nil || !result.Confirmed {
+				result = &rabbitstream.TransportConfirmation{
+					Ambiguous: true, Partition: partition, Cause: err,
+					PublishingID: pending.publishingID,
+				}
+			}
+			pending.confirm(*result)
+			return nil
+		}
 		session.mutex.Lock()
 		delete(session.pending, wireMessage)
 		session.mutex.Unlock()
 		if errors.Is(err, stream.FrameTooLarge) {
 			return rabbitstream.ErrMessageTooLarge
+		}
+		if errors.Is(err, stream.ErrPendingPublishingID) || errors.Is(err, stream.ErrUnconfirmedCapacity) {
+			// A caller admission refusal does not invalidate healthy confirmations.
+			return rabbitstream.ErrValidation
+		}
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return err
 		}
 		return errProducerSessionClosed
 	}
@@ -823,16 +895,45 @@ func routedPartition(routed []string, err error) (string, error) {
 	return routed[0], nil
 }
 
+func (session *rabbitProducerSession) watchNotifications(
+	confirmations stream.ChannelPublishConfirm,
+	closed stream.ChannelClose,
+	partition string,
+) {
+	session.workers.Add(2)
+	go func() {
+		defer session.workers.Done()
+		session.handleConfirmations(confirmations, partition)
+	}()
+	go func() {
+		defer session.workers.Done()
+		session.watchProducer(closed)
+	}()
+}
+
 func (session *rabbitProducerSession) handleConfirmations(
 	confirmations stream.ChannelPublishConfirm,
 	partition string,
 ) {
-	for statuses := range confirmations {
-		for _, status := range statuses {
-			session.handleConfirmation(status, partition)
+	for {
+		select {
+		case <-session.done:
+			return
+		case statuses, ok := <-confirmations:
+			if !ok {
+				session.signalFailure(rabbitstream.ErrConnection)
+				return
+			}
+			for _, status := range statuses {
+				select {
+				case <-session.done:
+					return
+				default:
+				}
+				session.handleConfirmation(status, partition)
+			}
 		}
 	}
-	session.signalFailure(rabbitstream.ErrConnection)
 }
 
 func (session *rabbitProducerSession) handleConfirmation(
@@ -877,8 +978,11 @@ func classifyConfirmation(
 }
 
 func (session *rabbitProducerSession) watchProducer(closed stream.ChannelClose) {
-	event := <-closed
-	session.signalFailure(event.Err)
+	select {
+	case event := <-closed:
+		session.signalFailure(event.Err)
+	case <-session.done:
+	}
 }
 
 func (session *rabbitProducerSession) signalFailure(err error) {
@@ -913,9 +1017,10 @@ func (session *rabbitProducerSession) Abort(cause error) {
 	session.mutex.Unlock()
 	for _, confirmation := range pending {
 		confirmation.confirm(rabbitstream.TransportConfirmation{
-			Ambiguous: true,
-			Partition: confirmation.partition,
-			Cause:     cause,
+			Ambiguous:    true,
+			Partition:    confirmation.partition,
+			PublishingID: confirmation.publishingID,
+			Cause:        cause,
 		})
 	}
 }
@@ -923,6 +1028,9 @@ func (session *rabbitProducerSession) Abort(cause error) {
 // Close releases every producer before its owning environment exactly once.
 func (session *rabbitProducerSession) Close() error {
 	session.closeOnce.Do(func() {
+		close(session.done)
+		defer session.workers.Wait()
+		session.Abort(rabbitstream.ErrClosed)
 		var producerErr error
 		for _, closeProducer := range session.producerClosers {
 			if err := closeProducer(); err != nil && producerErr == nil {

@@ -99,6 +99,16 @@ operations:
     gate: fuzz
     steps:
       - type: go-test
+        packages: [./internal/rabbitmqstream/amqp]
+        fuzz: '^FuzzBoundedMessageDecoder$'
+        budget: 1000x
+        timeout: 2m
+      - type: go-test
+        packages: [./internal/rabbitmqstream/stream]
+        fuzz: '^FuzzBoundedDeliveryDecoder$'
+        budget: 1000x
+        timeout: 2m
+      - type: go-test
         packages: [.]
         fuzz: '^FuzzWireMessageRoundTrip$'
         budget: 100x

@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/faustbrian/go-rabbitmq-streams"
-	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/stream"
+	"github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2/internal/rabbitmqstream/stream"
+	"github.com/faustbrian/go-rabbitmq-streams/v2"
 )
 
 func TestFreshEnvironmentClosesPartialFailuresBeforeRetry(t *testing.T) {
@@ -20,7 +20,7 @@ func TestFreshEnvironmentClosesPartialFailuresBeforeRetry(t *testing.T) {
 	}
 	partial := []*fakeRabbitEnvironment{{}, {}}
 	attempts := 0
-	resource, err := openFreshEnvironmentWith(context.Background(), connection, func(*stream.EnvironmentOptions) (producerEnvironment, error) {
+	resource, err := openFreshEnvironmentWith(context.Background(), connection, func(_ context.Context, _ *stream.EnvironmentOptions) (producerEnvironment, error) {
 		if attempts > 0 && partial[attempts-1].closeCalls != 1 {
 			t.Error("retry started without closing prior partial environment")
 		}
@@ -37,7 +37,7 @@ func TestFreshEnvironmentClosesPartialFailuresBeforeRetry(t *testing.T) {
 		}
 	}
 	opened := &fakeRabbitEnvironment{}
-	resource, err = openFreshEnvironmentWith(context.Background(), connection, func(*stream.EnvironmentOptions) (producerEnvironment, error) { return opened, nil })
+	resource, err = openFreshEnvironmentWith(context.Background(), connection, func(_ context.Context, _ *stream.EnvironmentOptions) (producerEnvironment, error) { return opened, nil })
 	if err != nil || resource != opened || opened.closeCalls != 0 {
 		t.Fatalf("successful ownership changed: resource=%v err=%v closes=%d", resource, err, opened.closeCalls)
 	}
@@ -79,5 +79,58 @@ func TestPartialOpenCleanupPreservesCancellation(t *testing.T) {
 	}
 	if closes != 1 {
 		t.Fatalf("partial resource closes=%d, want exactly one", closes)
+	}
+}
+
+func TestContextAwareResourceOpeningJoinsBeforeReturning(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	started := make(chan struct{})
+	release := make(chan struct{})
+	returned := make(chan error, 1)
+	closed := make(chan struct{})
+	closes := 0
+	partial := &partialOpenCloser{close: func() { closes++; close(closed) }}
+	t.Cleanup(func() {
+		select {
+		case <-release:
+		default:
+			close(release)
+		}
+		select {
+		case <-closed:
+		case <-time.After(time.Second):
+			t.Error("partial opening resource did not finish cleanup")
+		}
+	})
+	go func() {
+		_, err := openResourceWithinContext(ctx, func() (*partialOpenCloser, error) {
+			close(started)
+			<-release
+			return partial, nil
+		})
+		returned <- err
+	}()
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		close(release)
+		t.Fatal("opening did not start")
+	}
+	cancel()
+	select {
+	case <-returned:
+		close(release)
+		t.Fatal("resource opening returned with supplier work still active")
+	case <-time.After(25 * time.Millisecond):
+	}
+	close(release)
+	select {
+	case err := <-returned:
+		if !errors.Is(err, context.Canceled) || closes != 1 {
+			t.Fatalf("joined cancellation: err=%v partial closes=%d", err, closes)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("completed opening did not release its caller")
 	}
 }

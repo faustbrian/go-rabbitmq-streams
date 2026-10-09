@@ -7,8 +7,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/faustbrian/go-rabbitmq-streams"
-	"github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq"
+	"github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2"
+	"github.com/faustbrian/go-rabbitmq-streams/v2"
 )
 
 func ExampleOpenProducer() {
@@ -39,7 +39,7 @@ func ExampleOpenProducer() {
 	defer func() {
 		closeCtx, closeCancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer closeCancel()
-		_ = producer.Close(closeCtx)
+		_ = producer.Shutdown(closeCtx)
 	}()
 
 	result, err := producer.Publish(ctx, rabbitstream.Message{
@@ -87,7 +87,7 @@ func ExampleOpenConsumer() {
 	defer func() {
 		closeCtx, closeCancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer closeCancel()
-		_ = consumer.Close(closeCtx)
+		_ = consumer.Shutdown(closeCtx)
 	}()
 
 	err = consumer.Run(ctx, func(_ context.Context, message rabbitstream.Message) error {

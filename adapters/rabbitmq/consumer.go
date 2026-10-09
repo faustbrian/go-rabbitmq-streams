@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/faustbrian/go-rabbitmq-streams"
-	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/amqp"
-	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/stream"
+	"github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2/internal/rabbitmqstream/amqp"
+	"github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2/internal/rabbitmqstream/stream"
+	"github.com/faustbrian/go-rabbitmq-streams/v2"
 )
 
 // OpenConsumer resolves credentials, opens one consumer per applicable backing
@@ -124,7 +124,7 @@ func openConsumerSession(
 		attemptConnection rabbitstream.ConnectionConfig,
 	) (consumerSession, error) {
 		return openConsumerSessionWithEnvironment(openCtx, config, func(environmentCtx context.Context) (rabbitEnvironment, error) {
-			return openFreshEnvironment(environmentCtx, attemptConnection)
+			return openFreshEnvironment(environmentCtx, attemptConnection, config.Limits)
 		})
 	})
 }
@@ -140,7 +140,7 @@ func openConsumerSessionWithEnvironment(
 	}
 	partitions := []string{config.Stream}
 	if config.SuperStream != "" {
-		partitions, err = environment.QueryPartitions(config.SuperStream)
+		partitions, err = environment.QueryPartitions(ctx, config.SuperStream)
 		if err != nil || !validSuperStreamPartitions(partitions, config.Limits) {
 			_ = environment.Close()
 			if err != nil {
@@ -150,7 +150,7 @@ func openConsumerSessionWithEnvironment(
 		}
 	}
 	session := newRabbitConsumerSession(environment, config, partitions)
-	if err := session.open(partitions); err != nil {
+	if err := session.open(ctx, partitions); err != nil {
 		_ = session.Close()
 		return nil, err
 	}
@@ -171,6 +171,7 @@ type consumerTransport struct {
 	opener               func(context.Context, bool) (consumerSession, error)
 	current              consumerSession
 	reconnecting         chan struct{}
+	reconnectCancel      context.CancelFunc
 	lastErr              error
 	retryAfter           time.Time
 	retryDelay           time.Duration
@@ -252,14 +253,17 @@ func (transport *consumerTransport) session(ctx context.Context) (consumerSessio
 			continue
 		}
 		done := make(chan struct{})
+		openCtx, cancelOpen := context.WithCancel(ctx)
 		transport.reconnecting = done
+		transport.reconnectCancel = cancelOpen
 		opener := transport.opener
 		transport.mutex.Unlock()
 		safeObserve(transport.observer, rabbitstream.Observation{
 			Kind: rabbitstream.ObservationReconnectAttempt, Count: 1,
 		})
 
-		session, err := opener(ctx, true)
+		session, err := opener(openCtx, true)
+		cancelOpen()
 		transport.mutex.Lock()
 		if err == nil && !transport.closed {
 			transport.current = session
@@ -271,19 +275,24 @@ func (transport *consumerTransport) session(ctx context.Context) (consumerSessio
 			transport.retryAfter = time.Now().Add(transport.retryDelay)
 			transport.reconnectFailures++
 		}
-		transport.reconnecting = nil
-		close(done)
 		closed := transport.closed
 		transport.mutex.Unlock()
+		if closed && session != nil {
+			_ = session.Close()
+		}
+		transport.mutex.Lock()
+		transport.reconnecting = nil
+		transport.reconnectCancel = nil
+		close(done)
+		transport.mutex.Unlock()
+		if closed {
+			return nil, rabbitstream.ErrClosed
+		}
 		if err != nil {
 			if retryableConsumerReconnect(err) {
 				continue
 			}
 			return nil, err
-		}
-		if closed {
-			_ = session.Close()
-			return nil, rabbitstream.ErrClosed
 		}
 		safeObserve(transport.observer, rabbitstream.Observation{
 			Kind: rabbitstream.ObservationConnectionReady, Count: 1,
@@ -362,10 +371,17 @@ func (transport *consumerTransport) Close() error {
 		transport.closed = true
 		session := transport.current
 		transport.current = nil
+		reconnecting, cancelOpen := transport.reconnecting, transport.reconnectCancel
 		close(transport.done)
 		transport.mutex.Unlock()
+		if cancelOpen != nil {
+			cancelOpen()
+		}
 		if session != nil {
 			transport.closeErr = session.Close()
+		}
+		if reconnecting != nil {
+			<-reconnecting
 		}
 	})
 	return transport.closeErr
@@ -375,7 +391,7 @@ type rabbitConsumerSession struct {
 	environment rabbitEnvironment
 	config      rabbitstream.ConsumerConfig
 	partitions  map[string]struct{}
-	stores      map[string]func(int64) error
+	stores      map[string]func(context.Context, int64) error
 	closers     []func() error
 	closeEnv    func() error
 	messages    chan rabbitstream.Message
@@ -386,6 +402,7 @@ type rabbitConsumerSession struct {
 	failed      chan struct{}
 	closeOnce   sync.Once
 	closeErr    error
+	workers     sync.WaitGroup
 }
 
 func newRabbitConsumerSession(
@@ -401,7 +418,7 @@ func newRabbitConsumerSession(
 		environment: environment,
 		config:      config,
 		partitions:  partitionSet,
-		stores:      make(map[string]func(int64) error, len(partitions)),
+		stores:      make(map[string]func(context.Context, int64) error, len(partitions)),
 		closers:     make([]func() error, 0, len(partitions)),
 		closeEnv:    environment.Close,
 		messages:    make(chan rabbitstream.Message, config.Limits.MaxBufferedMessages),
@@ -410,10 +427,10 @@ func newRabbitConsumerSession(
 	}
 }
 
-func (transport *rabbitConsumerSession) open(partitions []string) error {
+func (transport *rabbitConsumerSession) open(ctx context.Context, partitions []string) error {
 	for _, partition := range partitions {
 		capturedPartition := partition
-		offset, err := transport.startOffset(partition)
+		offset, err := transport.startOffset(ctx, partition)
 		if err != nil {
 			return err
 		}
@@ -422,6 +439,7 @@ func (transport *rabbitConsumerSession) open(partitions []string) error {
 			SetManualCommit().
 			SetOffset(offset)
 		consumer, err := transport.environment.NewConsumer(
+			ctx,
 			partition,
 			func(ctx stream.ConsumerContext, wireMessage *amqp.Message) {
 				transport.accept(capturedPartition, ctx.Consumer.GetOffset(), wireMessage)
@@ -431,10 +449,12 @@ func (transport *rabbitConsumerSession) open(partitions []string) error {
 		if err != nil {
 			return err
 		}
-		transport.stores[partition] = consumer.StoreCustomOffset
+		transport.stores[partition] = consumer.StoreCustomOffsetContext
 		transport.closers = append(transport.closers, consumer.Close)
 		closed := consumer.NotifyClose()
+		transport.workers.Add(1)
 		go func() {
+			defer transport.workers.Done()
 			select {
 			case event := <-closed:
 				transport.reportFailure(event.Err)
@@ -446,12 +466,13 @@ func (transport *rabbitConsumerSession) open(partitions []string) error {
 }
 
 func (transport *rabbitConsumerSession) startOffset(
+	ctx context.Context,
 	partition string,
 ) (stream.OffsetSpecification, error) {
 	if transport.config.Start.Kind != rabbitstream.OffsetStartStored {
 		return toOffsetSpecification(transport.config.Start), nil
 	}
-	offset, err := transport.environment.QueryOffset(transport.config.ConsumerName, partition)
+	offset, err := transport.environment.QueryOffset(ctx, transport.config.ConsumerName, partition)
 	if err == nil {
 		return stream.OffsetSpecification{}.Offset(offset), nil
 	}
@@ -555,7 +576,7 @@ func (transport *rabbitConsumerSession) StoreOffset(
 	if store == nil {
 		return rabbitstream.ErrPartitionUnavailable
 	}
-	return store(int64(offset))
+	return store(ctx, int64(offset))
 }
 
 // Close releases every partition consumer before the owning environment.
@@ -570,6 +591,7 @@ func (transport *rabbitConsumerSession) Close() error {
 		if err := transport.closeEnv(); err != nil && transport.closeErr == nil {
 			transport.closeErr = err
 		}
+		transport.workers.Wait()
 	})
 	return transport.closeErr
 }

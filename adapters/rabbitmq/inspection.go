@@ -5,8 +5,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/faustbrian/go-rabbitmq-streams"
-	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/stream"
+	"github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2/internal/rabbitmqstream/stream"
+	"github.com/faustbrian/go-rabbitmq-streams/v2"
 )
 
 // Inspector uses a fresh bounded connection for every read-only request so a
@@ -36,7 +36,7 @@ func NewInspector(
 		connection: normalized,
 		limits:     limits,
 		openEnvironment: func(ctx context.Context) (rabbitEnvironment, error) {
-			return openFreshEnvironment(ctx, normalized)
+			return openFreshEnvironment(ctx, normalized, limits)
 		},
 	}, nil
 }
@@ -63,7 +63,7 @@ func (inspector *Inspector) Inspect(
 	defer func() { _ = environment.Close() }()
 	targets := []string{request.Stream}
 	if request.SuperStream != "" {
-		targets, err = environment.QueryPartitions(request.SuperStream)
+		targets, err = environment.QueryPartitions(ctx, request.SuperStream)
 		if err != nil {
 			return rabbitstream.InspectionResult{}, inspectError(err)
 		}
@@ -124,7 +124,7 @@ func (inspector *Inspector) StoredOffset(
 		return nil, inspectError(err)
 	}
 	defer func() { _ = environment.Close() }()
-	stored, err := environment.QueryOffset(consumerName, streamName)
+	stored, err := environment.QueryOffset(ctx, consumerName, streamName)
 	if errors.Is(err, stream.OffsetNotFoundError) {
 		return nil, nil
 	}
@@ -145,13 +145,13 @@ func inspectStream(
 	consumerName string,
 ) (rabbitstream.StreamInspection, error) {
 	inspection := rabbitstream.StreamInspection{Stream: target}
-	exists, err := environment.StreamExists(target)
+	exists, err := environment.StreamExists(ctx, target)
 	if err != nil || !exists {
 		inspection.Exists = exists
 		return inspection, err
 	}
 	inspection.Exists = true
-	stats, err := environment.StreamStats(target)
+	stats, err := environment.StreamStats(ctx, target)
 	if err != nil {
 		return rabbitstream.StreamInspection{}, err
 	}
@@ -187,7 +187,7 @@ func inspectStreamStats(
 		inspection.CommittedChunkID = &value
 	}
 	if consumerName != "" {
-		stored, storedErr := environment.QueryOffset(consumerName, target)
+		stored, storedErr := environment.QueryOffset(ctx, consumerName, target)
 		if err := applyStoredOffset(&inspection, stored, storedErr); err != nil {
 			return rabbitstream.StreamInspection{}, storedErr
 		}

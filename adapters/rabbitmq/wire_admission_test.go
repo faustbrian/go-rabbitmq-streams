@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/faustbrian/go-rabbitmq-streams"
-	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/amqp"
+	"github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2/internal/rabbitmqstream/amqp"
+	"github.com/faustbrian/go-rabbitmq-streams/v2"
 )
 
 func TestWireConversionRejectsOversizedDecodedInput(t *testing.T) {

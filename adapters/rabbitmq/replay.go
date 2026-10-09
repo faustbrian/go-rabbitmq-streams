@@ -8,9 +8,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/faustbrian/go-rabbitmq-streams"
-	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/amqp"
-	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/stream"
+	"github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2/internal/rabbitmqstream/amqp"
+	"github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2/internal/rabbitmqstream/stream"
+	"github.com/faustbrian/go-rabbitmq-streams/v2"
+	"go.opentelemetry.io/otel/metric/noop"
 )
 
 // Replayer owns the stable root replay policy backed by fresh bounded RabbitMQ
@@ -37,7 +38,7 @@ func NewReplayer(
 		connection: normalized,
 		limits:     limits,
 		openEnvironment: func(ctx context.Context) (rabbitEnvironment, error) {
-			return openFreshEnvironment(ctx, normalized)
+			return openFreshEnvironment(ctx, normalized, limits)
 		},
 	}
 	core, err := rabbitstream.NewReplayer(limits, source, normalized.Observer)
@@ -81,17 +82,17 @@ func (source *replaySource) RetainedRange(
 		return rabbitstream.RetainedRange{}, err
 	}
 	defer func() { _ = environment.Close() }()
-	if err := ensureReplayTopology(environment, request); err != nil {
+	if err := ensureReplayTopology(ctx, environment, request); err != nil {
 		return rabbitstream.RetainedRange{}, err
 	}
-	exists, err := environment.StreamExists(target)
+	exists, err := environment.StreamExists(ctx, target)
 	if err != nil {
 		return rabbitstream.RetainedRange{}, err
 	}
 	if !exists {
 		return rabbitstream.RetainedRange{}, rabbitstream.ErrStreamUnavailable
 	}
-	stats, err := environment.StreamStats(target)
+	stats, err := environment.StreamStats(ctx, target)
 	if err != nil {
 		return rabbitstream.RetainedRange{}, err
 	}
@@ -141,6 +142,7 @@ func snapshotLastOffset(
 	results := make(chan result, 1)
 	var once sync.Once
 	consumer, err := environment.NewConsumer(
+		ctx,
 		target,
 		func(consumerContext stream.ConsumerContext, _ *amqp.Message) {
 			once.Do(func() {
@@ -199,7 +201,7 @@ func (source *replaySource) Open(
 	if err != nil {
 		return nil, err
 	}
-	if err := ensureReplayTopology(environment, request); err != nil {
+	if err := ensureReplayTopology(ctx, environment, request); err != nil {
 		_ = environment.Close()
 		return nil, err
 	}
@@ -218,6 +220,7 @@ func (source *replaySource) Open(
 		SetManualCommit().
 		SetOffset(toOffsetSpecification(request.Start))
 	consumer, err := environment.NewConsumer(
+		ctx,
 		cursor.target,
 		func(consumerContext stream.ConsumerContext, wireMessage *amqp.Message) {
 			cursor.accept(consumerContext.Consumer.GetOffset(), wireMessage)
@@ -230,7 +233,9 @@ func (source *replaySource) Open(
 	}
 	cursor.consumer = consumer
 	closed := consumer.NotifyClose()
+	cursor.workers.Add(1)
 	go func() {
+		defer cursor.workers.Done()
 		select {
 		case event := <-closed:
 			cursor.reportFailure(event.Err)
@@ -277,11 +282,11 @@ func (cursor *replayCursor) accept(offset int64, wireMessage *amqp.Message) {
 	}
 }
 
-func ensureReplayTopology(environment rabbitEnvironment, request rabbitstream.ReplayRequest) error {
+func ensureReplayTopology(ctx context.Context, environment rabbitEnvironment, request rabbitstream.ReplayRequest) error {
 	if request.SuperStream == "" {
 		return nil
 	}
-	partitions, err := environment.QueryPartitions(request.SuperStream)
+	partitions, err := environment.QueryPartitions(ctx, request.SuperStream)
 	if err != nil {
 		return classifyBrokerError(err)
 	}
@@ -321,6 +326,7 @@ type replayCursor struct {
 	failure      error
 	closeOnce    sync.Once
 	closeErr     error
+	workers      sync.WaitGroup
 }
 
 func (cursor *replayCursor) complete() {
@@ -379,6 +385,7 @@ func (cursor *replayCursor) Close() error {
 		if err := cursor.environment.Close(); err != nil && cursor.closeErr == nil {
 			cursor.closeErr = err
 		}
+		cursor.workers.Wait()
 	})
 	return cursor.closeErr
 }
@@ -386,11 +393,47 @@ func (cursor *replayCursor) Close() error {
 func openFreshEnvironment(
 	ctx context.Context,
 	connection rabbitstream.ConnectionConfig,
+	limits rabbitstream.Limits,
 ) (producerEnvironment, error) {
-	return openFreshEnvironmentWith(ctx, connection, func(options *stream.EnvironmentOptions) (producerEnvironment, error) {
-		upstream, err := stream.NewEnvironment(options)
+	decoder, err := transportDecoderLimits(limits)
+	if err != nil {
+		return nil, err
+	}
+	return openFreshEnvironmentWith(ctx, connection, func(openCtx context.Context, options *stream.EnvironmentOptions) (producerEnvironment, error) {
+		if err := options.SetDecoderLimits(decoder); err != nil {
+			return nil, rabbitstream.ErrInvalidConfiguration
+		}
+		upstream, err := stream.NewEnvironmentContext(openCtx, options)
 		return wrapStreamEnvironment(upstream, err)
 	})
+}
+
+// Wire admission includes message data and finite AMQP envelope overhead.
+// Aggregate chunk and frame budgets remain independent of message policy.
+func transportDecoderLimits(limits rabbitstream.Limits) (stream.DecoderLimits, error) {
+	decoder := stream.DefaultDecoderLimits()
+	if limits.MaxPayloadBytes <= 0 || limits.MaxMetadataBytes <= 0 || limits.MaxMetadataEntries <= 0 ||
+		limits.MaxStreamNameBytes <= 0 || limits.MaxStreamNameBytes > math.MaxUint16 {
+		return decoder, rabbitstream.ErrInvalidConfiguration
+	}
+	const maximumWireBytes = 1 << 30
+	const sectionOverhead = 4096
+	const entryOverhead = 32
+	remaining := maximumWireBytes - sectionOverhead
+	for _, size := range []int{limits.MaxPayloadBytes, limits.MaxMetadataBytes} {
+		if size > remaining {
+			return decoder, rabbitstream.ErrInvalidConfiguration
+		}
+		remaining -= size
+	}
+	if limits.MaxMetadataEntries > remaining/entryOverhead {
+		return decoder, rabbitstream.ErrInvalidConfiguration
+	}
+	wireBytes := maximumWireBytes - remaining + limits.MaxMetadataEntries*entryOverhead
+	decoder.MaxMessageBytes = wireBytes
+	decoder.AMQP.MaxMessageBytes = wireBytes
+	decoder.AMQP.MaxValueBytes = wireBytes
+	return decoder, nil
 }
 
 func wrapStreamEnvironment(upstream *stream.Environment, err error) (producerEnvironment, error) {
@@ -403,7 +446,7 @@ func wrapStreamEnvironment(upstream *stream.Environment, err error) (producerEnv
 func openFreshEnvironmentWith(
 	ctx context.Context,
 	connection rabbitstream.ConnectionConfig,
-	opener func(*stream.EnvironmentOptions) (producerEnvironment, error),
+	opener func(context.Context, *stream.EnvironmentOptions) (producerEnvironment, error),
 ) (producerEnvironment, error) {
 	operationCtx, cancel := context.WithTimeout(ctx, connection.ConnectTimeout)
 	defer cancel()
@@ -447,7 +490,7 @@ func openFreshEnvironmentWith(
 			return nil, context.DeadlineExceeded
 		}
 		environment, openErr := openResourceWithinContext(operationCtx, func() (producerEnvironment, error) {
-			return opener(environmentOptions(connection, endpoint, credentials, connection.RPCTimeout))
+			return opener(operationCtx, environmentOptions(connection, endpoint, credentials, connection.RPCTimeout))
 		})
 		if openErr == nil {
 			safeObserve(connection.Observer, rabbitstream.Observation{
@@ -491,32 +534,18 @@ type resourceOpenResult[T closeableResource] struct {
 	err      error
 }
 
-// openResourceWithinContext keeps at most one upstream open in flight. The
-// upstream client has no context-aware dial seam, so the abandoned branch owns
-// a resource that finishes opening after the caller's complete connect budget.
+// openResourceWithinContext joins context-aware opening before returning and
+// closes partial resources. It never abandons supplier work in a goroutine.
 func openResourceWithinContext[T closeableResource](
 	ctx context.Context,
 	opener func() (T, error),
 ) (T, error) {
-	var zero T
-	result := make(chan resourceOpenResult[T])
-	abandoned := make(chan struct{})
-	go func() {
-		resource, err := opener()
-		opened := resourceOpenResult[T]{resource: resource, err: err}
-		select {
-		case result <- opened:
-		case <-abandoned:
-			closeLateResource(resource)
-		}
-	}()
-	select {
-	case opened := <-result:
-		return acceptOpenedResource(ctx, opened)
-	case <-ctx.Done():
-		close(abandoned)
+	if err := ctx.Err(); err != nil {
+		var zero T
 		return zero, ctx.Err()
 	}
+	resource, err := opener()
+	return acceptOpenedResource(ctx, resourceOpenResult[T]{resource: resource, err: err})
 }
 
 func connectionAttemptBudgetExhausted(remaining time.Duration, rpcTimeout time.Duration) bool {
@@ -614,6 +643,7 @@ func environmentOptions(
 	rpcTimeout time.Duration,
 ) *stream.EnvironmentOptions {
 	options := stream.NewEnvironmentOptions().
+		SetMeterProvider(noop.NewMeterProvider()).
 		SetHost(endpoint.Host).
 		SetPort(int(endpoint.Port)).
 		SetUser(credentials.Username).

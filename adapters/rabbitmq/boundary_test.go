@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/faustbrian/go-rabbitmq-streams"
-	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/amqp"
-	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/message"
-	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/stream"
+	"github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2/internal/rabbitmqstream/amqp"
+	"github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2/internal/rabbitmqstream/message"
+	"github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2/internal/rabbitmqstream/stream"
+	"github.com/faustbrian/go-rabbitmq-streams/v2"
 )
 
 func TestAdapterMutationBoundariesFailFast(t *testing.T) {
@@ -247,9 +247,12 @@ func TestAdapterMutationBoundariesFailFast(t *testing.T) {
 	producerReconnectStarted := make(chan struct{})
 	releaseProducerReconnect := make(chan struct{})
 	closedReconnect := &producerTransport{
-		opener: func(context.Context) (producerSession, error) {
+		opener: func(openCtx context.Context) (producerSession, error) {
 			close(producerReconnectStarted)
-			<-releaseProducerReconnect
+			select {
+			case <-releaseProducerReconnect:
+			case <-openCtx.Done():
+			}
 			return closedReconnectSession, nil
 		},
 		done: make(chan struct{}),
@@ -319,9 +322,12 @@ func TestAdapterMutationBoundariesFailFast(t *testing.T) {
 	consumerReconnectStarted := make(chan struct{})
 	releaseConsumerReconnect := make(chan struct{})
 	closedConsumerReconnect := &consumerTransport{
-		opener: func(context.Context, bool) (consumerSession, error) {
+		opener: func(openCtx context.Context, _ bool) (consumerSession, error) {
 			close(consumerReconnectStarted)
-			<-releaseConsumerReconnect
+			select {
+			case <-releaseConsumerReconnect:
+			case <-openCtx.Done():
+			}
 			return closedConsumerSession, nil
 		},
 		maxReconnectAttempts: 1,
@@ -731,7 +737,7 @@ func TestFreshEnvironmentOpeningCoversBoundedLifecycleOutcomes(t *testing.T) {
 	opened := &fakeRabbitEnvironment{}
 	if environment, err := openFreshEnvironmentWith(
 		context.Background(), connection,
-		func(*stream.EnvironmentOptions) (producerEnvironment, error) { return opened, nil },
+		func(_ context.Context, _ *stream.EnvironmentOptions) (producerEnvironment, error) { return opened, nil },
 	); err != nil || environment != opened {
 		t.Fatalf("successful open = %#v, %v", environment, err)
 	}
@@ -742,7 +748,7 @@ func TestFreshEnvironmentOpeningCoversBoundedLifecycleOutcomes(t *testing.T) {
 	})
 	if environment, err := openFreshEnvironmentWith(
 		context.Background(), invalidCredentials,
-		func(*stream.EnvironmentOptions) (producerEnvironment, error) { return opened, nil },
+		func(_ context.Context, _ *stream.EnvironmentOptions) (producerEnvironment, error) { return opened, nil },
 	); environment != nil || !errors.Is(err, rabbitstream.ErrInvalidConfiguration) {
 		t.Fatalf("invalid-credential open = %#v, %v", environment, err)
 	}
@@ -753,7 +759,7 @@ func TestFreshEnvironmentOpeningCoversBoundedLifecycleOutcomes(t *testing.T) {
 	})
 	if environment, err := openFreshEnvironmentWith(
 		context.Background(), credentialFailure,
-		func(*stream.EnvironmentOptions) (producerEnvironment, error) { return opened, nil },
+		func(_ context.Context, _ *stream.EnvironmentOptions) (producerEnvironment, error) { return opened, nil },
 	); environment != nil || !errors.Is(err, rabbitstream.ErrAuthentication) {
 		t.Fatalf("credential-failure open = %#v, %v", environment, err)
 	}
@@ -762,7 +768,7 @@ func TestFreshEnvironmentOpeningCoversBoundedLifecycleOutcomes(t *testing.T) {
 	cancel()
 	if environment, err := openFreshEnvironmentWith(
 		canceled, connection,
-		func(*stream.EnvironmentOptions) (producerEnvironment, error) { return opened, nil },
+		func(_ context.Context, _ *stream.EnvironmentOptions) (producerEnvironment, error) { return opened, nil },
 	); environment != nil || !errors.Is(err, context.Canceled) {
 		t.Fatalf("canceled credential open = %#v, %v", environment, err)
 	}
@@ -772,7 +778,7 @@ func TestFreshEnvironmentOpeningCoversBoundedLifecycleOutcomes(t *testing.T) {
 	})
 	if environment, err := openFreshEnvironmentWith(
 		canceled, ignoresCancellation,
-		func(*stream.EnvironmentOptions) (producerEnvironment, error) { return opened, nil },
+		func(_ context.Context, _ *stream.EnvironmentOptions) (producerEnvironment, error) { return opened, nil },
 	); environment != nil || !errors.Is(err, context.Canceled) {
 		t.Fatalf("canceled attempt-budget open = %#v, %v", environment, err)
 	}
@@ -780,7 +786,7 @@ func TestFreshEnvironmentOpeningCoversBoundedLifecycleOutcomes(t *testing.T) {
 	defer cancelExpired()
 	if environment, err := openFreshEnvironmentWith(
 		expired, ignoresCancellation,
-		func(*stream.EnvironmentOptions) (producerEnvironment, error) { return opened, nil },
+		func(_ context.Context, _ *stream.EnvironmentOptions) (producerEnvironment, error) { return opened, nil },
 	); environment != nil || !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("expired attempt-budget open = %#v, %v", environment, err)
 	}
@@ -789,7 +795,7 @@ func TestFreshEnvironmentOpeningCoversBoundedLifecycleOutcomes(t *testing.T) {
 	invalidTimeout.RPCTimeout = -time.Second
 	if environment, err := openFreshEnvironmentWith(
 		context.Background(), invalidTimeout,
-		func(*stream.EnvironmentOptions) (producerEnvironment, error) { return opened, nil },
+		func(_ context.Context, _ *stream.EnvironmentOptions) (producerEnvironment, error) { return opened, nil },
 	); environment != nil || !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("invalid attempt timeout open = %#v, %v", environment, err)
 	}
@@ -797,7 +803,7 @@ func TestFreshEnvironmentOpeningCoversBoundedLifecycleOutcomes(t *testing.T) {
 	authentication := connection
 	if environment, err := openFreshEnvironmentWith(
 		context.Background(), authentication,
-		func(*stream.EnvironmentOptions) (producerEnvironment, error) {
+		func(_ context.Context, _ *stream.EnvironmentOptions) (producerEnvironment, error) {
 			return nil, stream.AuthenticationFailure
 		},
 	); environment != nil || !errors.Is(err, rabbitstream.ErrAuthentication) {
@@ -808,7 +814,7 @@ func TestFreshEnvironmentOpeningCoversBoundedLifecycleOutcomes(t *testing.T) {
 	noAttempts.MaxReconnectAttempts = 0
 	if environment, err := openFreshEnvironmentWith(
 		context.Background(), noAttempts,
-		func(*stream.EnvironmentOptions) (producerEnvironment, error) { return opened, nil },
+		func(_ context.Context, _ *stream.EnvironmentOptions) (producerEnvironment, error) { return opened, nil },
 	); environment != nil || !errors.Is(err, rabbitstream.ErrConnection) {
 		t.Fatalf("zero-attempt open = %#v, %v", environment, err)
 	}
@@ -818,7 +824,7 @@ func TestFreshEnvironmentOpeningCoversBoundedLifecycleOutcomes(t *testing.T) {
 	openCalls := 0
 	if environment, err := openFreshEnvironmentWith(
 		context.Background(), retrying,
-		func(*stream.EnvironmentOptions) (producerEnvironment, error) {
+		func(_ context.Context, _ *stream.EnvironmentOptions) (producerEnvironment, error) {
 			openCalls++
 			if openCalls == 1 {
 				return nil, rabbitstream.ErrConnection
@@ -835,9 +841,12 @@ func TestFreshEnvironmentOpeningCoversBoundedLifecycleOutcomes(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	result := make(chan error, 1)
 	go func() {
-		_, err := openFreshEnvironmentWith(ctx, connection, func(*stream.EnvironmentOptions) (producerEnvironment, error) {
+		_, err := openFreshEnvironmentWith(ctx, connection, func(openCtx context.Context, _ *stream.EnvironmentOptions) (producerEnvironment, error) {
 			close(started)
-			<-release
+			select {
+			case <-release:
+			case <-openCtx.Done():
+			}
 			return late, nil
 		})
 		result <- err
@@ -860,7 +869,7 @@ func TestFreshEnvironmentOpeningCoversBoundedLifecycleOutcomes(t *testing.T) {
 	cancelBackoff.MaxReconnectBackoff = time.Hour
 	ctx, cancel = context.WithCancel(context.Background())
 	go func() {
-		_, err := openFreshEnvironmentWith(ctx, cancelBackoff, func(*stream.EnvironmentOptions) (producerEnvironment, error) {
+		_, err := openFreshEnvironmentWith(ctx, cancelBackoff, func(_ context.Context, _ *stream.EnvironmentOptions) (producerEnvironment, error) {
 			close(backoffStarted)
 			return nil, rabbitstream.ErrConnection
 		})
@@ -901,7 +910,7 @@ func TestFreshEnvironmentOpeningRejectsZeroRPCTimeout(t *testing.T) {
 	environment, err := openFreshEnvironmentWith(
 		context.Background(),
 		connection,
-		func(*stream.EnvironmentOptions) (producerEnvironment, error) {
+		func(_ context.Context, _ *stream.EnvironmentOptions) (producerEnvironment, error) {
 			openerCalls++
 			return &fakeRabbitEnvironment{}, nil
 		},
@@ -927,7 +936,7 @@ func TestFreshEnvironmentPreservesConfiguredRPCTimeoutAfterOpening(t *testing.T)
 	environment, err := openFreshEnvironmentWith(
 		context.Background(),
 		connection,
-		func(options *stream.EnvironmentOptions) (producerEnvironment, error) {
+		func(_ context.Context, options *stream.EnvironmentOptions) (producerEnvironment, error) {
 			openedWith = options.RPCTimeout
 			return opened, nil
 		},
@@ -958,7 +967,7 @@ func TestFreshEnvironmentDoesNotOverlapSlowOpeningAttempts(t *testing.T) {
 	environment, err := openFreshEnvironmentWith(
 		context.Background(),
 		connection,
-		func(options *stream.EnvironmentOptions) (producerEnvironment, error) {
+		func(openCtx context.Context, options *stream.EnvironmentOptions) (producerEnvironment, error) {
 			if options.RPCTimeout != connection.RPCTimeout {
 				return nil, errors.New("unexpected persistent RPC timeout")
 			}
@@ -967,7 +976,10 @@ func TestFreshEnvironmentDoesNotOverlapSlowOpeningAttempts(t *testing.T) {
 			late := &fakeRabbitEnvironment{closeCalled: make(chan struct{})}
 			opened = append(opened, late)
 			openMu.Unlock()
-			<-release
+			select {
+			case <-release:
+			case <-openCtx.Done():
+			}
 			return late, nil
 		},
 	)
@@ -1350,11 +1362,11 @@ func TestReplaySourceRejectsUnavailableAndChangedHistoryBoundaries(t *testing.T)
 }
 
 func TestReplayTopologyMustRemainExactAndOrdered(t *testing.T) {
-	if err := ensureReplayTopology(&fakeRabbitEnvironment{}, rabbitstream.ReplayRequest{Stream: "tracking.events"}); err != nil {
+	if err := ensureReplayTopology(context.Background(), &fakeRabbitEnvironment{}, rabbitstream.ReplayRequest{Stream: "tracking.events"}); err != nil {
 		t.Fatalf("single-stream topology error = %v", err)
 	}
 	request := rabbitstream.ReplayRequest{SuperStream: "tracking", ExpectedPartitions: []string{"tracking-0", "tracking-1"}}
-	if err := ensureReplayTopology(&fakeRabbitEnvironment{queryPartitionsErr: stream.StreamNotAvailable}, request); !errors.Is(err, rabbitstream.ErrStreamUnavailable) {
+	if err := ensureReplayTopology(context.Background(), &fakeRabbitEnvironment{queryPartitionsErr: stream.StreamNotAvailable}, request); !errors.Is(err, rabbitstream.ErrStreamUnavailable) {
 		t.Fatalf("query topology error = %v", err)
 	}
 	for name, partitions := range map[string][]string{
@@ -1362,11 +1374,11 @@ func TestReplayTopologyMustRemainExactAndOrdered(t *testing.T) {
 		"count": {"tracking-0"},
 		"order": {"tracking-1", "tracking-0"},
 	} {
-		if err := ensureReplayTopology(&fakeRabbitEnvironment{partitions: partitions}, request); !errors.Is(err, rabbitstream.ErrPartitionUnavailable) {
+		if err := ensureReplayTopology(context.Background(), &fakeRabbitEnvironment{partitions: partitions}, request); !errors.Is(err, rabbitstream.ErrPartitionUnavailable) {
 			t.Fatalf("%s topology error = %v", name, err)
 		}
 	}
-	if err := ensureReplayTopology(&fakeRabbitEnvironment{partitions: append([]string(nil), request.ExpectedPartitions...)}, request); err != nil {
+	if err := ensureReplayTopology(context.Background(), &fakeRabbitEnvironment{partitions: append([]string(nil), request.ExpectedPartitions...)}, request); err != nil {
 		t.Fatalf("exact topology error = %v", err)
 	}
 }
@@ -1905,25 +1917,26 @@ type fakeRabbitEnvironment struct {
 	closeOnce          sync.Once
 }
 
-func (environment *fakeRabbitEnvironment) QueryPartitions(string) ([]string, error) {
+func (environment *fakeRabbitEnvironment) QueryPartitions(context.Context, string) ([]string, error) {
 	return append([]string(nil), environment.partitions...), environment.queryPartitionsErr
 }
 
-func (environment *fakeRabbitEnvironment) StreamExists(string) (bool, error) {
+func (environment *fakeRabbitEnvironment) StreamExists(context.Context, string) (bool, error) {
 	return environment.exists, environment.existsErr
 }
 
-func (environment *fakeRabbitEnvironment) StreamStats(string) (*stream.StreamStats, error) {
+func (environment *fakeRabbitEnvironment) StreamStats(context.Context, string) (*stream.StreamStats, error) {
 	environment.streamStatsCalls++
 	return environment.stats, environment.statsErr
 }
 
-func (environment *fakeRabbitEnvironment) QueryOffset(string, string) (int64, error) {
+func (environment *fakeRabbitEnvironment) QueryOffset(context.Context, string, string) (int64, error) {
 	environment.queryOffsetCalls++
 	return environment.queryOffset, environment.queryOffsetErr
 }
 
 func (environment *fakeRabbitEnvironment) NewConsumer(
+	_ context.Context,
 	_ string,
 	_ stream.MessagesHandler,
 	options *stream.ConsumerOptions,
@@ -1938,7 +1951,7 @@ func (environment *fakeRabbitEnvironment) NewConsumer(
 	return consumer, nil
 }
 
-func (environment *fakeRabbitEnvironment) NewProducer(_ string, options *stream.ProducerOptions) (rabbitProducer, error) {
+func (environment *fakeRabbitEnvironment) NewProducer(_ context.Context, _ string, options *stream.ProducerOptions) (rabbitProducer, error) {
 	environment.producerCalls++
 	environment.producerOptions = append(environment.producerOptions, options)
 	if environment.newProducerErr != nil && (environment.producerErrAt == 0 || environment.producerCalls == environment.producerErrAt) {
@@ -1973,7 +1986,7 @@ func newFakeRabbitProducer(streamName string) *fakeRabbitProducer {
 	}
 }
 
-func (*fakeRabbitProducer) Send(message.StreamMessage) error { return nil }
+func (*fakeRabbitProducer) SendContext(context.Context, message.StreamMessage) error { return nil }
 
 func (producer *fakeRabbitProducer) NotifyPublishConfirmation() stream.ChannelPublishConfirm {
 	return producer.confirmations
@@ -2005,7 +2018,7 @@ func newFakeRabbitConsumer() *fakeRabbitConsumer {
 	return &fakeRabbitConsumer{closed: make(chan stream.Event, 1)}
 }
 
-func (consumer *fakeRabbitConsumer) StoreCustomOffset(offset int64) error {
+func (consumer *fakeRabbitConsumer) StoreCustomOffsetContext(_ context.Context, offset int64) error {
 	consumer.stored = offset
 	return consumer.closeErr
 }

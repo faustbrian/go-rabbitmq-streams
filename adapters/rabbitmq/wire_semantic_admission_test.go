@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"testing"
 
-	rabbitstream "github.com/faustbrian/go-rabbitmq-streams"
-	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/amqp"
+	"github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2/internal/rabbitmqstream/amqp"
+	rabbitstream "github.com/faustbrian/go-rabbitmq-streams/v2"
 )
 
 // Byte and type admission must not replace semantic identifier validation.

@@ -1,0 +1,1071 @@
+package stream
+
+import (
+	"bufio"
+	"context"
+	"errors"
+	"fmt"
+	"sync"
+	"sync/atomic"
+	"time"
+
+	"github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2/internal/rabbitmqstream/logs"
+	"github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2/internal/rabbitmqstream/message"
+	"go.opentelemetry.io/otel/attribute"
+	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
+)
+
+type ConfirmationStatus struct {
+	admission    *confirmationAdmission
+	inserted     time.Time
+	message      message.StreamMessage
+	producerID   uint8
+	publishingId int64
+	confirmed    bool
+	err          error
+	errorCode    uint16
+	linkedTo     []*ConfirmationStatus
+}
+
+func (cs *ConfirmationStatus) IsConfirmed() bool {
+	return cs.confirmed
+}
+
+func (cs *ConfirmationStatus) GetProducerID() uint8 {
+	return cs.producerID
+}
+
+func (cs *ConfirmationStatus) GetPublishingId() int64 {
+	return cs.publishingId
+}
+
+func (cs *ConfirmationStatus) GetError() error {
+	return cs.err
+}
+
+func (cs *ConfirmationStatus) LinkedMessages() []*ConfirmationStatus {
+	return cs.linkedTo
+}
+
+func (cs *ConfirmationStatus) GetMessage() message.StreamMessage {
+	return cs.message
+}
+
+func (cs *ConfirmationStatus) GetErrorCode() uint16 {
+	return cs.errorCode
+}
+
+func (cs *ConfirmationStatus) updateStatus(errorCode uint16, confirmed bool) {
+	cs.confirmed = confirmed
+	if confirmed {
+		return
+	}
+	cs.errorCode = errorCode
+	cs.err = lookErrorCode(errorCode)
+}
+
+type messageSequence struct {
+	// A sequence belongs to one admission. The confirmation record keeps only
+	// this tiny token, not the sequence's additional encoded-wire buffer.
+	admission    *confirmationAdmission
+	sourceMsg    message.StreamMessage
+	messageBytes []byte
+	publishingId int64
+	filterValue  string
+}
+
+type Producer struct {
+	terminalEvent         Event
+	tasks                 taskOwner
+	stopOnce              sync.Once
+	lifetime              context.Context
+	stopLifetime          context.CancelFunc
+	confirmationDone      chan struct{}
+	confirmActive         sync.WaitGroup
+	confirmStopped        bool
+	confirmationCloseOnce sync.Once
+	client                *Client
+	id                    uint8
+	options               *ProducerOptions
+	onClose               func()
+	unConfirmed           *unConfirmed
+	sequence              int64
+	mutex                 *sync.RWMutex
+
+	closeHandler              chan Event
+	status                    int
+	confirmationTimeoutTicker *time.Ticker
+	doneTimeoutTicker         chan struct{}
+
+	confirmMutex        *sync.Mutex
+	publishConfirmation chan []*ConfirmationStatus
+
+	pendingSequencesQueue *BlockingQueue[*messageSequence]
+}
+
+type FilterValue func(message message.StreamMessage) string
+
+type ProducerFilter struct {
+	FilterValue FilterValue
+}
+
+func NewProducerFilter(filterValue FilterValue) *ProducerFilter {
+	return &ProducerFilter{
+		FilterValue: filterValue,
+	}
+}
+
+type ProducerOptions struct {
+	streamName string
+	// Producer name.  You need to set it to enable the deduplication feature.
+	//  Deduplication is a feature that allows the producer to avoid sending duplicate messages to the stream.
+	// see: https://www.rabbitmq.com/blog/2021/07/28/rabbitmq-streams-message-deduplication for more information.
+	// Don't use it if you don't need the deduplication.
+	Name string
+	// Internal queue to handle back-pressure.
+	//
+	// Default value is enough high (See defaultQueuePublisherSize). You usually don't need to change it unless
+	// high memory usage is a concern.
+	//
+	// High value can increase the memory usage and deal with spikes in the traffic.
+	//
+	// Low value can reduce the memory usage but can increase the back-pressure on the server.
+	QueueSize int
+	// It is the batch-unCompressedSize aggregation, low value reduce the latency, high value increase the throughput.
+	// Valid only for the method Send()
+	BatchSize int
+	// Deprecated: starting from 1.5.0 the SetBatchPublishingDelay is deprecated, and it will be removed in the next releases
+	// It is not used anymore given the dynamic batching.
+	//
+	// Timeout within the aggregation sent a batch of messages. Valid only for the method Send()
+	BatchPublishingDelay int
+	// Size of sub Entry, to aggregate more subEntry using one publishing id
+	SubEntrySize int
+	// Compression type, it is valid only if SubEntrySize > 1
+	// The messages can be compressed before sending them to the server
+	Compression Compression
+	// Time to wait for the confirmation, see the unConfirmed structure
+	ConfirmationTimeOut time.Duration
+	// Client provider name that will be shown in the management UI
+	ClientProvidedName string
+	// Enable the filter feature, by default is disabled. Pointer nil
+	Filter *ProducerFilter
+}
+
+// SetProducerName sets the producer name. This name is used to enable the deduplication feature.
+// See ProducerOptions.Name for more details.
+// Don't use it if you don't need the deduplication.
+func (po *ProducerOptions) SetProducerName(name string) *ProducerOptions {
+	po.Name = name
+	return po
+}
+
+// SetQueueSize See ProducerOptions.QueueSize for more details
+func (po *ProducerOptions) SetQueueSize(size int) *ProducerOptions {
+	po.QueueSize = size
+	return po
+}
+
+// SetBatchSize sets the batch size for the producer
+// The batch size is the number of messages that are aggregated before sending them to the server
+// The SendBatch splits the messages in multiple frames if the messages are bigger than the BatchSize
+func (po *ProducerOptions) SetBatchSize(size int) *ProducerOptions {
+	po.BatchSize = size
+	return po
+}
+
+// Deprecated: starting from 1.5.0 the SetBatchPublishingDelay is deprecated, and it will be removed in the next releases
+// It is not used anymore given the dynamic batching
+func (po *ProducerOptions) SetBatchPublishingDelay(size int) *ProducerOptions {
+	po.BatchPublishingDelay = size
+	return po
+}
+
+// SetSubEntrySize See the ProducerOptions.SubEntrySize for more details
+func (po *ProducerOptions) SetSubEntrySize(size int) *ProducerOptions {
+	po.SubEntrySize = size
+	return po
+}
+
+// SetCompression sets the compression for the producer. See ProducerOptions.Compression for more details
+func (po *ProducerOptions) SetCompression(compression Compression) *ProducerOptions {
+	po.Compression = compression
+	return po
+}
+
+// SetConfirmationTimeOut sets the time to wait for the confirmation. See ProducerOptions.ConfirmationTimeOut for more details
+func (po *ProducerOptions) SetConfirmationTimeOut(duration time.Duration) *ProducerOptions {
+	po.ConfirmationTimeOut = duration
+	return po
+}
+
+// SetClientProvidedName sets the client provided name that will be shown in the management UI
+func (po *ProducerOptions) SetClientProvidedName(name string) *ProducerOptions {
+	po.ClientProvidedName = name
+	return po
+}
+
+func (po *ProducerOptions) GetClientProvidedName(defaultClientProvidedName string) string {
+	if po == nil {
+		return defaultClientProvidedName
+	}
+	return po.ClientProvidedName
+}
+
+// SetFilter sets the filter for the producer. See ProducerOptions.Filter for more details
+func (po *ProducerOptions) SetFilter(filter *ProducerFilter) *ProducerOptions {
+	po.Filter = filter
+	return po
+}
+
+// IsFilterEnabled returns true if the filter is enabled
+func (po *ProducerOptions) IsFilterEnabled() bool {
+	return po.Filter != nil
+}
+
+func NewProducerOptions() *ProducerOptions {
+	return &ProducerOptions{
+		QueueSize:            defaultQueuePublisherSize,
+		BatchSize:            defaultBatchSize,
+		BatchPublishingDelay: defaultBatchPublishingDelay,
+		SubEntrySize:         1,
+		Compression:          Compression{},
+		ConfirmationTimeOut:  defaultConfirmationTimeOut,
+		ClientProvidedName:   "go-stream-producer",
+		Filter:               nil,
+	}
+}
+
+func (po *ProducerOptions) isSubEntriesBatching() bool {
+	return po.SubEntrySize > 1
+}
+
+// NotifyPublishConfirmation returns a channel that receives the confirmation status of the messages sent by the producer.
+func (producer *Producer) NotifyPublishConfirmation() ChannelPublishConfirm {
+	producer.confirmMutex.Lock()
+	defer producer.confirmMutex.Unlock()
+	if producer.publishConfirmation != nil {
+		return producer.publishConfirmation
+	}
+	ch := make(chan []*ConfirmationStatus, 1)
+	if producer.confirmStopped {
+		close(ch)
+		return ch
+	}
+	producer.publishConfirmation = ch
+	return ch
+}
+
+// NotifyClose returns a channel that receives the close event of the producer.
+func (producer *Producer) NotifyClose() ChannelClose {
+	producer.mutex.Lock()
+	defer producer.mutex.Unlock()
+	if producer.closeHandler != nil {
+		return producer.closeHandler
+	}
+	ch := make(chan Event, 1)
+	if producer.status == closed {
+		ch <- producer.terminalEvent
+		close(ch)
+		return ch
+	}
+	producer.closeHandler = ch
+	return ch
+}
+
+func (producer *Producer) GetOptions() *ProducerOptions {
+	return producer.options
+}
+
+func (producer *Producer) GetBroker() *Broker {
+	return producer.client.broker
+}
+func (producer *Producer) setStatus(status int) {
+	producer.mutex.Lock()
+	defer producer.mutex.Unlock()
+	producer.status = status
+}
+
+func (producer *Producer) getStatus() int {
+	producer.mutex.Lock()
+	defer producer.mutex.Unlock()
+	return producer.status
+}
+
+func (producer *Producer) startUnconfirmedMessagesTimeOutTask() bool {
+	return producer.client.startTask(&producer.tasks, func() {
+		for {
+			select {
+			case <-producer.client.socket.done:
+				return
+			case <-producer.doneTimeoutTicker:
+				logs.LogDebug("producer %d timeout thread closed", producer.id)
+				return
+			case <-producer.confirmationTimeoutTicker.C:
+				// check the unconfirmed messages and remove the one that are expired
+				if producer.getStatus() == open {
+					toRemove := producer.unConfirmed.extractWithTimeOut(producer.options.ConfirmationTimeOut)
+					if len(toRemove) > 0 {
+						producer.sendConfirmationStatus(toRemove)
+					}
+				} else {
+					logs.LogInfo("producer %d confirmationTimeoutTicker closed", producer.id)
+					return
+				}
+			}
+		}
+	})
+}
+
+func (producer *Producer) sendConfirmationStatus(status []*ConfirmationStatus) {
+	producer.sendConfirmationStatusContext(context.Background(), status)
+}
+func (producer *Producer) sendConfirmationStatusContext(ctx context.Context, status []*ConfirmationStatus) {
+	producer.confirmMutex.Lock()
+	if producer.confirmStopped || producer.publishConfirmation == nil {
+		producer.confirmMutex.Unlock()
+		return
+	}
+	ch := producer.publishConfirmation
+	producer.confirmActive.Add(1)
+	producer.confirmMutex.Unlock()
+	defer producer.confirmActive.Done()
+	var socketDone <-chan struct{}
+	if producer.client != nil {
+		socketDone = producer.client.socket.done
+	}
+	select {
+	case <-ctx.Done():
+	case ch <- status:
+	case <-producer.confirmationDone:
+	case <-socketDone:
+	}
+}
+func (producer *Producer) closeConfirmationStatus() {
+	producer.confirmationCloseOnce.Do(func() {
+		producer.confirmMutex.Lock()
+		producer.confirmStopped = true
+		close(producer.confirmationDone)
+		producer.confirmMutex.Unlock()
+		producer.confirmActive.Wait()
+		producer.confirmMutex.Lock()
+		if producer.publishConfirmation != nil {
+			close(producer.publishConfirmation)
+			producer.publishConfirmation = nil
+		}
+		producer.confirmMutex.Unlock()
+	})
+}
+
+// processPendingSequencesQueue aggregates the messages sequence in the queue and sends them to the server
+// messages coming from the Send method through the pendingSequencesQueue
+func (producer *Producer) processPendingSequencesQueue() bool {
+	maxFrame := producer.client.maxFrameSize()
+	batchSize := producer.options.BatchSize
+	if batchSize <= 0 {
+		batchSize = defaultBatchSize
+	}
+	filter := producer.options.IsFilterEnabled() && !producer.options.isSubEntriesBatching()
+	// frameOverhead is a message's contribution to the publish frame.
+	frameOverhead := func(msg *messageSequence) int {
+		c := len(msg.messageBytes) + 8 + 4
+		if filter {
+			if msg.filterValue != "" {
+				c += 2 + len(msg.filterValue)
+			} else {
+				c += 4
+			}
+		}
+		return c
+	}
+	return producer.client.startTask(&producer.tasks, func() {
+		const baseFrame = 4 + initBufferPublishSize // length prefix + publish header
+		sequenceToSend := make([]*messageSequence, 0, batchSize)
+		frameSize := baseFrame
+		flush := func() {
+			if len(sequenceToSend) == 0 {
+				return
+			}
+			batch := sequenceToSend
+			ctx, end, admissionErr := producer.operationContext(context.Background())
+			if admissionErr != nil {
+				return
+			}
+			defer end()
+			if err := producer.unConfirmed.addFromSequencesContext(ctx, batch, producer.GetID(), producer.client.socket.done); err != nil {
+				producer.markUnsentAsUnconfirmedContext(ctx, batch, entityClosed)
+				sequenceToSend = make([]*messageSequence, 0, batchSize)
+				frameSize = baseFrame
+				return
+			}
+			if err := producer.internalBatchSendContext(ctx, batch); err != nil {
+				if errors.Is(err, FrameTooLarge) {
+					producer.reportFrameTooLarge(ctx, batch) // off-lock
+				} else {
+					var admitted *WriteAdmittedError
+					if !errors.As(err, &admitted) {
+						producer.unConfirmed.removeUnsent(batch)
+						producer.markUnsentAsUnconfirmedContext(ctx, batch, entityClosed)
+					}
+					logs.LogError("error during sending messages: %s", err)
+				}
+			}
+			sequenceToSend = make([]*messageSequence, 0, batchSize)
+			frameSize = baseFrame
+		}
+		for {
+			var msg *messageSequence
+			select {
+			case <-producer.confirmationDone:
+				return
+			case <-producer.client.socket.done:
+				return
+			case value, ok := <-producer.pendingSequencesQueue.GetChannel():
+				if !ok {
+					return
+				}
+				msg = value
+			}
+
+			if producer.pendingSequencesQueue.IsStopped() {
+				// add also the last message to sequenceToSend otherwise it will be lost
+				sequenceToSend = append(sequenceToSend, msg)
+				break
+			}
+			// Flush the pending batch before a message would push the frame over the max.
+			c := frameOverhead(msg)
+			if maxFrame > 0 && len(sequenceToSend) > 0 && frameSize+c > maxFrame {
+				flush()
+			}
+			sequenceToSend = append(sequenceToSend, msg)
+			frameSize += c
+
+			if producer.pendingSequencesQueue.IsEmpty() || len(sequenceToSend) >= producer.options.BatchSize {
+				flush()
+			}
+		}
+
+		// whatever is left was never sent; time it out
+		if len(sequenceToSend) > 0 {
+			producer.markUnsentAsUnconfirmed(sequenceToSend)
+		}
+	})
+}
+
+func (producer *Producer) markUnsentAsUnconfirmed(sequences []*messageSequence) {
+	producer.markUnsentAsUnconfirmedContext(context.Background(), sequences, entityClosed)
+}
+func (producer *Producer) markUnsentAsUnconfirmedContext(ctx context.Context, sequences []*messageSequence, code uint16) {
+	if len(sequences) == 0 {
+		return
+	}
+
+	// Send as unconfirmed the messages in the pendingSequencesQueue,
+	// that have never been sent,
+	// with the "entityClosed" error.
+	confirms := make([]*ConfirmationStatus, 0, len(sequences))
+	for _, ps := range sequences {
+		cs := &ConfirmationStatus{
+			inserted:     time.Now(),
+			message:      ps.sourceMsg,
+			producerID:   producer.GetID(),
+			publishingId: ps.publishingId,
+			confirmed:    false,
+		}
+		cs.updateStatus(code, false)
+		confirms = append(confirms, cs)
+	}
+	producer.sendConfirmationStatusContext(ctx, confirms)
+}
+
+func (producer *Producer) assignPublishingID(message message.StreamMessage) int64 {
+	sequence := message.GetPublishingId()
+	// in case of sub entry the deduplication is disabled
+	if !message.HasPublishingId() || producer.options.isSubEntriesBatching() {
+		sequence = atomic.AddInt64(&producer.sequence, 1)
+	}
+	return sequence
+}
+
+func (producer *Producer) fromMessageToMessageSequence(streamMessage message.StreamMessage) (*messageSequence, error) {
+	marshalBinary, err := streamMessage.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	if err := validateProtocolCount(len(marshalBinary)); err != nil {
+		return nil, err
+	}
+	seq := producer.assignPublishingID(streamMessage)
+	filterValue := ""
+	if producer.options.IsFilterEnabled() {
+		filterValue = producer.options.Filter.FilterValue(streamMessage)
+		if err := validateProtocolString(filterValue); err != nil {
+			return nil, err
+		}
+	}
+	msqSeq := &messageSequence{
+		sourceMsg:    streamMessage,
+		messageBytes: marshalBinary,
+		publishingId: seq,
+		filterValue:  filterValue,
+	}
+	return msqSeq, nil
+}
+
+// framedSize is the on-wire publish-frame size for seqs (length prefix + header
+// + per-message publishingId/length, plus the filter field). For sub-entry
+// producers it is only an estimate; internalBatchSendProdIdContext is the exact guard.
+func (producer *Producer) framedSize(seqs []*messageSequence) int {
+	filter := producer.options.IsFilterEnabled() && !producer.options.isSubEntriesBatching()
+	size := 4 + initBufferPublishSize
+	for _, s := range seqs {
+		size += len(s.messageBytes) + 8 + 4
+		if filter {
+			if s.filterValue != "" {
+				size += 2 + len(s.filterValue)
+			} else {
+				size += 4
+			}
+		}
+	}
+	return size
+}
+
+// reportFrameTooLarge marks the given sequences as failed with FrameTooLarge and
+// delivers the confirmations. It must be called OUTSIDE socket.mutex.
+func (producer *Producer) reportFrameTooLarge(ctx context.Context, seqs []*messageSequence) {
+	confirms := producer.unConfirmed.removeUnsent(seqs)
+	for _, confirmation := range confirms {
+		confirmation.updateStatus(responseCodeFrameTooLarge, false)
+	}
+	if len(confirms) > 0 {
+		producer.sendConfirmationStatusContext(ctx, confirms)
+	}
+}
+
+// Send sends a message to the stream and returns an error if the message could not be sent.
+// The Send is asynchronous. The message is sent to a channel ant then other goroutines aggregate and sent the messages
+// The Send is dynamic so the number of messages sent decided internally based on the BatchSize
+// and the messages in the buffer. The aggregation is up to the client.
+// returns an error if the message could not be sent for marshal problems or if the buffer is too large
+func (producer *Producer) Send(streamMessage message.StreamMessage) error {
+	return producer.sendQueuedContext(context.Background(), streamMessage)
+}
+
+// SendContext writes one publication under the caller's context; broker
+// confirmation remains asynchronous. It does not retain the caller's context
+// in an independently batching goroutine after this operation returns.
+func (producer *Producer) SendContext(ctx context.Context, streamMessage message.StreamMessage) error {
+	return producer.BatchSendContext(ctx, []message.StreamMessage{streamMessage})
+}
+
+func (producer *Producer) sendQueuedContext(ctx context.Context, streamMessage message.StreamMessage) error {
+	ctx, endOperation, contextErr := producer.operationContext(ctx)
+	if contextErr != nil {
+		return contextErr
+	}
+	defer endOperation()
+	messageSeq, err := producer.fromMessageToMessageSequence(streamMessage)
+	if err != nil {
+		return err
+	}
+	if producer.getStatus() == closed {
+		producer.markUnsentAsUnconfirmed([]*messageSequence{messageSeq})
+		return fmt.Errorf("producer id: %d closed", producer.id)
+	}
+
+	if fm := producer.client.maxFrameSize(); fm > 0 && producer.framedSize([]*messageSequence{messageSeq}) > fm {
+		producer.markUnsentAsUnconfirmedContext(ctx, []*messageSequence{messageSeq}, responseCodeFrameTooLarge)
+		return FrameTooLarge
+	}
+
+	// se the processPendingSequencesQueue function
+	err = producer.pendingSequencesQueue.EnqueueContext(ctx, messageSeq)
+	if err != nil {
+		return fmt.Errorf("publication queue admission: %w", err)
+	}
+	return nil
+}
+
+// BatchSend sends a batch of messages to the stream and returns an error if the messages could not be sent.
+// The method is synchronous.The aggregation is up to the user. The user has to aggregate the messages
+// and send them in a batch.
+// BatchSend is not affected by the BatchSize and BatchPublishingDelay options.
+// returns an error if the message could not be sent for marshal problems or if the buffer is too large
+func (producer *Producer) BatchSend(batchMessages []message.StreamMessage) error {
+	return producer.BatchSendContext(context.Background(), batchMessages)
+}
+
+// BatchSendContext bounds admission and native publication writes. Broker
+// confirmation remains asynchronous; WriteAdmittedError preserves ambiguity.
+func (producer *Producer) BatchSendContext(ctx context.Context, batchMessages []message.StreamMessage) error {
+	ctx, endOperation, contextErr := producer.operationContext(ctx)
+	if contextErr != nil {
+		return contextErr
+	}
+	defer endOperation()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	var messagesSequences = make([]*messageSequence, 0, len(batchMessages))
+
+	for _, batchMessage := range batchMessages {
+		messageSeq, err := producer.fromMessageToMessageSequence(batchMessage)
+		if err != nil {
+			return err
+		}
+		messagesSequences = append(messagesSequences, messageSeq)
+	}
+
+	if producer.getStatus() == closed {
+		producer.markUnsentAsUnconfirmed(messagesSequences)
+		return fmt.Errorf("producer id: %d closed", producer.id)
+	}
+
+	// Reject up front when the frame exceeds the max. Sub-entry size is only known
+	// after aggregation, so internalBatchSendProdIdContext is the backstop (below).
+	fm := producer.client.maxFrameSize()
+	if fm > 0 && !producer.options.isSubEntriesBatching() && producer.framedSize(messagesSequences) > fm {
+		producer.markUnsentAsUnconfirmedContext(ctx, messagesSequences, responseCodeFrameTooLarge)
+		return FrameTooLarge
+	}
+
+	if err := producer.unConfirmed.addFromSequencesContext(ctx, messagesSequences, producer.GetID(), producer.client.socket.done); err != nil {
+		return err
+	}
+	if err := producer.internalBatchSendContext(ctx, messagesSequences); err != nil {
+		if errors.Is(err, FrameTooLarge) {
+			producer.reportFrameTooLarge(ctx, messagesSequences)
+		} else {
+			var admitted *WriteAdmittedError
+			if !errors.As(err, &admitted) {
+				producer.unConfirmed.removeUnsent(messagesSequences)
+			}
+		}
+		return err
+	}
+	return nil
+}
+
+func (producer *Producer) GetID() uint8 {
+	producer.mutex.RLock()
+	defer producer.mutex.RUnlock()
+	return producer.id
+}
+
+func (producer *Producer) setID(id uint8) {
+	producer.mutex.Lock()
+	defer producer.mutex.Unlock()
+	producer.id = id
+}
+
+func (producer *Producer) internalBatchSendContext(ctx context.Context, messagesSequence []*messageSequence) error {
+	ctx, endOperation, contextErr := producer.operationContext(ctx)
+	if contextErr != nil {
+		return contextErr
+	}
+	defer endOperation()
+	return producer.internalBatchSendProdIdContext(ctx, messagesSequence, producer.GetID())
+}
+
+func (producer *Producer) simpleAggregation(messagesSequence []*messageSequence, b *bufio.Writer) error {
+	for _, msg := range messagesSequence {
+		r := msg.messageBytes
+		// publishingId
+		if err := writeBLong(b, msg.publishingId); err != nil {
+			return err
+		}
+
+		// len
+		if err := writeBInt(b, len(r)); err != nil {
+			return err
+		}
+
+		if _, err := b.Write(r); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (producer *Producer) subEntryAggregation(aggregation subEntries, b *bufio.Writer, compression Compression) error {
+	/// 51 messages
+	// aggregation.items == (5 --> [10] messages) + (1 --> [1]message)
+	for _, entry := range aggregation.items {
+		if err := writeBLong(b, entry.publishingId); err != nil {
+			return fmt.Errorf("failed to write publishingId: %w", err)
+		}
+		// 1=SubBatchEntryType:1,CompressionType:3,Reserved:4,
+		if err := writeBByte(b, 0x80|compression.value<<4); err != nil {
+			return fmt.Errorf("failed to write type and compression byte: %w", err)
+		}
+
+		if len(entry.messages) > 65535 {
+			return ErrProtocolNumberRange
+		}
+		if err := writeBUShort(b, uint16(len(entry.messages))); err != nil { // #nosec G115 -- Explicit <=65535 entry-count guard above; length is nonnegative.
+			return fmt.Errorf("failed to write message count: %w", err)
+		}
+
+		if err := writeBInt(b, entry.unCompressedSize); err != nil {
+			return fmt.Errorf("failed to write uncompressed size: %w", err)
+		}
+
+		if err := writeBInt(b, entry.sizeInBytes); err != nil {
+			return fmt.Errorf("failed to write size in bytes: %w", err)
+		}
+
+		if _, err := b.Write(entry.dataInBytes); err != nil {
+			return fmt.Errorf("failed to write data in bytes: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func (producer *Producer) aggregateEntities(msgs []*messageSequence, size int, compression Compression) (subEntries, error) {
+	subEntries := subEntries{}
+
+	var entry *subEntry
+	for _, msg := range msgs {
+		if len(subEntries.items) == 0 || len(entry.messages) >= size {
+			entry = &subEntry{
+				messages: make([]*messageSequence, 0),
+			}
+			entry.publishingId = -1
+			subEntries.items = append(subEntries.items, entry)
+		}
+		entry.messages = append(entry.messages, msg)
+		binary := msg.messageBytes
+		entry.unCompressedSize += len(binary) + 4
+		if err := validateProtocolCount(entry.unCompressedSize); err != nil {
+			return subEntries, err
+		}
+
+		// in case of subEntry we need to pick only one publishingId
+		// we peek the first one of the entries
+		// suppose you have 10 messages with publishingId [5..15]
+		if entry.publishingId < 0 {
+			entry.publishingId = msg.publishingId
+		}
+
+		/// since there is only one publishingId
+		// the others publishingId(s) are linked
+		// so the client confirms all the messages
+		// when the client receives the confirmation form the server
+		// see: server_frame:handleConfirm/2
+		// suppose you have 10 messages with publishingId [5..15]
+		// the message 5 is linked to 6,7,8,9..15
+
+		if entry.publishingId != msg.publishingId {
+			producer.unConfirmed.link(entry.publishingId, msg.publishingId)
+		}
+	}
+
+	err := compressByValue(compression.value).Compress(&subEntries)
+	if err != nil {
+		return subEntries, err
+	}
+
+	return subEntries, nil
+}
+
+func (producer *Producer) internalBatchSendProdIdContext(ctx context.Context, messagesSequence []*messageSequence, producerID uint8) error {
+	ctx, endOperation := ensureOperationContext(ctx)
+	defer endOperation()
+	ctx, cancel := boundedOperationContext(ctx, defaultSocketWriteTimeout)
+	defer cancel()
+	return producer.client.socket.withWriteContext(ctx, func() error {
+		return producer.internalBatchSendProdIdContextOwned(messagesSequence, producerID)
+	})
+}
+
+// internalBatchSendProdIdContextOwned requires sole socket writer ownership.
+func (producer *Producer) internalBatchSendProdIdContextOwned(messagesSequence []*messageSequence, producerID uint8) error {
+	if producer.getStatus() == closed {
+		return fmt.Errorf("producer id: %d closed", producer.id)
+	}
+
+	if producer.options.IsFilterEnabled() &&
+		// this check is just for safety. The producer can't be created with Filter and SubEntry > 1
+		!producer.options.isSubEntriesBatching() {
+		return producer.sendWithFilter(messagesSequence, producerID)
+	}
+
+	if producer.options.isSubEntriesBatching() {
+		aggregation, err := producer.aggregateEntities(messagesSequence, producer.options.SubEntrySize,
+			producer.options.Compression)
+		if err != nil {
+			return err
+		}
+		if err := producer.sendSubEntriesFrames(aggregation, producerID); err != nil {
+			return err
+		}
+		producer.client.metrics.published(context.Background(), int64(len(messagesSequence)), producer.otelAttributesForProducer())
+		return nil
+	}
+
+	var msgLen int
+	for _, msg := range messagesSequence {
+		msgLen += len(msg.messageBytes) + 8 + 4
+	}
+
+	length := initBufferPublishSize + msgLen
+
+	// Never write a frame over the negotiated max (the broker would close the
+	// connection). Sentinel only; the caller reports FrameTooLarge off-lock.
+	if fm := producer.client.maxFrameSize(); fm > 0 && length+4 > fm {
+		return FrameTooLarge
+	}
+
+	if err := writeBProtocolHeader(producer.client.socket.writer, length, commandPublish); err != nil {
+		return fmt.Errorf("failed to write protocol header: %w", err)
+	}
+
+	if err := writeBByte(producer.client.socket.writer, producerID); err != nil {
+		return fmt.Errorf("failed to write producer ID: %w", err)
+	}
+
+	// toExcluded - fromInclude
+	if err := writeBInt(producer.client.socket.writer, len(messagesSequence)); err != nil {
+		return fmt.Errorf("failed to write number of messages: %w", err)
+	}
+
+	if err := producer.simpleAggregation(messagesSequence, producer.client.socket.writer); err != nil {
+		return fmt.Errorf("failed to write simple aggregation: %w", err)
+	}
+
+	err := producer.client.socket.writer.Flush()
+	if err != nil {
+		return fmt.Errorf("producer BatchSend error during flush: %w", err)
+	}
+	producer.client.metrics.published(context.Background(), int64(len(messagesSequence)), producer.otelAttributesForProducer())
+
+	return nil
+}
+
+// publishingId(8) + type/compression(1) + count(2) + uncompressed(4) + compressed(4)
+const subEntryFragmentHeader = 8 + 1 + 2 + 4 + 4
+
+// sendSubEntriesFrames splits the compressed entries across publish frames so
+// none exceeds the negotiated max (like Java's publishInternal). Caller holds
+// socket.mutex; on FrameTooLarge nothing has been written.
+func (producer *Producer) sendSubEntriesFrames(aggregation subEntries, producerID uint8) error {
+	fm := producer.client.maxFrameSize()
+	if fm > 0 {
+		for _, entry := range aggregation.items {
+			// an entry that alone exceeds the max can never be framed
+			if 4+initBufferPublishSize+subEntryFragmentHeader+len(entry.dataInBytes) > fm {
+				return FrameTooLarge
+			}
+		}
+	}
+
+	start := 0
+	length := initBufferPublishSize
+	for i, entry := range aggregation.items {
+		fragment := subEntryFragmentHeader + len(entry.dataInBytes)
+		if fm > 0 && i > start && length+fragment+4 > fm {
+			if err := producer.writeSubEntriesFrame(aggregation.items[start:i], length, producerID); err != nil {
+				return err
+			}
+			start = i
+			length = initBufferPublishSize
+		}
+		length += fragment
+	}
+	return producer.writeSubEntriesFrame(aggregation.items[start:], length, producerID)
+}
+
+func (producer *Producer) writeSubEntriesFrame(items []*subEntry, length int, producerID uint8) error {
+	if err := writeBProtocolHeader(producer.client.socket.writer, length, commandPublish); err != nil {
+		return fmt.Errorf("failed to write protocol header: %w", err)
+	}
+
+	if err := writeBByte(producer.client.socket.writer, producerID); err != nil {
+		return fmt.Errorf("failed to write producer ID: %w", err)
+	}
+
+	if err := writeBInt(producer.client.socket.writer, len(items)); err != nil {
+		return fmt.Errorf("failed to write number of messages: %w", err)
+	}
+
+	if err := producer.subEntryAggregation(subEntries{items: items}, producer.client.socket.writer, producer.options.Compression); err != nil {
+		return fmt.Errorf("failed to write sub entry aggregation: %w", err)
+	}
+
+	if err := producer.client.socket.writer.Flush(); err != nil {
+		return fmt.Errorf("producer BatchSend error during flush: %w", err)
+	}
+	return nil
+}
+
+// GetLastPublishingId returns the last publishing id sent by the producer given the producer name.
+// this function is useful when you need to know the last message sent by the producer in case of
+// deduplication.
+func (producer *Producer) GetLastPublishingId() (int64, error) {
+	return producer.client.queryPublisherSequence(producer.GetName(), producer.GetStreamName())
+}
+
+// Close closes the producer and returns an error if the producer could not be closed.
+func (producer *Producer) Close() error {
+	return producer.close(Event{
+		Command:    CommandDeletePublisher,
+		StreamName: producer.GetStreamName(),
+		Name:       producer.GetName(),
+		Reason:     DeletePublisher,
+		Err:        nil,
+	})
+}
+
+// signalStop is nonjoining and safe from a reader or callback owner.
+func (producer *Producer) signalStop(reason Event) bool {
+	stopped := false
+	producer.stopOnce.Do(func() {
+		stopped = true
+		producer.mutex.Lock()
+		producer.status = closed
+		reason.StreamName, reason.Name = producer.GetStreamName(), producer.GetName()
+		producer.terminalEvent = reason
+		ch := producer.closeHandler
+		producer.closeHandler = nil
+		producer.mutex.Unlock()
+		producer.tasks.stop()
+		producer.unConfirmed.stop()
+		producer.stopLifetime()
+		producer.confirmationTimeoutTicker.Stop()
+		close(producer.doneTimeoutTicker)
+		producer.closeConfirmationStatus()
+		producer.pendingSequencesQueue.Stop()
+		producer.pendingSequencesQueue.Close()
+		if ch != nil {
+			select {
+			case ch <- reason:
+			default:
+			}
+			close(ch)
+		}
+	})
+	return stopped
+}
+func (producer *Producer) close(reason Event) error {
+	if !producer.signalStop(reason) {
+		return AlreadyClosed
+	}
+	if producer.client != nil {
+		if reason.Reason == DeletePublisher && producer.client.socket.isOpen() {
+			_ = producer.client.deletePublisher(producer.id)
+		}
+		_, _ = producer.client.coordinator.ExtractProducerById(producer.id)
+		if producer.client.coordinator.ProducersCount() == 0 && producer.client.coordinator.ConsumersCount() == 0 {
+			producer.client.Close()
+		}
+	}
+	if producer.onClose != nil {
+		producer.onClose()
+	}
+	return nil
+}
+
+func (producer *Producer) GetStreamName() string {
+	if producer.options == nil {
+		return ""
+	}
+	return producer.options.streamName
+}
+
+func (producer *Producer) GetName() string {
+	if producer.options == nil {
+		return ""
+	}
+	return producer.options.Name
+}
+
+func (producer *Producer) sendWithFilter(messagesSequence []*messageSequence, producerID uint8) error {
+	frameHeaderLength := initBufferPublishSize
+	var msgLen int
+	for _, msg := range messagesSequence {
+		msgLen += len(msg.messageBytes) + 8 + 4 // 8 for publishingId, 4 for message length
+		if msg.filterValue != "" {
+			msgLen += 2 + len(msg.filterValue) // 2 for string length, then string bytes
+		}
+	}
+	length := frameHeaderLength + msgLen
+
+	if err := writeBProtocolHeaderVersion(producer.client.socket.writer, length, commandPublish, version2); err != nil {
+		return fmt.Errorf("failed to write protocol header version: %w", err)
+	}
+
+	if err := writeBByte(producer.client.socket.writer, producerID); err != nil {
+		return fmt.Errorf("failed to write producer ID: %w", err)
+	}
+
+	numberOfMessages := len(messagesSequence)
+	if err := writeBInt(producer.client.socket.writer, numberOfMessages); err != nil {
+		return fmt.Errorf("failed to write number of messages: %w", err)
+	}
+
+	for _, msg := range messagesSequence {
+		if err := writeBLong(producer.client.socket.writer, msg.publishingId); err != nil {
+			return fmt.Errorf("failed to write publishing ID for message: %w", err)
+		}
+
+		if msg.filterValue != "" {
+			if err := writeBString(producer.client.socket.writer, msg.filterValue); err != nil {
+				return fmt.Errorf("failed to write filter value for message: %w", err)
+			}
+		} else {
+			if err := writeBUInt(producer.client.socket.writer, ^uint32(0)); err != nil {
+				return fmt.Errorf("failed to write -1 for filter value: %w", err)
+			}
+		}
+
+		if err := writeBInt(producer.client.socket.writer, len(msg.messageBytes)); err != nil {
+			return fmt.Errorf("failed to write message length: %w", err)
+		}
+
+		if _, err := producer.client.socket.writer.Write(msg.messageBytes); err != nil {
+			return fmt.Errorf("failed to write message bytes: %w", err)
+		}
+	}
+
+	if err := producer.client.socket.writer.Flush(); err != nil {
+		return fmt.Errorf("failed to flush writer: %w", err)
+	}
+	// Increase the counter only after a successful Flush() because bufio.Writer does not guarantee
+	// that data is written until Flush() returns successfully. In fact, if  any Write operation fails,
+	// subsequent calls to Write() and Flush() will fail.
+	// see: https://pkg.go.dev/bufio#Writer
+	producer.client.metrics.published(context.Background(), int64(len(messagesSequence)), producer.otelAttributesForProducer())
+	return nil
+}
+
+func (c *Client) deletePublisher(publisherId byte) error {
+	length := 2 + 2 + 4 + 1
+	resp, allocationErr := c.coordinator.NewResponse(CommandDeletePublisher)
+	if allocationErr != nil {
+		return allocationErr
+	}
+	defer c.coordinator.retireResponse(resp)
+	correlationId := resp.correlationid
+	b, bufferErr := newProtocolBuffer(length)
+	if bufferErr != nil {
+		return bufferErr
+	}
+	if encodingErr := writeProtocolHeader(b, length, CommandDeletePublisher,
+		correlationId); encodingErr != nil {
+		return encodingErr
+	}
+
+	writeByte(b, publisherId)
+	errWrite := c.handleWrite(b.Bytes(), resp)
+
+	return errWrite.Err
+}
+
+func (producer *Producer) otelAttributesForProducer() attribute.Set {
+	base := producer.client.otelBaseAttributes()
+	base = append(base, semconv.MessagingOperationTypeSend, semconv.MessagingDestinationName(producer.GetStreamName()))
+	return attribute.NewSet(base...)
+}

@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/faustbrian/go-rabbitmq-streams"
-	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/amqp"
-	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/stream"
+	"github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2/internal/rabbitmqstream/amqp"
+	"github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2/internal/rabbitmqstream/stream"
+	"github.com/faustbrian/go-rabbitmq-streams/v2"
 )
 
 func TestMutationContractConsumerReturnsOnlyTerminalOutcomes(t *testing.T) {
@@ -70,7 +70,7 @@ func TestMutationContractReplayAcceptsOnlyValidBoundedOffsets(t *testing.T) {
 
 func TestMutationContractReplayTopologyRetainsEverySupportedPartition(t *testing.T) {
 	empty := rabbitstream.ReplayRequest{SuperStream: "tracking"}
-	if err := ensureReplayTopology(&fakeRabbitEnvironment{}, empty); !errors.Is(err, rabbitstream.ErrPartitionUnavailable) {
+	if err := ensureReplayTopology(context.Background(), &fakeRabbitEnvironment{}, empty); !errors.Is(err, rabbitstream.ErrPartitionUnavailable) {
 		t.Fatalf("empty topology error = %v", err)
 	}
 
@@ -79,7 +79,7 @@ func TestMutationContractReplayTopologyRetainsEverySupportedPartition(t *testing
 		partitions[index] = "tracking-" + string(rune('a'+index))
 	}
 	request := rabbitstream.ReplayRequest{SuperStream: "tracking", ExpectedPartitions: partitions}
-	if err := ensureReplayTopology(&fakeRabbitEnvironment{partitions: partitions}, request); err != nil {
+	if err := ensureReplayTopology(context.Background(), &fakeRabbitEnvironment{partitions: partitions}, request); err != nil {
 		t.Fatalf("maximum supported topology error = %v", err)
 	}
 }
@@ -136,7 +136,7 @@ func TestMutationContractConnectionAcceptsExactCredentialBounds(t *testing.T) {
 		time.Second,
 	)
 	want := &fakeRabbitEnvironment{}
-	got, err := openFreshEnvironmentWith(context.Background(), connection, func(*stream.EnvironmentOptions) (producerEnvironment, error) {
+	got, err := openFreshEnvironmentWith(context.Background(), connection, func(_ context.Context, _ *stream.EnvironmentOptions) (producerEnvironment, error) {
 		return want, nil
 	})
 	if err != nil || got != want {
@@ -154,7 +154,7 @@ func TestMutationContractConnectionRejectsEachMissingCredential(t *testing.T) {
 			connection := mutationConnection(credentials, time.Second)
 			environment, err := openFreshEnvironmentWith(
 				context.Background(), connection,
-				func(*stream.EnvironmentOptions) (producerEnvironment, error) {
+				func(_ context.Context, _ *stream.EnvironmentOptions) (producerEnvironment, error) {
 					openerCalls++
 					return &fakeRabbitEnvironment{}, nil
 				},
@@ -171,7 +171,7 @@ func TestMutationContractConnectionRejectsZeroAttemptTimeout(t *testing.T) {
 	connection := mutationConnection(rabbitstream.StaticCredentials("user", []byte("credential")), 0)
 	environment, err := openFreshEnvironmentWith(
 		context.Background(), connection,
-		func(*stream.EnvironmentOptions) (producerEnvironment, error) {
+		func(_ context.Context, _ *stream.EnvironmentOptions) (producerEnvironment, error) {
 			openerCalls++
 			return &fakeRabbitEnvironment{}, nil
 		},
