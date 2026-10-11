@@ -2,8 +2,8 @@
 
 [![CI](https://github.com/faustbrian/go-rabbitmq-streams/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/faustbrian/go-rabbitmq-streams/actions/workflows/ci.yml)
 [![CodeQL](https://img.shields.io/badge/CodeQL-required-blue)](https://github.com/faustbrian/go-rabbitmq-streams/actions/workflows/ci.yml)
-[![Coverage](https://img.shields.io/badge/coverage-100%25_required-blue)](CONTRIBUTING.md#verification)
-[![Mutation](https://img.shields.io/badge/mutation-100%25_required-blue)](CONTRIBUTING.md#verification)
+[![Coverage](https://img.shields.io/badge/coverage-full_qualification-blue)](CONTRIBUTING.md#verification)
+[![Mutation](https://img.shields.io/badge/mutation-full_qualification-blue)](CONTRIBUTING.md#verification)
 [![Documentation](https://img.shields.io/badge/docs-checked_in_CI-blue)](docs/)
 [![Go Reference](https://pkg.go.dev/badge/github.com/faustbrian/go-rabbitmq-streams/v2.svg)](https://pkg.go.dev/github.com/faustbrian/go-rabbitmq-streams/v2)
 [![Release](https://img.shields.io/github/v/release/faustbrian/go-rabbitmq-streams?sort=semver)](https://github.com/faustbrian/go-rabbitmq-streams/releases)
@@ -179,6 +179,15 @@ The public API follows semantic versioning. Pin an exact version for every
 imported module and upgrade them as one reviewed set. Production capacity and
 availability depend on the actual RabbitMQ cluster, topology, payloads,
 handlers, and deployment environment.
+
+## Development
+
+Use `GOWORK=off go test ./... -count=1 -timeout=3m` for standalone untagged
+tests from the affected module. `make check` and `make ci` use bounded public
+verification; the RabbitMQ adapter retains its real broker service and
+integration-tag prerequisites. `make check-full` retains full qualification.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for targeted lifecycle races, active
+fuzzing and explicit release boundaries.
 
 ## License
 
