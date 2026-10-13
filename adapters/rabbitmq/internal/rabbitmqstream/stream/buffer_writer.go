@@ -49,6 +49,7 @@ func writeBUShort(inputBuff *bufio.Writer, value uint16) error {
 	return err
 }
 
+// ErrProtocolStringTooLong reports string length outside the uint16 wire representation before encoding.
 var ErrProtocolStringTooLong = errors.New("protocol string exceeds uint16 wire length")
 
 func validateProtocolString(value string) error {
@@ -93,6 +94,7 @@ func writeBByte(inputBuff *bufio.Writer, value byte) error {
 	return err
 }
 
+// ErrProtocolNumberRange reports a count or byte length outside uint32 representation before encoding.
 var ErrProtocolNumberRange = errors.New("protocol count or byte length outside uint32 range")
 
 func validateProtocolCount(value int) error {

@@ -24,30 +24,36 @@ func newAvailableFeatures() *availableFeatures {
 	return &availableFeatures{}
 }
 
+// Is311OrMore reads the parsed version threshold under the native feature mutex.
 func (a *availableFeatures) Is311OrMore() bool {
 	lock.Lock()
 	defer lock.Unlock()
 	return a.is311OrMore
 }
 
+// Is313OrMore reads the parsed version threshold under the native feature mutex.
 func (a *availableFeatures) Is313OrMore() bool {
 	lock.Lock()
 	defer lock.Unlock()
 	return a.is313OrMore
 }
 
+// BrokerFilterEnabled reads negotiated Publish-v2 support, not Deliver-v2 support.
 func (a *availableFeatures) BrokerFilterEnabled() bool {
 	lock.Lock()
 	defer lock.Unlock()
 	return a.brokerFilterEnabled
 }
 
+// IsBrokerSingleActiveConsumerEnabled reads a version-derived flag, not live promotion or fencing.
 func (a *availableFeatures) IsBrokerSingleActiveConsumerEnabled() bool {
 	lock.Lock()
 	defer lock.Unlock()
 	return a.brokerSingleActiveConsumerEnabled
 }
 
+// SetVersion extracts a three-component version and sets native threshold flags.
+// An invalid diagnostic includes its input; version admission is not conformance.
 func (a *availableFeatures) SetVersion(version string) error {
 	lock.Lock()
 	defer lock.Unlock()
@@ -61,6 +67,7 @@ func (a *availableFeatures) SetVersion(version string) error {
 	return nil
 }
 
+// GetCommands returns a fresh list advertising only native Publish filtering versions.
 func (a *availableFeatures) GetCommands() []commandVersion {
 	lock.Lock()
 	defer lock.Unlock()
@@ -69,6 +76,7 @@ func (a *availableFeatures) GetCommands() []commandVersion {
 	}
 }
 
+// ParseCommandVersions updates Publish filtering capability from peer version bounds.
 func (a *availableFeatures) ParseCommandVersions(commandVersions []commandVersion) {
 	lock.Lock()
 	defer lock.Unlock()
@@ -80,6 +88,8 @@ func (a *availableFeatures) ParseCommandVersions(commandVersions []commandVersio
 	}
 }
 
+// String renders borrowed version/flags without redaction or locking.
+// Callers must avoid concurrent feature mutation during this diagnostic.
 func (a *availableFeatures) String() string {
 	return fmt.Sprintf("brokerVersion: %s, is311OrMore: %t, is313OrMore: %t, brokerFilterEnabled: %t", a.brokerVersion, a.is311OrMore, a.is313OrMore, a.brokerFilterEnabled)
 }
@@ -95,6 +105,8 @@ func extractVersion(fullVersion string) string {
 	return ""
 }
 
+// IsVersionGreaterOrEqual compares the native three-integer form and returns
+// false on parse errors; it is not a SemVer or broker-qualification oracle.
 func IsVersionGreaterOrEqual(version, target string) bool {
 	v1, err := parseVersion(version)
 	if err != nil {
@@ -132,12 +144,20 @@ func parseVersion(version string) (Version, error) {
 	return Version{Major: major, Minor: minor, Patch: patch}, nil
 }
 
+// Version is a three-integer native capability-comparison value, not general
+// SemVer or independent broker qualification.
 type Version struct {
+	// Major is the parsed native major integer, not a qualification result.
 	Major int
+	// Minor is the parsed native minor integer.
 	Minor int
+	// Patch is the parsed native patch integer.
 	Patch int
 }
 
+// Compare compares major/minor/patch by integer subtraction. Inputs must have
+// differences representable as int; arbitrary extreme values are not admitted
+// here.
 func (v Version) Compare(other Version) int {
 	if v.Major != other.Major {
 		return v.Major - other.Major

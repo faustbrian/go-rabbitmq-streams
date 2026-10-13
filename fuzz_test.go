@@ -7,6 +7,7 @@ import (
 	"time"
 )
 
+// FuzzMessageValidationAndOwnership checks validation robustness and independent retained payload bytes.
 func FuzzMessageValidationAndOwnership(f *testing.F) {
 	f.Add("tracking.events", "tracking-123", "traceparent", uint16(128))
 	f.Add("", "", "", uint16(0))
@@ -28,6 +29,7 @@ func FuzzMessageValidationAndOwnership(f *testing.F) {
 	})
 }
 
+// FuzzConnectionConfigNormalization checks successful normalization keeps finite positive policy and rejects controls.
 func FuzzConnectionConfigNormalization(f *testing.F) {
 	f.Add("rabbitmq.internal", uint16(5552), int64(time.Second), uint8(2))
 	f.Add("bad\nhost", uint16(0), int64(-1), uint8(0))
@@ -52,6 +54,7 @@ func FuzzConnectionConfigNormalization(f *testing.F) {
 	})
 }
 
+// FuzzReplayRequestValidation checks replay shape admission over hostile offset/start combinations; it does not run a broker.
 func FuzzReplayRequestValidation(f *testing.F) {
 	f.Add(uint8(OffsetStartBeginning), uint64(0), int64(0), uint64(10), true)
 	f.Add(uint8(255), ^uint64(0), int64(-1), uint64(0), false)

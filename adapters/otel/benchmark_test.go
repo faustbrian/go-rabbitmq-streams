@@ -10,6 +10,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+// BenchmarkObserve measures observation dispatch through a no-op provider, not export latency.
 func BenchmarkObserve(b *testing.B) {
 	adapter := benchmarkAdapter(b)
 	observation := rabbitstream.Observation{
@@ -22,6 +23,7 @@ func BenchmarkObserve(b *testing.B) {
 	}
 }
 
+// BenchmarkInjectTraceContext measures owned propagation with a no-op provider and fixed payload/context.
 func BenchmarkInjectTraceContext(b *testing.B) {
 	adapter := benchmarkAdapter(b)
 	ctx := trace.ContextWithSpanContext(context.Background(), trace.NewSpanContext(trace.SpanContextConfig{

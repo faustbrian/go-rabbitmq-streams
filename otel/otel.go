@@ -1,6 +1,9 @@
 // Package rabbitstreamotel preserves the released OpenTelemetry adapter import
 // path while delegating behavior to the target-oriented successor.
 //
+// This facade retains published root-v1 types, legacy instrumentation scope and
+// borrowed provider lifetime; it is not a root-v2 adapter.
+//
 // Deprecated: use github.com/faustbrian/go-rabbitmq-streams/adapters/otel.
 package rabbitstreamotel
 
@@ -68,6 +71,8 @@ type legacyScopeProvider struct {
 	metric.MeterProvider
 }
 
+// Meter preserves the legacy instrumentation scope while forwarding options
+// to the borrowed provider; provider panics/lifecycle remain provider-owned.
 func (provider legacyScopeProvider) Meter(_ string, options ...metric.MeterOption) metric.Meter {
 	return provider.MeterProvider.Meter(instrumentationScope, options...)
 }

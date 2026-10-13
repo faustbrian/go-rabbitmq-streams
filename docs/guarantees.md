@@ -20,8 +20,10 @@ A successful `DeliveryConfirmed` means the broker sent a positive publisher
 confirmation. It does not mean every replica is healthy forever, a consumer
 processed the record, or an external side effect committed.
 
-Cancellation or timeout before transport acceptance is a definite non-send.
-After `Send` succeeds, cancellation, confirmation timeout, or connection loss
+A refusal proven to precede transport write admission is a definite non-send.
+Cancellation racing an attempted native write can be ambiguous even if `Send`
+returns an error. After `Send` succeeds, cancellation, confirmation timeout,
+or connection loss
 is `DeliveryAmbiguous`: the caller must assume the broker may have retained the
 record. A later retry can duplicate the record unless broker deduplication or
 application idempotency recognizes it.
@@ -56,8 +58,11 @@ Max concurrency applies across independent partition workers. Each partition
 remains sequential. Batch consumption never combines partitions and stores
 only the last offset after the complete batch succeeds.
 
-Broker offset storage is not transactional with a database, HTTP request,
-queue operation, or target stream publish.
+Offset storage is a one-way command without a broker persistence receipt;
+message-count or batch cadence is not a strict crash-redelivery bound. It is not
+transactional with a database, HTTP request, queue operation, or target publish.
+Handler deadlines are cooperative: ignoring a deadline and returning nil is not
+preempted or automatically converted into a failed handler result.
 
 ## Retry and dead-letter streams
 
@@ -95,7 +100,8 @@ topology and runs one partition at a time; it never claims global order.
 
 Replay opens an isolated cursor, stores no offset, and never uses the live
 consumer identity. `AllowSideEffects` is visible to the handler but cannot make
-side effects transactional or idempotent.
+side effects transactional or idempotent. A false flag still invokes the handler;
+it is not a sandbox or automatic side-effect suppression.
 
 ## Lifecycle
 

@@ -6,6 +6,7 @@ import (
 	"testing"
 )
 
+// BenchmarkMessagePolicy measures validation/retention for the named fixed-size in-memory payloads.
 func BenchmarkMessagePolicy(b *testing.B) {
 	limits := DefaultLimits()
 	for _, payloadBytes := range []int{128, 1 << 10, 64 << 10} {
@@ -32,6 +33,7 @@ func BenchmarkMessagePolicy(b *testing.B) {
 	}
 }
 
+// BenchmarkProducerPolicy measures synchronous/batch/async policy using immediate local confirmations, not broker throughput.
 func BenchmarkProducerPolicy(b *testing.B) {
 	ctx := context.Background()
 	for _, payloadBytes := range []int{128, 1 << 10, 64 << 10} {
@@ -88,6 +90,7 @@ func BenchmarkProducerPolicy(b *testing.B) {
 	})
 }
 
+// BenchmarkConsumerPolicy measures local processing/offset-store policy using a fake transport.
 func BenchmarkConsumerPolicy(b *testing.B) {
 	ctx := context.Background()
 	message := benchmarkMessage(1 << 10)
@@ -124,6 +127,7 @@ func BenchmarkConsumerPolicy(b *testing.B) {
 	}
 }
 
+// BenchmarkReplayPolicy measures a fixed in-memory replay source, not retained broker history.
 func BenchmarkReplayPolicy(b *testing.B) {
 	const messages = 100
 	replayMessages := make([]Message, messages)

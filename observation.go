@@ -71,8 +71,11 @@ type Observation struct {
 	Category ErrorCategory
 }
 
-// Observer receives best-effort lifecycle signals. Implementations must not
-// block indefinitely; their panics are contained and never affect delivery.
+// Observer receives synchronous best-effort lifecycle signals, potentially from
+// concurrent operations. Implementations must return promptly; panics are
+// contained, but blocking delays the operation or cleanup owner. Do not join a
+// lifecycle from its own observer callback. Custom values and destinations remain
+// caller-owned privacy policy, not a universal redaction guarantee.
 type Observer interface {
 	// Observe receives one bounded signal and must return promptly.
 	Observe(Observation)

@@ -1,3 +1,23 @@
+// Package stream is the private upstream-derived RabbitMQ Stream Go client
+// v1.8.3 closure patched for the canonical adapter's reachable native operations.
+// RabbitMQ Streams 4.3.5 frame interpretation, Osiris chunk layout, local patches
+// and source/license identities are documented in the adapter's
+// THIRD_PARTY_RABBITMQ_STREAM.md; exported native helpers are not public root policy.
+//
+// Environment/client operations own readers, heartbeat and admitted resource
+// tasks. Native Close/Abort are stop requests; external owners release callback
+// backpressure and use WaitContext to join. Joining from an owned callback can
+// wait on itself. A timed-out join is not cleanup completion, and trusted callback
+// work cannot be preempted. Supplied SDK providers/options are borrowed; raw
+// native options are not the root TLS/security/allowlist policy.
+//
+// Independent frame, encoded message, aggregate chunk, record and AMQP budgets
+// protect structural admission, not process-wide memory or complete protocol
+// feature support. Codec limits include finite working buffers. The adapter uses
+// manual partition integration rather than private SuperStream convenience
+// goroutines, which are outside its reachable-task ownership guarantee. This
+// package introduces no cgo. Context-bearing native entrypoints require a
+// non-nil context; they are not nil-safe wrappers.
 package stream
 
 import (
@@ -9,24 +29,37 @@ import (
 	"github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2/internal/rabbitmqstream/amqp"
 )
 
+// ErrDecoderLimit identifies an exhausted native structural/size allowance.
 var ErrDecoderLimit = errors.New("stream decoder limit exceeded")
 
 // DecoderLimits are independent admission budgets. MaxMessageBytes includes
 // the AMQP wire envelope, not just payload. Chunk limits apply to aggregates.
 // Configure before opening an environment; do not mutate a live policy.
 type DecoderLimits struct {
-	MaxFrameBytes    int
-	MaxMessageBytes  int
-	MaxChunkBytes    int
-	MaxChunkValues   int
-	MaxRecords       int
+	// MaxFrameBytes bounds an entire inbound frame including its size word.
+	MaxFrameBytes int
+	// MaxMessageBytes bounds encoded AMQP bytes per record, independently of payload limits.
+	MaxMessageBytes int
+	// MaxChunkBytes bounds actual aggregate decoded chunk data and codec output.
+	MaxChunkBytes int
+	// MaxChunkValues bounds actual structural AMQP values across a decoded chunk.
+	MaxChunkValues int
+	// MaxRecords bounds the aggregate records represented by chunk entries/subentries.
+	MaxRecords int
+	// MaxProtocolItems bounds count-driven non-message protocol collections.
 	MaxProtocolItems int
-	AMQP             amqp.DecoderLimits
+	// AMQP selects per-message structural/value/depth admission before semantic decoding.
+	AMQP amqp.DecoderLimits
 }
 
+// DefaultDecoderLimits returns independent finite frame/chunk/message/count
+// policies and AMQP defaults; configure an owned snapshot before connection.
 func DefaultDecoderLimits() DecoderLimits {
 	return DecoderLimits{MaxFrameBytes: 16 << 20, MaxMessageBytes: 2 << 20, MaxChunkBytes: 16 << 20, MaxChunkValues: 1 << 20, MaxRecords: 65536, MaxProtocolItems: 4096, AMQP: amqp.DefaultDecoderLimits()}
 }
+
+// Validate rejects nonpositive or over-1-GiB allowances, frames below eight
+// bytes and invalid nested AMQP policy; it does not perform broker I/O.
 func (l DecoderLimits) Validate() error {
 	for _, n := range []int{l.MaxFrameBytes, l.MaxMessageBytes, l.MaxChunkBytes, l.MaxChunkValues, l.MaxRecords, l.MaxProtocolItems} {
 		if n <= 0 || n > 1<<30 {

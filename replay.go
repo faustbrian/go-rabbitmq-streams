@@ -38,7 +38,8 @@ type ReplayRequest struct {
 	// Checkpoint optionally selects a caller-owned exact replay start. Callers
 	// storing the last completed offset must advance it before reuse.
 	Checkpoint *uint64
-	// AllowSideEffects makes application side-effect authority explicit to handlers.
+	// AllowSideEffects is passed to handlers as authority metadata; false does
+	// not suppress handler invocation or sandbox its effects.
 	AllowSideEffects bool
 }
 
@@ -78,7 +79,9 @@ type Replayer struct {
 	observer Observer
 }
 
-// NewReplayer validates finite message bounds and a replay source.
+// NewReplayer validates finite message bounds and borrows source/observer.
+// It owns each cursor opened by Run, not the source lifetime; concurrent use
+// requires collaborators that can support independent requests.
 func NewReplayer(limits Limits, source ReplaySource, observer Observer) (*Replayer, error) {
 	if err := limits.validate(); err != nil {
 		return nil, invalidConfiguration(err)
@@ -109,8 +112,12 @@ func (replayer *Replayer) Inspect(ctx context.Context, request ReplayRequest) (R
 	return retained, nil
 }
 
-// Run replays an exact retained range. Explicit missing starts are retention
-// gaps; missing requested ends are incomplete replay ranges.
+// Run replays an inclusive terminal range through an owned isolated cursor.
+// Explicit missing starts are retention gaps; missing requested ends are incomplete
+// ranges. Retention can move after inspection. Every handler is invoked with the
+// requested AllowSideEffects flag; the application must enforce it, deduplicate
+// effects and advance its own persistent checkpoint. Handler panics are contained
+// synchronously, not preempted; cursor Close can delay return.
 func (replayer *Replayer) Run(
 	ctx context.Context,
 	request ReplayRequest,

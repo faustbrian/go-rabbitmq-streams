@@ -10,7 +10,9 @@ import (
 )
 
 type streamMetrics struct {
-	// TODO: might need a mutex because this struct will be shared among all components (environment, consumer, producer, coordinator)
+	// Instrument fields are assigned before this object is shared and then read
+	// concurrently. Provider implementations own instrument concurrency; do not
+	// introduce runtime replacement without a synchronization owner.
 	connections                     metric.Int64UpDownCounter
 	publishedMessages               metric.Int64Counter
 	confirmedMessages               metric.Int64Counter
@@ -101,9 +103,9 @@ func newStreamMetrics(mp metric.MeterProvider) (*streamMetrics, error) {
 }
 
 func (s *streamMetrics) connectionOpened(ctx context.Context, attributes attribute.Set) {
-	// TODO: consider the second parameter attribute.Set; perhaps it should be optional. The current idea is to
-	// pre-configure an attribute set for each component (environment, consumer, producer, coordinator)
-	// and pass it to the metrics functions.
+	// The caller supplies the already selected attribute set; native helpers can
+	// include peer/resource data. The public adapter explicitly supplies a no-op
+	// meter instead of exposing these labels through its root Observer.
 	s.connections.Add(ctx, 1, metric.WithAttributeSet(attributes))
 }
 

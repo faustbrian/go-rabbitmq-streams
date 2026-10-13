@@ -577,7 +577,10 @@ func readAny(r *buffer) (any, error) {
 	case typeCodeMap32:
 		return readAnyMap(r)
 
-	// TODO: implement
+	// Decimal32/64/128 remain unsupported semantic types in the attributed codec.
+	// Structural admission recognizes their widths but must not imply decoding
+	// support; maintainers need an explicit representation/compatibility decision
+	// before adding them.
 	case typeCodeDecimal32:
 		return nil, errorNew("decimal32 not implemented")
 	case typeCodeDecimal64:

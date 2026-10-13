@@ -1,6 +1,10 @@
 // Package rabbitmq provides the deprecated RabbitMQ Streams facade in the
 // root-v2 type cohort, delegating behavior to the canonical v2 adapter.
 //
+// Entry points delegate to the pinned published v2 successor, not a sibling
+// source checkout. Shutdown ownership, isolated replay and diagnostic limitations
+// follow that binding; no additional broker or transaction qualification is added.
+//
 // Deprecated: use github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2.
 package rabbitmq
 

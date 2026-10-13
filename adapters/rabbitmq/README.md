@@ -84,7 +84,8 @@ consumer, err := rabbitmq.OpenConsumer(ctx, connection, rabbitstream.ConsumerCon
 - replay checks the exact retained first and last message offsets before
   opening an isolated cursor;
 - inspection does not treat committed chunk IDs as exact last offsets;
-- unsupported or oversized wire metadata fails validation after conversion;
+- unsupported types/fields within the projected wire metadata and oversized
+  projected values fail validation after conversion;
 - all incoming payload and metadata bytes are copied.
 
 The adapter never creates, changes, or deletes production topology.
@@ -94,7 +95,11 @@ The adapter never creates, changes, or deletes production topology.
 The adapter uses one AMQP 1.0 data section, standard message properties,
 application properties, and the reserved
 `x-rabbitstream-routing-key` annotation. Only string and binary annotation or
-application-property values are accepted. See the root
+application-property values are accepted. The current input projection inspects
+zero or one data section and selected metadata. It does not reject every other
+decoded AMQP section: Value, header, delivery annotations and footer are not
+projected or independently rejected here. Do not infer whole-message conformance
+validation. See the root
 [interoperability contract](https://github.com/faustbrian/go-rabbitmq-streams/blob/main/docs/interoperability.md).
 
 ## Failure and lifecycle behavior
@@ -106,9 +111,12 @@ and deterministic resource closure.
 
 When a session fails after send, every pending confirmation is completed as
 ambiguous. A new session may accept later calls, but the adapter does not retry
-an already accepted message invisibly. Consumer reads reconnect after
-connection-class failures; permanent authorization, offset, and partition
-failures are returned.
+an already accepted message invisibly. Consumer read failures are a distinct
+path: any uncanceled, non-closed session
+read error triggers retirement/reopening, even when that read error is not a
+connection category. Malformed deliveries can therefore recur from stored
+progress. Opening retries and offset writes have their own narrower failure
+classification; the caller must retain an operation cancellation budget.
 
 Operation cancellation reaches native connection opening, protocol waits,
 publication and offset writes. A cancellation before native write admission

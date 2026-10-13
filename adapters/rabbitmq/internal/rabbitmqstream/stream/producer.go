@@ -15,6 +15,9 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
 )
 
+// ConfirmationStatus is a native terminal publication record whose
+// message/linked-message getters borrow retained state. Broker confirmation and
+// local timeout are distinct outcomes; it is not external-effect completion.
 type ConfirmationStatus struct {
 	admission    *confirmationAdmission
 	inserted     time.Time
@@ -27,30 +30,43 @@ type ConfirmationStatus struct {
 	linkedTo     []*ConfirmationStatus
 }
 
+// IsConfirmed reports a definitive positive native broker status, not
+// application processing.
 func (cs *ConfirmationStatus) IsConfirmed() bool {
 	return cs.confirmed
 }
 
+// GetProducerID returns the native publisher ID attached to this confirmation.
 func (cs *ConfirmationStatus) GetProducerID() uint8 {
 	return cs.producerID
 }
 
+// GetPublishingId returns the retained native signed wire identity, not an
+// outcome query.
 func (cs *ConfirmationStatus) GetPublishingId() int64 {
 	return cs.publishingId
 }
 
+// GetError returns the original native rejection/timeout cause; callers own
+// redaction.
 func (cs *ConfirmationStatus) GetError() error {
 	return cs.err
 }
 
+// LinkedMessages returns borrowed linked subentry confirmation state; it is not
+// a deep copy.
 func (cs *ConfirmationStatus) LinkedMessages() []*ConfirmationStatus {
 	return cs.linkedTo
 }
 
+// GetMessage returns the original borrowed message instance whose admission
+// this status resolves.
 func (cs *ConfirmationStatus) GetMessage() message.StreamMessage {
 	return cs.message
 }
 
+// GetErrorCode returns the retained native response code, meaningful for
+// rejected status.
 func (cs *ConfirmationStatus) GetErrorCode() uint16 {
 	return cs.errorCode
 }
@@ -74,6 +90,9 @@ type messageSequence struct {
 	filterValue  string
 }
 
+// Producer owns bounded native pending-confirmation admission, queued
+// publication and terminal notification tasks. Each message instance belongs to
+// one admission; stop precedes external-owner join.
 type Producer struct {
 	terminalEvent         Event
 	tasks                 taskOwner
@@ -103,25 +122,38 @@ type Producer struct {
 	pendingSequencesQueue *BlockingQueue[*messageSequence]
 }
 
+// FilterValue is an inline borrowed message-to-filter callback; its string must
+// fit the protocol allowance before confirmation/write admission.
 type FilterValue func(message message.StreamMessage) string
 
+// ProducerFilter borrows the inline filter callback and requires configuration
+// before sending.
 type ProducerFilter struct {
+	// FilterValue borrows an inline extractor; callers must keep values bounded and callbacks cooperative.
 	FilterValue FilterValue
 }
 
+// NewProducerFilter borrows an inline filter callback without invoking or
+// owning its lifetime.
 func NewProducerFilter(filterValue FilterValue) *ProducerFilter {
 	return &ProducerFilter{
 		FilterValue: filterValue,
 	}
 }
 
+// ProducerOptions is a mutable native publishing builder, not root
+// ProducerPolicy. Configure it before use; its raw defaults, aggregation and
+// reference name have native semantics and do not establish end-to-end exactly-
+// once effects.
 type ProducerOptions struct {
 	streamName string
+	// Name selects broker deduplication sequence state when configured; callers own stable publishing IDs.
 	// Producer name.  You need to set it to enable the deduplication feature.
 	//  Deduplication is a feature that allows the producer to avoid sending duplicate messages to the stream.
 	// see: https://www.rabbitmq.com/blog/2021/07/28/rabbitmq-streams-message-deduplication for more information.
 	// Don't use it if you don't need the deduplication.
 	Name string
+	// QueueSize bounds native pending confirmations; payload/codec/process memory remains additional.
 	// Internal queue to handle back-pressure.
 	//
 	// Default value is enough high (See defaultQueuePublisherSize). You usually don't need to change it unless
@@ -131,23 +163,30 @@ type ProducerOptions struct {
 	//
 	// Low value can reduce the memory usage but can increase the back-pressure on the server.
 	QueueSize int
+	// BatchSize selects queued-send aggregation size, not an external atomic batch.
 	// It is the batch-unCompressedSize aggregation, low value reduce the latency, high value increase the throughput.
 	// Valid only for the method Send()
 	BatchSize int
+	// BatchPublishingDelay is retained legacy state unused by dynamic batching.
+	//
 	// Deprecated: starting from 1.5.0 the SetBatchPublishingDelay is deprecated, and it will be removed in the next releases
 	// It is not used anymore given the dynamic batching.
 	//
 	// Timeout within the aggregation sent a batch of messages. Valid only for the method Send()
 	BatchPublishingDelay int
+	// SubEntrySize groups records under one native publishing ID when greater than one.
 	// Size of sub Entry, to aggregate more subEntry using one publishing id
 	SubEntrySize int
 	// Compression type, it is valid only if SubEntrySize > 1
 	// The messages can be compressed before sending them to the server
 	Compression Compression
+	// ConfirmationTimeOut budgets pending native confirmation; expiry is not proof of non-delivery.
 	// Time to wait for the confirmation, see the unConfirmed structure
 	ConfirmationTimeOut time.Duration
+	// ClientProvidedName is a broker-visible diagnostic identifier.
 	// Client provider name that will be shown in the management UI
 	ClientProvidedName string
+	// Filter borrows optional Publish-v2 filter extraction; it is not incoming Deliver-v2 support.
 	// Enable the filter feature, by default is disabled. Pointer nil
 	Filter *ProducerFilter
 }
@@ -174,6 +213,9 @@ func (po *ProducerOptions) SetBatchSize(size int) *ProducerOptions {
 	return po
 }
 
+// SetBatchPublishingDelay changes the retained legacy option only; dynamic
+// batching does not use it.
+//
 // Deprecated: starting from 1.5.0 the SetBatchPublishingDelay is deprecated, and it will be removed in the next releases
 // It is not used anymore given the dynamic batching
 func (po *ProducerOptions) SetBatchPublishingDelay(size int) *ProducerOptions {
@@ -205,6 +247,8 @@ func (po *ProducerOptions) SetClientProvidedName(name string) *ProducerOptions {
 	return po
 }
 
+// GetClientProvidedName uses the supplied default only for a nil options
+// pointer; a non-nil empty name remains empty.
 func (po *ProducerOptions) GetClientProvidedName(defaultClientProvidedName string) string {
 	if po == nil {
 		return defaultClientProvidedName
@@ -223,6 +267,8 @@ func (po *ProducerOptions) IsFilterEnabled() bool {
 	return po.Filter != nil
 }
 
+// NewProducerOptions returns native queue/aggregation/confirmation defaults, no
+// named deduplication and no filter; public root policy has distinct bounds.
 func NewProducerOptions() *ProducerOptions {
 	return &ProducerOptions{
 		QueueSize:            defaultQueuePublisherSize,
@@ -273,10 +319,14 @@ func (producer *Producer) NotifyClose() ChannelClose {
 	return ch
 }
 
+// GetOptions returns the borrowed mutable configuration, not an independent
+// snapshot.
 func (producer *Producer) GetOptions() *ProducerOptions {
 	return producer.options
 }
 
+// GetBroker returns borrowed connection metadata that may contain credentials;
+// do not log or mutate it during use.
 func (producer *Producer) GetBroker() *Broker {
 	return producer.client.broker
 }
@@ -647,6 +697,8 @@ func (producer *Producer) BatchSendContext(ctx context.Context, batchMessages []
 	return nil
 }
 
+// GetID observes the native publisher ID, not a publishing sequence or durable
+// result.
 func (producer *Producer) GetID() uint8 {
 	producer.mutex.RLock()
 	defer producer.mutex.RUnlock()
@@ -968,6 +1020,8 @@ func (producer *Producer) close(reason Event) error {
 	return nil
 }
 
+// GetStreamName observes the configured backing stream; it does not discover
+// topology.
 func (producer *Producer) GetStreamName() string {
 	if producer.options == nil {
 		return ""
@@ -975,6 +1029,8 @@ func (producer *Producer) GetStreamName() string {
 	return producer.options.streamName
 }
 
+// GetName observes the stream-scoped native deduplication reference, not
+// application exactly-once ownership.
 func (producer *Producer) GetName() string {
 	if producer.options == nil {
 		return ""

@@ -5,6 +5,9 @@ import (
 	"io"
 )
 
+// Scalar/string helpers below intentionally consume already admitted frame
+// schemas and discard read errors. Untrusted socket bytes must first pass
+// readInboundFrame and validateInboundFrame; these are not general input readers.
 func readUShort(readerStream io.Reader) uint16 {
 	var res uint16
 	_ = binary.Read(readerStream, binary.BigEndian, &res)

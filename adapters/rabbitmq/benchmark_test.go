@@ -8,6 +8,7 @@ import (
 	"github.com/faustbrian/go-rabbitmq-streams/v2"
 )
 
+// BenchmarkWireMessagePolicy measures owned wire conversion of the selected metadata subset, not socket or broker I/O.
 func BenchmarkWireMessagePolicy(b *testing.B) {
 	for _, payloadBytes := range []int{128, 1 << 10, 64 << 10} {
 		outbound := benchmarkWireMessage(payloadBytes)
@@ -36,6 +37,7 @@ func BenchmarkWireMessagePolicy(b *testing.B) {
 	}
 }
 
+// BenchmarkSuperStreamHashRouting measures fixed-key placement over named topology sizes, not broker topology discovery.
 func BenchmarkSuperStreamHashRouting(b *testing.B) {
 	for _, partitionCount := range []int{3, 32, 256} {
 		partitions := make([]string, partitionCount)

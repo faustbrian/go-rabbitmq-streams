@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Documentation
+
+- Clarify delegation to the published adapter-v2 successor and its resource
+  ownership boundary; sibling worktree source is not the facade dependency.
+
 ### Changed
 
 - Adopt the facade-v2 module identity and the canonical adapter-v2/root-v2

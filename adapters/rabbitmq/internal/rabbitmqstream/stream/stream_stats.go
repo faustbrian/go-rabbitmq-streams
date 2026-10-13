@@ -2,6 +2,9 @@ package stream
 
 import "fmt"
 
+// StreamStats contains one broker statistics response. Chunk identifiers are
+// not exact stream end offsets; missing/empty values must not be promoted to
+// durable progress.
 type StreamStats struct {
 	stats      map[string]int64
 	streamName string
@@ -11,9 +14,8 @@ func newStreamStats(stats map[string]int64, streamName string) *StreamStats {
 	return &StreamStats{stats: stats, streamName: streamName}
 }
 
-// FirstOffset - The first offset in the stream.
-// return first offset in the stream /
-// Error if there is no first offset yet
+// FirstOffset reads the broker first-chunk statistic. The -1 sentinel is absent;
+// missing map keys otherwise read zero. The value can change with retention.
 func (s *StreamStats) FirstOffset() (int64, error) {
 	if s.stats["first_chunk_id"] == -1 {
 		return -1, fmt.Errorf("FirstOffset not found for %s", s.streamName)
@@ -21,6 +23,9 @@ func (s *StreamStats) FirstOffset() (int64, error) {
 	return s.stats["first_chunk_id"], nil
 }
 
+// LastOffset reports the last chunk identifier, not the final record offset.
+// Only the native -1 sentinel is treated as absent; a missing map key reads zero.
+//
 // Deprecated: The method name may be misleading.
 // It does not indicate the last offset of the stream. It indicates the last uncommitted chunk id. This information is not necessary. The user should use CommittedChunkId().
 func (s *StreamStats) LastOffset() (int64, error) {
@@ -30,7 +35,8 @@ func (s *StreamStats) LastOffset() (int64, error) {
 	return s.stats["last_chunk_id"], nil
 }
 
-// CommittedChunkId - The ID (offset) of the committed chunk (block of messages) in the stream.
+// CommittedChunkId reads the committed chunk identifier, not its final record.
+// Only -1 is treated as absent; missing map keys otherwise read zero.
 //
 //	It is the offset of the first message in the last chunk confirmed by a quorum of the stream
 //	cluster members (leader and replicas).

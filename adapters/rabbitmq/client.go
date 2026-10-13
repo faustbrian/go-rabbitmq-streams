@@ -1,5 +1,23 @@
-// Package rabbitmq adapts the supported RabbitMQ Streams Go client to the
-// stable policy types in the root rabbitstream module.
+// Package rabbitmq binds root-v2 policy to an owned private closure of the
+// RabbitMQ Stream Go client v1.8.3 and RabbitMQ Streams 4.3.5 interpretations.
+// See THIRD_PARTY_RABBITMQ_STREAM.md and specification/decisions.json for the
+// source identity, local patches and RABBITMQ-STREAM-DEC-001 through 006.
+//
+// OpenProducer/OpenConsumer acquire connections and transfer resource ownership
+// to root Shutdown; NewInspector/NewReplayer are inert and acquire fresh resources
+// per operation. Canonical routing uses ordered topology; publishing IDs and
+// confirmations do not make application effects atomic or recover a lost receipt.
+// Named offsets use one-way writes, and application/broker retention and ACLs
+// remain caller policy. This is not an AMQP work-queue adapter or universal
+// broker, HA or cross-client qualification.
+//
+// Credentials, TLS nested state and observers are borrowed and require safe
+// concurrent use/cooperation. Native decoding adds independent frame, chunk,
+// message and structural budgets; application Limits are not a process-heap cap.
+// Private SDK logging is disabled and a no-op meter is explicitly supplied, but
+// arbitrary observer output and unwrapped causes still need caller redaction.
+// Partial acquisition and reconnect tasks are joined; context-free cleanup may
+// delay return until collaborators release backpressure. No cgo is introduced.
 package rabbitmq
 
 import (
@@ -655,6 +673,11 @@ func toWireMessage(outbound rabbitstream.Message) *amqp.AMQP10 {
 	return wireMessage
 }
 
+// fromWireMessage projects Data and selected metadata into owned root bytes.
+// It does not inspect Value, Header, DeliveryAnnotations, Footer or SendSettled;
+// decoded presence of those fields is not independently rejected here. A wider
+// message-semantics admission requires an explicit policy/fixture change, not an
+// assumption that the structural codec already enforces the public subset.
 func fromWireMessage(
 	limits rabbitstream.Limits,
 	superStream string,

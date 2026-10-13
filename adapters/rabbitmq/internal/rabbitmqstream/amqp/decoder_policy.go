@@ -1,3 +1,16 @@
+// Package amqp contains the attributed AMQP 1.0 semantic codec in the private
+// RabbitMQ Go client v1.8.3 closure. It is not the root language-neutral message
+// contract. Message/AMQP10 containers and getter results can alias mutable data;
+// configure/copy them before concurrent publication, not while codecs use them.
+//
+// UnmarshalBinaryWithLimits and DecodeMessageWithBudget structurally admit wire
+// sizes, values, container counts and depth before semantic allocation. Structural
+// admission does not add missing semantic AMQP types or certify full conformance;
+// the public adapter selects a narrower field/body mapping. Diagnostic String
+// methods may expose broker/message values and are not redaction boundaries.
+// Original source/license provenance and local patches are documented in the
+// canonical adapter's THIRD_PARTY_RABBITMQ_STREAM.md. No generator or
+// cgo is involved; original-file checksums describe upstream, not this patched tree.
 package amqp
 
 import (
@@ -9,17 +22,26 @@ import (
 // DecoderLimits bounds encoded bytes and work independently of payload size.
 // A zero limits value selects finite defaults; partially zero policies are invalid.
 type DecoderLimits struct {
-	MaxMessageBytes    int
-	MaxValueBytes      int
+	// MaxMessageBytes bounds the full encoded AMQP message, including its section envelope.
+	MaxMessageBytes int
+	// MaxValueBytes bounds one variable-width value before semantic decoding.
+	MaxValueBytes int
+	// MaxContainerValues bounds declared container values, including map key/value pairs.
 	MaxContainerValues int
-	MaxValues          int
-	MaxDepth           int
+	// MaxValues bounds actual structural values across one message, not just encoded bytes.
+	MaxValues int
+	// MaxDepth bounds nested described/container values; validation caps it at 128.
+	MaxDepth int
 }
 
+// DefaultDecoderLimits returns 2 MiB message/value, 4096 container values,
+// 65536 total values and depth 32; this is a value snapshot, not shared state.
 func DefaultDecoderLimits() DecoderLimits {
 	return DecoderLimits{2 << 20, 2 << 20, 4096, 65536, 32}
 }
 
+// Validate rejects nonpositive/over-1-GiB budgets and depth above 128; zero
+// default selection belongs to decoding entrypoints rather than this method.
 func (l DecoderLimits) Validate() error {
 	for _, n := range []int{l.MaxMessageBytes, l.MaxValueBytes, l.MaxContainerValues, l.MaxValues, l.MaxDepth} {
 		if n <= 0 || n > 1<<30 {

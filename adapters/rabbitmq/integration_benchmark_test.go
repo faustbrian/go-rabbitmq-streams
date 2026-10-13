@@ -38,6 +38,7 @@ var benchmarkPublishCandidates = []benchmarkPublishCandidate{
 // BenchmarkEquivalentConfirmedPublish compares one confirmed publish at a
 // time. Both candidates use the same broker, stream, payload, queue bound, and
 // confirmation timeout; connection setup and shutdown are outside the timer.
+// BenchmarkEquivalentConfirmedPublish compares adapter/native confirmed publication under the tagged broker fixture and declared equivalent workload.
 func BenchmarkEquivalentConfirmedPublish(b *testing.B) {
 	for _, transport := range []string{"plaintext", "tls"} {
 		transport := transport
@@ -84,6 +85,7 @@ func BenchmarkEquivalentConfirmedPublish(b *testing.B) {
 
 // BenchmarkBoundedConfirmedWindow measures bounded asynchronous capacity. One
 // operation admits exactly window messages and waits for every confirmation.
+// BenchmarkBoundedConfirmedWindow measures confirmed publication at the named outstanding windows using the tagged broker fixture.
 func BenchmarkBoundedConfirmedWindow(b *testing.B) {
 	connection, environment := benchmarkBroker(b, false)
 	defer closeBenchmarkEnvironment(b, environment)
@@ -132,7 +134,9 @@ func BenchmarkBoundedConfirmedWindow(b *testing.B) {
 }
 
 // BenchmarkBacklogCatchUp seeds retained history outside the timer, then
-// measures handler completion and durable offset storage from the beginning.
+// measures notification of the final handler invocation from the beginning.
+// The timer stops before the final handler return/store and shutdown; it is not
+// a durable-offset latency or universal capacity measurement.
 func BenchmarkBacklogCatchUp(b *testing.B) {
 	connection, environment := benchmarkBroker(b, false)
 	streamName := integrationName("benchmark-backlog")

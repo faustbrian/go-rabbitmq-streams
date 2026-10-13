@@ -26,7 +26,10 @@ import (
 //	SaslConfigurationExternal = "EXTERNAL"
 //
 
+// SaslConfiguration borrows the raw SASL mechanism selection; root credentials
+// and verified TLS admission belong to the canonical adapter.
 type SaslConfiguration struct {
+	// Mechanism selects raw SASL authentication; it is not a credential provider.
 	Mechanism string
 }
 
@@ -36,6 +39,8 @@ func newSaslConfigurationDefault() *SaslConfiguration {
 	}
 }
 
+// TuneState holds negotiated finite frame/heartbeat policy for a client
+// handshake, not a supported-version claim.
 type TuneState struct {
 	requestedMaxFrameSize int
 	requestedHeartbeat    int
@@ -56,20 +61,30 @@ func negotiatedMaxValue(clientValue, serverValue int) int {
 	return min(clientValue, serverValue)
 }
 
+// ClientProperties is the native string property map used during peer
+// negotiation; values are not a redaction boundary.
 type ClientProperties struct {
 	items map[string]string
 }
 
+// ConnectionProperties contains decoded broker negotiation properties; strings
+// remain untrusted peer diagnostics.
 type ConnectionProperties struct {
 	host string
 	port string
 }
 
+// HeartBeat tracks native heartbeat send/receive timing under the client
+// lifetime.
 type HeartBeat struct {
 	mutex sync.Mutex
 	value time.Time
 }
 
+// Client owns one native socket, protocol response coordinator and reachable
+// tasks. Close requests terminal stop; external owners use WaitContext after
+// releasing callback backpressure. Raw options and methods are not the public
+// root policy.
 type Client struct {
 	tasks                taskOwner
 	stopOnce             sync.Once
@@ -581,6 +596,8 @@ func (c *Client) openContext(ctx context.Context, virtualHost string) error {
 	return nil
 }
 
+// DeleteStream requests broker stream deletion and waits for the RPC outcome.
+// A transport failure does not prove that broker deletion was unapplied.
 func (c *Client) DeleteStream(streamName string) error {
 	if err := validateProtocolStrings(streamName); err != nil {
 		return err
@@ -707,10 +724,15 @@ func (c *Client) Close() {
 	}
 }
 
+// DeclarePublisher delegates to DeclarePublisherContext with a background operation context.
+// The client lifetime and configured RPC/write budgets still apply.
 func (c *Client) DeclarePublisher(streamName string, options *ProducerOptions) (*Producer, error) {
 	return c.DeclarePublisherContext(context.Background(), streamName, options)
 }
 
+// DeclarePublisherContext opens a native publisher with operation/lifetime cancellation and
+// a finite RPC budget. Returned resources borrow validated options; callers own
+// close and an external task join. Broker names/sequence state are not effect fencing.
 func (c *Client) DeclarePublisherContext(ctx context.Context, streamName string, options *ProducerOptions) (*Producer, error) {
 	ctx, endOperation := ensureOperationContext(ctx)
 	defer endOperation()
@@ -966,20 +988,28 @@ func (c *Client) queryPublisherSequenceContext(ctx context.Context, publisherRef
 	return sequence.(int64), nil
 }
 
+// BrokerLeader delegates to BrokerLeaderContext with a background operation context.
+// The client lifetime and configured RPC/write budgets still apply.
 func (c *Client) BrokerLeader(stream string) (*Broker, error) {
 	return c.BrokerLeaderContext(context.Background(), stream)
 }
 
+// BrokerLeaderContext queries stream metadata and returns a mutable broker descriptor.
+// Discovery addresses are peer input, not an application network allowlist.
 func (c *Client) BrokerLeaderContext(ctx context.Context, stream string) (*Broker, error) {
 	ctx, endOperation := ensureOperationContext(ctx)
 	defer endOperation()
 	return c.BrokerLeaderWithResolverContext(ctx, stream, nil)
 }
 
+// BrokerLeaderWithResolver delegates to BrokerLeaderWithResolverContext with a background operation context.
+// The client lifetime and configured RPC/write budgets still apply.
 func (c *Client) BrokerLeaderWithResolver(stream string, resolver *AddressResolver) (*Broker, error) {
 	return c.BrokerLeaderWithResolverContext(context.Background(), stream, resolver)
 }
 
+// BrokerLeaderWithResolverContext queries metadata and applies the explicit address resolver.
+// The resolver replaces address selection, not TLS verification or authorization.
 func (c *Client) BrokerLeaderWithResolverContext(ctx context.Context, stream string, resolver *AddressResolver) (*Broker, error) {
 	ctx, endOperation := ensureOperationContext(ctx)
 	defer endOperation()
@@ -1034,10 +1064,14 @@ func (c *Client) BrokerLeaderWithResolverContext(ctx context.Context, stream str
 	return streamMetadata.Leader, nil
 }
 
+// StreamExists delegates to StreamExistsContext with a background operation context.
+// The client lifetime and configured RPC/write budgets still apply.
 func (c *Client) StreamExists(stream string) bool {
 	return c.StreamExistsContext(context.Background(), stream)
 }
 
+// StreamExistsContext returns false for metadata/RPC failures as well as absence.
+// This convenience result cannot distinguish unavailable from nonexistent.
 func (c *Client) StreamExistsContext(ctx context.Context, stream string) bool {
 	ctx, endOperation := ensureOperationContext(ctx)
 	defer endOperation()
@@ -1049,10 +1083,15 @@ func (c *Client) StreamExistsContext(ctx context.Context, stream string) bool {
 	streamMetadata := streamsMetadata.Get(stream)
 	return streamMetadata.responseCode == responseCodeOk
 }
+
+// BrokerForConsumer delegates to BrokerForConsumerContext with a background operation context.
+// The client lifetime and configured RPC/write budgets still apply.
 func (c *Client) BrokerForConsumer(stream string) (*Broker, error) {
 	return c.BrokerForConsumerContext(context.Background(), stream)
 }
 
+// BrokerForConsumerContext chooses a discovered stream replica or leader for a consumer.
+// The returned broker is borrowed metadata, not a durable placement promise.
 func (c *Client) BrokerForConsumerContext(ctx context.Context, stream string) (*Broker, error) {
 	ctx, endOperation := ensureOperationContext(ctx)
 	defer endOperation()
@@ -1107,6 +1146,8 @@ func (c *Client) BrokerForConsumerContext(ctx context.Context, stream string) (*
 	return brokers[rand.Intn(len(brokers))], nil // #nosec G404 -- Load-balancing selection among validated brokers, not a security token.
 }
 
+// DeclareStream encodes native stream options and requests broker creation.
+// Options and broker policy are not root application validation.
 func (c *Client) DeclareStream(streamName string, options *StreamOptions) error {
 	if err := validateProtocolStrings(streamName); err != nil {
 		return err
@@ -1217,10 +1258,14 @@ func (c *Client) queryOffsetContext(ctx context.Context, consumerName string, st
 	return offset.(int64), nil
 }
 
+// StoreOffset delegates to StoreOffsetContext with a background operation context.
+// The client lifetime and configured RPC/write budgets still apply.
 func (c *Client) StoreOffset(consumerName string, streamName string, offset int64) error {
 	return c.StoreOffsetContext(context.Background(), consumerName, streamName, offset)
 }
 
+// StoreOffsetContext writes a one-way offset-storage command under the operation budget.
+// Successful write is not a broker persistence receipt or atomic external effect.
 func (c *Client) StoreOffsetContext(ctx context.Context, consumerName string, streamName string, offset int64) error {
 	if err := validateProtocolStrings(consumerName, streamName); err != nil {
 		return err
@@ -1246,12 +1291,18 @@ func (c *Client) StoreOffsetContext(ctx context.Context, consumerName string, st
 	writeLong(b, offset)
 	return c.socket.writeAndFlushContext(ctx, b.Bytes())
 }
+
+// DeclareSubscriber delegates to DeclareSubscriberContext with a background operation context.
+// The client lifetime and configured RPC/write budgets still apply.
 func (c *Client) DeclareSubscriber(streamName string,
 	messagesHandler MessagesHandler,
 	options *ConsumerOptions) (*Consumer, error) {
 	return c.DeclareSubscriberContext(context.Background(), streamName, messagesHandler, options)
 }
 
+// DeclareSubscriberContext opens a native subscription with operation/lifetime cancellation
+// and a finite RPC budget. The borrowed handler executes on dispatch tasks and
+// must cooperate with shutdown; received records do not acknowledge app effects.
 func (c *Client) DeclareSubscriberContext(ctx context.Context, streamName string,
 	messagesHandler MessagesHandler,
 	options *ConsumerOptions) (*Consumer, error) {
@@ -1565,10 +1616,13 @@ func (c *Client) startConsumerDispatch(consumer *Consumer, options *ConsumerOpti
 	})
 }
 
+// StreamStats delegates to StreamStatsContext with a background operation context.
+// The client lifetime and configured RPC/write budgets still apply.
 func (c *Client) StreamStats(streamName string) (*StreamStats, error) {
 	return c.StreamStatsContext(context.Background(), streamName)
 }
 
+// StreamStatsContext returns a single broker statistics response, not a cross-query snapshot.
 func (c *Client) StreamStatsContext(ctx context.Context, streamName string) (*StreamStats, error) {
 	if err := validateProtocolStrings(streamName); err != nil {
 		return nil, err
@@ -1614,6 +1668,8 @@ func (c *Client) StreamStatsContext(ctx context.Context, streamName string) (*St
 	return newStreamStats(m, streamName), nil
 }
 
+// DeclareSuperStream requests native super-stream provisioning from trusted options.
+// Broker acceptance is not a whole-topology transaction guarantee after I/O failure.
 func (c *Client) DeclareSuperStream(superStream string, options SuperStreamOptions) error {
 	if err := validateProtocolStrings(superStream); err != nil {
 		return err
@@ -1701,6 +1757,7 @@ func (c *Client) DeclareSuperStream(superStream string, options SuperStreamOptio
 	return c.handleWrite(b.Bytes(), resp).Err
 }
 
+// DeleteSuperStream requests deletion; an I/O failure may leave an applied broker command.
 func (c *Client) DeleteSuperStream(superStream string) error {
 	if err := validateProtocolStrings(superStream); err != nil {
 		return err
@@ -1731,10 +1788,14 @@ func (c *Client) DeleteSuperStream(superStream string) error {
 	return c.handleWrite(b.Bytes(), resp).Err
 }
 
+// QueryPartitions delegates to QueryPartitionsContext with a background operation context.
+// The client lifetime and configured RPC/write budgets still apply.
 func (c *Client) QueryPartitions(superStream string) ([]string, error) {
 	return c.QueryPartitionsContext(context.Background(), superStream)
 }
 
+// QueryPartitionsContext returns ordered broker topology from one RPC; callers own the
+// slice but cannot treat it as stable across reconnects or topology changes.
 func (c *Client) QueryPartitionsContext(ctx context.Context, superStream string) ([]string, error) {
 	if err := validateProtocolStrings(superStream); err != nil {
 		return nil, err

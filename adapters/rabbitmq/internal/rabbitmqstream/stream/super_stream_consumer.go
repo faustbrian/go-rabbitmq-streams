@@ -11,16 +11,27 @@ import (
 	"github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2/internal/rabbitmqstream/logs"
 )
 
+// SuperStreamConsumerOptions is mutable legacy convenience policy for private
+// fan-out helpers, outside the canonical adapter manual-partition task slice.
 type SuperStreamConsumerOptions struct {
-	ClientProvidedName   string
-	Offset               OffsetSpecification
-	Filter               *ConsumerFilter
+	// ClientProvidedName is a broker-visible diagnostic identifier.
+	ClientProvidedName string
+	// Offset selects native starting position, not durable progress.
+	Offset OffsetSpecification
+	// Filter borrows broker/local filtering options.
+	Filter *ConsumerFilter
+	// SingleActiveConsumer borrows promotion callbacks; it is not effect fencing.
 	SingleActiveConsumer *SingleActiveConsumer
-	ConsumerName         string
-	AutoCommitStrategy   *AutoCommitStrategy
-	Autocommit           bool
+	// ConsumerName selects the named offset-storage reference.
+	ConsumerName string
+	// AutoCommitStrategy borrows count/time storage cadence, not atomic effect completion.
+	AutoCommitStrategy *AutoCommitStrategy
+	// Autocommit enables native storage cadence; it does not remove records from the log.
+	Autocommit bool
 }
 
+// NewSuperStreamConsumerOptions returns live-tail/manual-commit convenience
+// defaults, not root consumer defaults.
 func NewSuperStreamConsumerOptions() *SuperStreamConsumerOptions {
 	return &SuperStreamConsumerOptions{
 		Offset:     OffsetSpecification{}.Next(),
@@ -28,37 +39,51 @@ func NewSuperStreamConsumerOptions() *SuperStreamConsumerOptions {
 	}
 }
 
+// SetClientProvidedName stores a broker-visible diagnostic name that may be
+// sensitive; it is not authentication.
 func (s *SuperStreamConsumerOptions) SetClientProvidedName(clientProvidedName string) *SuperStreamConsumerOptions {
 	s.ClientProvidedName = clientProvidedName
 	return s
 }
 
+// SetOffset stores the native starting selector without querying retained
+// availability.
 func (s *SuperStreamConsumerOptions) SetOffset(offset OffsetSpecification) *SuperStreamConsumerOptions {
 	s.Offset = offset
 	return s
 }
 
+// SetSingleActiveConsumer borrows promotion policy/callbacks; do not mutate
+// them during a subscription.
 func (s *SuperStreamConsumerOptions) SetSingleActiveConsumer(singleActiveConsumer *SingleActiveConsumer) *SuperStreamConsumerOptions {
 	s.SingleActiveConsumer = singleActiveConsumer
 	return s
 }
 
+// SetFilter borrows the filter object/callback; configure it before
+// publication/subscription.
 func (s *SuperStreamConsumerOptions) SetFilter(filter *ConsumerFilter) *SuperStreamConsumerOptions {
 	s.Filter = filter
 	return s
 }
 
+// SetConsumerName sets the broker offset-tracking identity; using the same name
+// from concurrent owners can change restart progress.
 func (s *SuperStreamConsumerOptions) SetConsumerName(consumerName string) *SuperStreamConsumerOptions {
 	s.ConsumerName = consumerName
 	return s
 }
 
+// SetAutoCommit enables native count/time-driven offset submission; a nil
+// strategy selects defaults and storage is not atomic with effects.
 func (s *SuperStreamConsumerOptions) SetAutoCommit(autoCommitStrategy *AutoCommitStrategy) *SuperStreamConsumerOptions {
 	s.Autocommit = true
 	s.AutoCommitStrategy = autoCommitStrategy
 	return s
 }
 
+// SetManualCommit disables native automatic stores so the caller owns progress
+// after handling.
 func (s *SuperStreamConsumerOptions) SetManualCommit() *SuperStreamConsumerOptions {
 	s.Autocommit = false
 	return s
@@ -67,18 +92,25 @@ func (s *SuperStreamConsumerOptions) SetManualCommit() *SuperStreamConsumerOptio
 // CPartitionClose is a struct that is used to notify the user when a partition from a consumer is closed
 // The user can use the NotifyPartitionClose to get the channel
 type CPartitionClose struct {
+	// Partition identifies the closed raw subscription.
 	Partition string
-	Event     Event
-	Context   CPartitionContext
+	// Event preserves native close diagnostics and causes.
+	Event Event
+	// Context borrows the fan-out owner for cooperative reconnection.
+	Context CPartitionContext
 }
 
 // CPartitionContext is an interface that is used to expose partition information and methods
 // to the user. The user can use the CPartitionContext to reconnect a partition to the SuperStreamConsumer
 // Specifying the offset to start from
 type CPartitionContext interface {
+	// ConnectPartition opens a raw subscription at the requested native offset.
 	ConnectPartition(partition string, offset OffsetSpecification) error
 }
 
+// SuperStreamConsumer owns legacy convenience subscriptions and delayed
+// notification helpers. It is not the canonical adapter fan-out owner and Close
+// does not join all convenience goroutines.
 type SuperStreamConsumer struct {
 	// Only the active consumers are stored here
 	activeConsumers []*Consumer
@@ -94,9 +126,12 @@ type SuperStreamConsumer struct {
 	chSuperStreamPartitionMutex sync.Mutex
 	chSuperStreamPartitionClose chan CPartitionClose
 
-	SuperStream                string
+	// SuperStream names the raw broker topology; direct mutation is unsupported while active.
+	SuperStream string
+	// SuperStreamConsumerOptions borrows active policy; do not mutate concurrently.
 	SuperStreamConsumerOptions *SuperStreamConsumerOptions
 
+	// MessagesHandler borrows dispatch callbacks; ignored cancellation can delay joins.
 	MessagesHandler MessagesHandler
 }
 
@@ -147,6 +182,9 @@ func (s *SuperStreamConsumer) NotifyPartitionClose(size int) chan CPartitionClos
 	return ch
 }
 
+// ConnectPartition opens one raw partition consumer and publishes it to this
+// fan-out owner. Caller callbacks/options are borrowed; duplicate/admission errors
+// are not an application replay or effect transaction.
 func (s *SuperStreamConsumer) ConnectPartition(partition string, offset OffsetSpecification) error {
 	logs.LogDebug("[SuperStreamConsumer] ConnectPartition for partition: %s", partition)
 	s.mutex.Lock()
@@ -236,6 +274,8 @@ func (s *SuperStreamConsumer) ConnectPartition(partition string, offset OffsetSp
 	return nil
 }
 
+// Close closes active subscriptions and schedules two-second delayed channel
+// cleanup; it is not a join of convenience helper goroutines.
 func (s *SuperStreamConsumer) Close() error {
 	logs.LogDebug("[SuperStreamConsumer] Closing SuperStreamConsumer for: %s", s.SuperStream)
 	s.mutex.Lock()

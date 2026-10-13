@@ -2,6 +2,7 @@ package stream
 
 import "testing"
 
+// FuzzBoundedDeliveryDecoder checks successful finite decode retains the admitted record count and present messages.
 func FuzzBoundedDeliveryDecoder(f *testing.F) {
 	for _, codec := range []byte{255, None, GZIP, SNAPPY, LZ4, ZSTD} {
 		f.Add(deliveryFixture(f, codec))

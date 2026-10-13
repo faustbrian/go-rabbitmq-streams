@@ -10,8 +10,13 @@ import (
 	"github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2/internal/rabbitmqstream/logs"
 )
 
+// ErrBlockingQueueStopped reports that stop has fenced further native queue
+// admission.
 var ErrBlockingQueueStopped = errors.New("blocking queue stopped")
 
+// BlockingQueue owns a finite channel and sender admission gate. Stop joins
+// admitted senders and drains pending items; Close owns channel closure only
+// after stop. Direct channel operations bypass this gate.
 type BlockingQueue[T any] struct {
 	queue     chan T
 	status    int32
@@ -31,7 +36,8 @@ func NewBlockingQueue[T any](capacity int) *BlockingQueue[T] {
 	}
 }
 
-// Enqueue adds an item to the queue, blocking if the queue is full
+// Enqueue delegates to EnqueueContext using the native fallback operation
+// budget. Full-queue admission can block until that budget or Stop intervenes.
 func (bq *BlockingQueue[T]) Enqueue(item T) error {
 	ctx, cancel := ensureOperationContext(context.Background())
 	defer cancel()
@@ -62,23 +68,27 @@ func (bq *BlockingQueue[T]) EnqueueContext(ctx context.Context, item T) error {
 	}
 }
 
+// GetChannel exposes the owned mutable channel for native receiving.
+// Sending/closing directly bypasses admission ownership and is unsupported.
 func (bq *BlockingQueue[T]) GetChannel() chan T {
 	return bq.queue
 }
 
+// Size observes buffered items at this instant; it does not count admitted
+// blocked senders.
 func (bq *BlockingQueue[T]) Size() int {
 	return len(bq.queue)
 }
 
+// IsEmpty observes current channel length, not quiescence or completed sender
+// cleanup.
 func (bq *BlockingQueue[T]) IsEmpty() bool {
 	return len(bq.queue) == 0
 }
 
-// Stop stops the queue from accepting new items
-// but allows some pending items.
-// Stop is different from Close in that it allows the
-// existing items to be processed.
-// Drain the queue to be sure there are not pending messages
+// Stop fences new admissions, joins active senders and returns drained pending
+// items after a 10 ms receive-idle interval. Concurrent receivers can take some
+// items themselves; Stop does not process application effects or close the channel.
 func (bq *BlockingQueue[T]) Stop() []T {
 	bq.stopOnce.Do(func() {
 		bq.mutex.Lock()
@@ -106,6 +116,8 @@ outer:
 	return msgInQueue
 }
 
+// Close closes the native-owned channel once only after Stop; calling it before
+// Stop leaves the channel open.
 func (bq *BlockingQueue[T]) Close() {
 	if bq.IsStopped() {
 		bq.active.Wait()
@@ -113,6 +125,8 @@ func (bq *BlockingQueue[T]) Close() {
 	}
 }
 
+// IsStopped reports the atomic stop-or-closed gate, not completion of all
+// cleanup.
 func (bq *BlockingQueue[T]) IsStopped() bool {
 	return atomic.LoadInt32(&bq.status) == 1 || atomic.LoadInt32(&bq.status) == 2
 }

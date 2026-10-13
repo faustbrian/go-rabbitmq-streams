@@ -30,7 +30,9 @@ const (
 // Endpoint identifies one RabbitMQ Streams listener. Credentials are kept out
 // of endpoint values so they cannot be exposed by URI formatting.
 type Endpoint struct {
-	// Host is a DNS name or IP literal without credentials or a scheme.
+	// Host is bounded nonempty address text passed to the adapter. Supply a DNS
+	// name or IP literal without credentials/schemes; normalization is not DNS,
+	// URI or network-allowlist validation.
 	Host string
 	// Port is the RabbitMQ Streams listener port.
 	Port uint16
@@ -47,7 +49,9 @@ type Credentials struct {
 }
 
 // CredentialProvider supplies a fresh credential snapshot for each connection
-// attempt. Implementations must honor cancellation and must not render secrets.
+// attempt. Implementations must support concurrent opening, honor cancellation
+// and avoid rendering secrets. Calls are synchronous; deadlines cannot forcibly
+// stop a provider that ignores its context.
 type CredentialProvider interface {
 	// Credentials returns a fresh owned snapshot and honors ctx cancellation.
 	Credentials(context.Context) (Credentials, error)
@@ -68,9 +72,9 @@ func StaticCredentials(username string, password []byte) StringerCredentialProvi
 	}
 }
 
-// StringerCredentialProvider combines the provider contract with a safe
-// diagnostic identity. It exists to make the safety of built-in providers
-// explicit without requiring custom providers to implement String.
+// StringerCredentialProvider combines the provider contract with a diagnostic
+// identity. The built-in identity includes Username, not Password; username
+// sensitivity is still caller policy. Custom providers need not implement String.
 type StringerCredentialProvider interface {
 	CredentialProvider
 	fmt.Stringer
@@ -111,7 +115,8 @@ const (
 type SecurityConfig struct {
 	// Mode selects verified TLS or explicit development-only plaintext.
 	Mode SecurityMode
-	// TLS is cloned during normalization and must retain peer verification.
+	// TLS is shallow-cloned during normalization and must retain peer verification;
+	// certificate/private-key, pool, callback and cache state remains borrowed.
 	TLS *tls.Config
 
 	developmentPlaintext bool
@@ -137,7 +142,8 @@ type ConnectionConfig struct {
 	Credentials CredentialProvider
 	// Security defines verified transport policy.
 	Security SecurityConfig
-	// ConnectTimeout bounds complete session establishment, including retries.
+	// ConnectTimeout derives the complete session-opening budget, including
+	// retries; borrowed credential/observer code must cooperate.
 	ConnectTimeout time.Duration
 	// RPCTimeout bounds one RabbitMQ Streams RPC attempt.
 	RPCTimeout time.Duration
@@ -159,8 +165,10 @@ func (config ConnectionConfig) Validate() error {
 	return err
 }
 
-// Normalized validates the policy and returns an owned configuration with all
-// finite defaults applied. Credential resolution remains deferred.
+// Normalized validates finite defaults, copies Endpoints and shallow-clones the
+// TLS configuration. Nested TLS state, Credentials and Observer remain borrowed
+// and must be immutable or concurrency-safe. Credential resolution is deferred;
+// snapshots and SASL string copies are not securely erased.
 func (config ConnectionConfig) Normalized() (ConnectionConfig, error) {
 	return config.normalized()
 }

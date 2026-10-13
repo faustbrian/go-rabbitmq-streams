@@ -102,12 +102,18 @@ func (c *Client) WaitContext(ctx context.Context) error {
 	}
 	return c.tasks.wait(ctx)
 }
+
+// WaitContext joins this producer's stopped task owner; nil means Background.
+// Release confirmation backpressure first and never join from its owned task.
 func (p *Producer) WaitContext(ctx context.Context) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	return p.tasks.wait(ctx)
 }
+
+// WaitContext joins this consumer's stopped task owner; nil means Background.
+// Its own message callback must request stop, not wait on itself.
 func (c *Consumer) WaitContext(ctx context.Context) error {
 	if ctx == nil {
 		ctx = context.Background()

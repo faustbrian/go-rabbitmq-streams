@@ -86,15 +86,18 @@ type RetryPolicy struct {
 	MaxBackoff time.Duration
 }
 
-// ConsumerPolicy bounds handler execution, retry, and shutdown.
+// ConsumerPolicy configures worker concurrency, cooperative handler/retry
+// budgets and each shutdown caller's wait.
 type ConsumerPolicy struct {
 	// MaxConcurrency bounds workers across independent partitions.
 	MaxConcurrency int
-	// HandlerTimeout bounds one handler or batch invocation.
+	// HandlerTimeout derives the context for one inline handler/batch attempt,
+	// defaulting to 30 seconds; an ignored deadline does not preempt the call.
 	HandlerTimeout time.Duration
 	// CloseTimeout bounds each shutdown caller's wait for cleanup.
 	CloseTimeout time.Duration
-	// OffsetStoreEveryMessages bounds the processed-but-not-stored crash window.
+	// OffsetStoreEveryMessages selects local per-partition store-command cadence.
+	// Accepted one-way commands are not durable receipts or a total redelivery bound.
 	OffsetStoreEveryMessages int
 	// FailureStrategy selects stop, in-process retry, retry stream, or dead letter.
 	FailureStrategy FailureStrategy
@@ -136,18 +139,21 @@ type FailurePublisher interface {
 	Publish(context.Context, Message) (DeliveryResult, error)
 }
 
-// MessageHandler handles one borrowed delivery. The message is valid only for
-// the call unless Retain is used.
+// MessageHandler handles one borrowed delivery. Retain before keeping bytes or
+// asynchronous use, and do not mutate the borrowed input: retry and failure
+// rerouting reuse it. Calls are inline, panics are contained and cancellation is
+// cooperative. A nil return declares successful work, not an atomic broker commit.
 type MessageHandler func(context.Context, Message) error
 
 // BatchMessageHandler handles one borrowed, single-partition delivery batch.
-// Messages remain ordered by delivery offset and are valid only for the call
-// unless Retain is used on each message that must escape it.
+// Messages remain ordered by delivery offset; do not mutate them and Retain each
+// message that must escape the inline call. Errors can repeat earlier effects;
+// callbacks must cooperate with cancellation and configured worker concurrency.
 type BatchMessageHandler func(context.Context, []Message) error
 
-// BatchPolicy bounds one consumer handler invocation. Successful batches store
-// only their terminal offset, so the crash-redelivery window is at most
-// MaxMessages records per partition.
+// BatchPolicy bounds one consumer handler invocation. Successful batches submit
+// only their terminal offset. MaxMessages controls the local store cadence, not
+// a durable checkpoint receipt or a bound on all crash redelivery.
 type BatchPolicy struct {
 	// MaxMessages bounds records supplied to one batch invocation.
 	MaxMessages int

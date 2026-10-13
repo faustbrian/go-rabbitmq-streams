@@ -20,6 +20,9 @@ import (
 // In most of the cases these two strategies are enough.
 // See the test: Implement custom routing strategy in case you need to implement a custom routing strategy
 
+// RoutingStrategy supplies synchronous raw fan-out routing over borrowed messages
+// and ordered topology. Implementations own thread safety, bounded caches and
+// callback cooperation; this seam does not add deadlines or panic containment.
 type RoutingStrategy interface {
 	// Route Based on the message and the partitions the routing strategy returns the partitions where the message should be sent
 	// It could be zero, one or more partitions
@@ -32,20 +35,29 @@ type RoutingStrategy interface {
 
 // HashRoutingMurmurStrategy is a routing strategy that uses the murmur3 hash function
 
-// DON'T Touch this value. It makes the hash compatible with the Java/.Net/Python client
-
+// SEED is the pinned upstream Murmur3 seed used by hash routing. Changing it
+// remaps keys; cross-client interoperability requires the repository's selected
+// fixtures and independent oracle, not the seed alone.
 const SEED = 104729
 
+// HashRoutingStrategy borrows a required stable key extractor and selects one
+// ordered partition using the pinned Murmur3 seed. Topology order changes key
+// placement; this is not a cryptographic hash.
 type HashRoutingStrategy struct {
+	// RoutingKeyExtractor borrows a required stable key callback; panics escape raw Route.
 	RoutingKeyExtractor func(message message.StreamMessage) string
 }
 
+// NewHashRoutingStrategy borrows a non-nil stable extractor; callbacks must be
+// safe for the caller concurrency.
 func NewHashRoutingStrategy(routingKeyExtractor func(message message.StreamMessage) string) *HashRoutingStrategy {
 	return &HashRoutingStrategy{
 		RoutingKeyExtractor: routingKeyExtractor,
 	}
 }
 
+// Route rejects nil messages/empty partitions and returns one selected ordered-
+// topology entry using the pinned seed; extractor panics are not contained.
 func (h *HashRoutingStrategy) Route(message message.StreamMessage, partitions []string) ([]string, error) {
 	if message == nil {
 		return nil, fmt.Errorf("message is nil")
@@ -61,6 +73,9 @@ func (h *HashRoutingStrategy) Route(message message.StreamMessage, partitions []
 	index := uint64(murmurHash.Sum32()) % uint64(len(partitions))
 	return []string{partitions[index]}, nil
 }
+
+// SetRouteParameters ignores broker-query parameters because hash placement
+// depends only on key and ordered topology.
 func (h *HashRoutingStrategy) SetRouteParameters(_ string, _ func(superStream string, routingKey string) ([]string, error)) {
 }
 
@@ -68,6 +83,7 @@ func (h *HashRoutingStrategy) SetRouteParameters(_ string, _ func(superStream st
 
 // KeyRoutingStrategy is a routing strategy that uses the key of the message
 type KeyRoutingStrategy struct {
+	// RoutingKeyExtractor borrows a required key callback; results populate an unbounded cache.
 	// provided by the user to define the key based on a message
 	RoutingKeyExtractor func(message message.StreamMessage) string
 
@@ -76,6 +92,9 @@ type KeyRoutingStrategy struct {
 	cacheRouting map[string][]string
 }
 
+// NewKeyRoutingStrategy borrows the required extractor and creates an unbounded
+// per-key route cache. This legacy helper needs serialized/trusted use; the
+// canonical adapter uses hash routing.
 func NewKeyRoutingStrategy(
 	routingKeyExtractor func(message message.StreamMessage) string) *KeyRoutingStrategy {
 	return &KeyRoutingStrategy{
@@ -84,11 +103,16 @@ func NewKeyRoutingStrategy(
 	}
 }
 
+// SetRouteParameters borrows the broker query callback and mutates routing
+// context; configure before Route calls.
 func (k *KeyRoutingStrategy) SetRouteParameters(superStream string, queryRoute func(superStream string, routingKey string) ([]string, error)) {
 	k.superStream = superStream
 	k.queryRoute = queryRoute
 }
 
+// Route uses/cache-fills broker routes and selects the first currently ordered
+// matching partition. Cache mutation/callbacks are unsynchronized and not used
+// by canonical hash policy.
 func (k *KeyRoutingStrategy) Route(message message.StreamMessage, partitions []string) ([]string, error) {
 	key := k.RoutingKeyExtractor(message)
 	var routing []string
@@ -118,12 +142,17 @@ func (k *KeyRoutingStrategy) Route(message message.StreamMessage, partitions []s
 	return nil, ErrMessageRouteNotFound
 }
 
+// SuperStreamProducerOptions is by-value convenience configuration borrowing
+// its routing/filter collaborators; the canonical adapter uses manual partition
+// producers instead.
 // end of KeyRoutingStrategy
-
 type SuperStreamProducerOptions struct {
-	RoutingStrategy    RoutingStrategy
+	// RoutingStrategy borrows synchronous placement policy and its caches.
+	RoutingStrategy RoutingStrategy
+	// ClientProvidedName is a broker-visible diagnostic identifier.
 	ClientProvidedName string
-	Filter             *ProducerFilter // Enable the filter feature, by default is disabled. Pointer nil
+	// Filter borrows optional Publish-v2 filter extraction.
+	Filter *ProducerFilter // Enable the filter feature, by default is disabled. Pointer nil
 }
 
 // NewSuperStreamProducerOptions creates a new SuperStreamProducerOptions
@@ -134,11 +163,15 @@ func NewSuperStreamProducerOptions(routingStrategy RoutingStrategy) *SuperStream
 	}
 }
 
+// SetClientProvidedName stores a broker-visible diagnostic name that may be
+// sensitive; it is not authentication.
 func (o SuperStreamProducerOptions) SetClientProvidedName(clientProvidedName string) *SuperStreamProducerOptions {
 	o.ClientProvidedName = clientProvidedName
 	return &o
 }
 
+// SetFilter borrows the filter object/callback; configure it before
+// publication/subscription.
 func (o SuperStreamProducerOptions) SetFilter(filter *ProducerFilter) *SuperStreamProducerOptions {
 	o.Filter = filter
 	return &o
@@ -147,24 +180,33 @@ func (o SuperStreamProducerOptions) SetFilter(filter *ProducerFilter) *SuperStre
 // PartitionPublishConfirm is a struct that is used to notify the user when a message is confirmed or not per partition
 // The user can use the NotifyPublishConfirmation to get the channel
 type PartitionPublishConfirm struct {
-	Partition          string
+	// Partition identifies the native stream confirmation owner.
+	Partition string
+	// ConfirmationStatus borrows the original-message confirmation records, not external-effect receipts.
 	ConfirmationStatus []*ConfirmationStatus
 }
 
 // PPartitionClose is a struct that is used to notify the user when a partition from a producer is closed
 // The user can use the NotifyPartitionClose to get the channel
 type PPartitionClose struct {
+	// Partition identifies the closed raw publisher.
 	Partition string
-	Event     Event
-	Context   PPartitionContext
+	// Event preserves native close diagnostics and causes.
+	Event Event
+	// Context borrows the fan-out owner for cooperative reconnection.
+	Context PPartitionContext
 }
 
 // PPartitionContext is an interface that is used to expose partition information and methods
 // to the user. The user can use the PPartitionContext to reconnect a partition to the SuperStreamProducer
 type PPartitionContext interface {
+	// ConnectPartition opens a raw publisher through the borrowed fan-out owner.
 	ConnectPartition(partition string) error
 }
 
+// SuperStreamProducer owns legacy convenience publishers/notifications, not the
+// canonical adapter lifecycle owner. Its Close schedules delayed channel
+// cleanup rather than joining that helper.
 type SuperStreamProducer struct {
 	// Only the active producers are stored here
 	activeProducers []*Producer
@@ -183,8 +225,10 @@ type SuperStreamProducer struct {
 	chSuperStreamPartitionMutex sync.Mutex
 	chSuperStreamPartitionClose chan PPartitionClose
 
+	// SuperStream names the raw broker topology; direct mutation is unsupported while active.
 	// public
-	SuperStream                string
+	SuperStream string
+	// SuperStreamProducerOptions borrows the active policy; do not mutate concurrently.
 	SuperStreamProducerOptions *SuperStreamProducerOptions
 }
 
@@ -353,6 +397,8 @@ func (s *SuperStreamProducer) NotifyPartitionClose(size int) chan PPartitionClos
 	return ch
 }
 
+// GetPartitions returns the borrowed topology slice after releasing its mutex;
+// do not mutate it or treat it as an independent snapshot.
 func (s *SuperStreamProducer) GetPartitions() []string {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -401,6 +447,8 @@ func (s *SuperStreamProducer) Send(message message.StreamMessage) error {
 	return nil
 }
 
+// Close closes active publishers and schedules two-second delayed channel
+// cleanup; it is not a join of convenience helper goroutines.
 func (s *SuperStreamProducer) Close() error {
 	logs.LogDebug("[SuperStreamProducer] Closing a SuperStreamProducer for: %s", s.SuperStream)
 	s.mutex.Lock()

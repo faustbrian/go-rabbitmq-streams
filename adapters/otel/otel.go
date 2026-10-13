@@ -1,6 +1,21 @@
-// Package rabbitstreamotel adapts bounded rabbitstream observations and W3C
-// trace context to caller-owned OpenTelemetry providers. It does not configure
-// exporters, own provider shutdown, or add caller-controlled metric labels.
+// Package rabbitstreamotel maps published root-v1 observations to caller-owned
+// OpenTelemetry metrics and provides explicit W3C Trace Context propagation.
+// This independently versioned module does not accept root-v2 Message or Observer
+// types; its legacy sibling preserves that same v1 cohort and instrumentation
+// scope. Keep published import identities distinct rather than assuming all
+// packages in this repository share the root major version.
+//
+// New creates instruments through a borrowed provider. Sampling/export,
+// aggregation, flush and shutdown remain SDK/application responsibilities; no
+// globals or adapter goroutines are installed. Synchronous calls and provider
+// panic containment cannot force completion or undo already recorded metrics.
+// Observe clamps scalar values and maps error labels to a closed category set;
+// it does not authenticate sources or redact arbitrary SDK output.
+//
+// Inject copies message bytes/metadata and validates growth; Extract borrows
+// headers and leaves the context unchanged for case-insensitive duplicate W3C
+// fields. Baggage and global
+// propagators are excluded, and remote trace context is not authorization.
 package rabbitstreamotel
 
 import (

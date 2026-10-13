@@ -10,14 +10,25 @@ import (
 	"github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2/internal/rabbitmqstream/logs"
 )
 
+// ReaderProtocol is the frame-local native response header; readers must first
+// admit the complete frame and collection shapes.
 type ReaderProtocol struct {
-	FrameLen          uint32
-	CommandID         uint16
-	Key               uint16
-	Version           uint16
-	CorrelationId     uint32
-	ResponseCode      uint16
-	PublishID         uint8
+	// FrameLen is the admitted frame length excluding the four-byte size word.
+	FrameLen uint32
+	// CommandID is Key with its response bit masked off for dispatch.
+	CommandID uint16
+	// Key is the raw command key including the response bit.
+	Key uint16
+	// Version is the admitted native command version, not whole-broker support.
+	Version uint16
+	// CorrelationId selects the operation-owned response mailbox for RPC delivery.
+	CorrelationId uint32
+	// ResponseCode holds a decoded native result code, not root category policy.
+	ResponseCode uint16
+	// PublishID selects the native publisher confirmation owner.
+	PublishID uint8
+	// PublishingIdCount is a retained legacy slot not populated by current handlers;
+	// record-count admission is separate.
 	PublishingIdCount uint64
 }
 
@@ -425,7 +436,10 @@ func (c *Client) metadataUpdateFrameHandler(buffer *bufio.Reader) {
 		c.maybeCleanProducers(stream)
 		c.maybeCleanConsumers(stream)
 	} else {
-		// TODO handle the error, see the java code
+		// Other MetadataUpdate codes currently leave session state unchanged.
+		// Before expanding broker-version support, Streams maintainers need an
+		// explicit invalidation policy and matching protocol case; no terminal
+		// recovery behavior follows from the no-op diagnostic here.
 		logs.LogWarn("unsupported metadata update code %d", code)
 	}
 }

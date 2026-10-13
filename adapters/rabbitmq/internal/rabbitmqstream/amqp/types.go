@@ -35,6 +35,9 @@ import (
 )
 
 type amqpType uint8
+
+// ProtoID is the attributed byte-sized AMQP protocol identifier type; it is not
+// a public root policy selector.
 type ProtoID uint8
 
 // Type codes
@@ -148,7 +151,10 @@ const (
 //     extended header (opt)
 //     body (opt)
 
-type deliveryState any // TODO: http://docs.oasis-open.org/amqp/core/v1.0/os/amqp-core-transactions-v1.0-os.html#type-declared
+// deliveryState preserves the attributed codec's abstract delivery-state seam.
+// Transactional declared/discharge semantics are not implemented by the Streams
+// adapter; extending this needs an AMQP 1.0 transactions compatibility decision.
+type deliveryState any
 
 type unsettled map[string]deliveryState
 
@@ -223,38 +229,63 @@ func (ec *ErrorCondition) unmarshal(r *buffer) error {
 
 // Error Conditions
 const (
+	// ErrorInternalError names the AMQP 1.0 amqp:internal-error condition; it is not a root category.
 	// AMQP Errors
-	ErrorInternalError         ErrorCondition = "amqp:internal-error"
-	ErrorNotFound              ErrorCondition = "amqp:not-found"
-	ErrorUnauthorizedAccess    ErrorCondition = "amqp:unauthorized-access"
-	ErrorDecodeError           ErrorCondition = "amqp:decode-error"
+	ErrorInternalError ErrorCondition = "amqp:internal-error"
+	// ErrorNotFound names the AMQP 1.0 amqp:not-found condition; it is not a root category.
+	ErrorNotFound ErrorCondition = "amqp:not-found"
+	// ErrorUnauthorizedAccess names the AMQP 1.0 amqp:unauthorized-access condition; it is not a root category.
+	ErrorUnauthorizedAccess ErrorCondition = "amqp:unauthorized-access"
+	// ErrorDecodeError names the AMQP 1.0 amqp:decode-error condition; it is not a root category.
+	ErrorDecodeError ErrorCondition = "amqp:decode-error"
+	// ErrorResourceLimitExceeded names the AMQP 1.0 amqp:resource-limit-exceeded condition; it is not a root category.
 	ErrorResourceLimitExceeded ErrorCondition = "amqp:resource-limit-exceeded"
-	ErrorNotAllowed            ErrorCondition = "amqp:not-allowed"
-	ErrorInvalidField          ErrorCondition = "amqp:invalid-field"
-	ErrorNotImplemented        ErrorCondition = "amqp:not-implemented"
-	ErrorResourceLocked        ErrorCondition = "amqp:resource-locked"
-	ErrorPreconditionFailed    ErrorCondition = "amqp:precondition-failed"
-	ErrorResourceDeleted       ErrorCondition = "amqp:resource-deleted"
-	ErrorIllegalState          ErrorCondition = "amqp:illegal-state"
-	ErrorFrameSizeTooSmall     ErrorCondition = "amqp:frame-size-too-small"
+	// ErrorNotAllowed names the AMQP 1.0 amqp:not-allowed condition; it is not a root category.
+	ErrorNotAllowed ErrorCondition = "amqp:not-allowed"
+	// ErrorInvalidField names the AMQP 1.0 amqp:invalid-field condition; it is not a root category.
+	ErrorInvalidField ErrorCondition = "amqp:invalid-field"
+	// ErrorNotImplemented names the AMQP 1.0 amqp:not-implemented condition; it is not a root category.
+	ErrorNotImplemented ErrorCondition = "amqp:not-implemented"
+	// ErrorResourceLocked names the AMQP 1.0 amqp:resource-locked condition; it is not a root category.
+	ErrorResourceLocked ErrorCondition = "amqp:resource-locked"
+	// ErrorPreconditionFailed names the AMQP 1.0 amqp:precondition-failed condition; it is not a root category.
+	ErrorPreconditionFailed ErrorCondition = "amqp:precondition-failed"
+	// ErrorResourceDeleted names the AMQP 1.0 amqp:resource-deleted condition; it is not a root category.
+	ErrorResourceDeleted ErrorCondition = "amqp:resource-deleted"
+	// ErrorIllegalState names the AMQP 1.0 amqp:illegal-state condition; it is not a root category.
+	ErrorIllegalState ErrorCondition = "amqp:illegal-state"
+	// ErrorFrameSizeTooSmall names the AMQP 1.0 amqp:frame-size-too-small condition; it is not a root category.
+	ErrorFrameSizeTooSmall ErrorCondition = "amqp:frame-size-too-small"
 
+	// ErrorConnectionForced names the AMQP 1.0 amqp:connection:forced condition; it is not a root category.
 	// Connection Errors
-	ErrorConnectionForced   ErrorCondition = "amqp:connection:forced"
-	ErrorFramingError       ErrorCondition = "amqp:connection:framing-error"
+	ErrorConnectionForced ErrorCondition = "amqp:connection:forced"
+	// ErrorFramingError names the AMQP 1.0 amqp:connection:framing-error condition; it is not a root category.
+	ErrorFramingError ErrorCondition = "amqp:connection:framing-error"
+	// ErrorConnectionRedirect names the AMQP 1.0 amqp:connection:redirect condition; it is not a root category.
 	ErrorConnectionRedirect ErrorCondition = "amqp:connection:redirect"
 
+	// ErrorWindowViolation names the AMQP 1.0 amqp:session:window-violation condition; it is not a root category.
 	// Session Errors
-	ErrorWindowViolation  ErrorCondition = "amqp:session:window-violation"
-	ErrorErrantLink       ErrorCondition = "amqp:session:errant-link"
-	ErrorHandleInUse      ErrorCondition = "amqp:session:handle-in-use"
+	ErrorWindowViolation ErrorCondition = "amqp:session:window-violation"
+	// ErrorErrantLink names the AMQP 1.0 amqp:session:errant-link condition; it is not a root category.
+	ErrorErrantLink ErrorCondition = "amqp:session:errant-link"
+	// ErrorHandleInUse names the AMQP 1.0 amqp:session:handle-in-use condition; it is not a root category.
+	ErrorHandleInUse ErrorCondition = "amqp:session:handle-in-use"
+	// ErrorUnattachedHandle names the AMQP 1.0 amqp:session:unattached-handle condition; it is not a root category.
 	ErrorUnattachedHandle ErrorCondition = "amqp:session:unattached-handle"
 
+	// ErrorDetachForced names the AMQP 1.0 amqp:link:detach-forced condition; it is not a root category.
 	// Link Errors
-	ErrorDetachForced          ErrorCondition = "amqp:link:detach-forced"
+	ErrorDetachForced ErrorCondition = "amqp:link:detach-forced"
+	// ErrorTransferLimitExceeded names the AMQP 1.0 amqp:link:transfer-limit-exceeded condition; it is not a root category.
 	ErrorTransferLimitExceeded ErrorCondition = "amqp:link:transfer-limit-exceeded"
-	ErrorMessageSizeExceeded   ErrorCondition = "amqp:link:message-size-exceeded"
-	ErrorLinkRedirect          ErrorCondition = "amqp:link:redirect"
-	ErrorStolen                ErrorCondition = "amqp:link:stolen"
+	// ErrorMessageSizeExceeded names the AMQP 1.0 amqp:link:message-size-exceeded condition; it is not a root category.
+	ErrorMessageSizeExceeded ErrorCondition = "amqp:link:message-size-exceeded"
+	// ErrorLinkRedirect names the AMQP 1.0 amqp:link:redirect condition; it is not a root category.
+	ErrorLinkRedirect ErrorCondition = "amqp:link:redirect"
+	// ErrorStolen names the AMQP 1.0 amqp:link:stolen condition; it is not a root category.
+	ErrorStolen ErrorCondition = "amqp:link:stolen"
 )
 
 /*
@@ -268,15 +299,18 @@ const (
 
 // Error is an AMQP error.
 type Error struct {
+	// Condition is the symbolic AMQP condition, not a root error category.
 	// A symbolic value indicating the error condition.
 	Condition ErrorCondition
 
+	// Description is unredacted peer text; diagnostic exposure requires caller review.
 	// descriptive text about the error condition
 	//
 	// This text supplies any supplementary details not indicated by the condition field.
-	// This text can be logged as an aid to resolving issues.
+	// Review and redact this peer-controlled text before exposing it in diagnostics.
 	Description string
 
+	// Info borrows unredacted supplementary diagnostic values.
 	// map carrying information about the error condition
 	Info map[string]any
 }
@@ -297,6 +331,8 @@ func (e *Error) unmarshal(r *buffer) error {
 	}...)
 }
 
+// String formats Condition, Description and Info, including untrusted peer
+// diagnostics; it is not redacted.
 func (e *Error) String() string {
 	if e == nil {
 		return "*Error(nil)"
@@ -308,12 +344,14 @@ func (e *Error) String() string {
 	)
 }
 
+// Error delegates to the unredacted diagnostic String representation.
 func (e *Error) Error() string {
 	return e.String()
 }
 
 // Message is an AMQP message.
 type Message struct {
+	// Format is the raw AMQP message format code.
 	// Message format code.
 	//
 	// The upper three octets of a message format code identify a particular message
@@ -321,10 +359,12 @@ type Message struct {
 	// given version of a format is forwards compatible with all higher versions.
 	Format uint32
 
+	// DeliveryTag borrows raw delivery identity bytes.
 	// The DeliveryTag can be up to 32 octets of binary data.
 	// Note that when mode one is enabled there will be no delivery tag.
 	DeliveryTag []byte
 
+	// Header borrows AMQP delivery metadata; the public adapter does not project it.
 	// The header section carries standard delivery details about the transfer
 	// of a message through the AMQP network.
 	Header *MessageHeader
@@ -333,6 +373,7 @@ type Message struct {
 	// fields within the header unless other target or node specific defaults
 	// have otherwise been set.
 
+	// DeliveryAnnotations borrows delivery-specific metadata outside the public mapping.
 	// The delivery-annotations section is used for delivery-specific non-standard
 	// properties at the head of the message. Delivery annotations convey information
 	// from the sending peer to the receiving peer.
@@ -350,6 +391,7 @@ type Message struct {
 	// If the delivery-annotations section is omitted, it is equivalent to a
 	// delivery-annotations section containing an empty map of annotations.
 
+	// Annotations borrows infrastructure metadata; supported public fields are a narrower subset.
 	// The message-annotations section is used for properties of the message which
 	// are aimed at the infrastructure.
 	Annotations Annotations
@@ -371,12 +413,14 @@ type Message struct {
 	// If the message-annotations section is omitted, it is equivalent to a
 	// message-annotations section containing an empty map of annotations.
 
+	// Properties borrows standard AMQP metadata; root mapping selects only supported fields.
 	// The properties section is used for a defined set of standard properties of
 	// the message.
 	Properties *MessageProperties
 	// The properties section is part of the bare message; therefore,
 	// if retransmitted by an intermediary, it MUST remain unaltered.
 
+	// ApplicationProperties borrows AMQP application metadata; public values are restricted further.
 	// The application-properties section is a part of the bare message used for
 	// structured application data. Intermediaries can use the data within this
 	// structure for the purposes of filtering or routing.
@@ -386,22 +430,29 @@ type Message struct {
 	// simple types only, that is, excluding map, list, and array types.
 
 	// Data payloads.
+	// Data borrows body sections; the public adapter accepts zero or one data section.
 	Data [][]byte
 	// A data section contains opaque binary data.
-	// TODO: this could be data(s), amqp-sequence(s), amqp-value rather than single data:
+	// AMQP 1.0 defines alternative body forms, not arbitrary mixtures. The
+	// attributed codec stores Data and Value independently and has no sequence
+	// representation here; the public adapter has a narrower mapping.
+	// Source authority: AMQP 1.0 Messaging, message body sections:
 	// "The body consists of one of the following three choices: one or more data
 	//  sections, one or more amqp-sequence sections, or a single amqp-value section."
 
 	// Value payload.
+	// Value holds an independently encoded AMQP body value; the public adapter does not project it.
 	Value any
 	// An amqp-value section contains a single AMQP value.
 
+	// Footer borrows footer metadata; its presence does not verify any signature or hash.
 	// The footer section is used for details about the message or delivery which
 	// can only be calculated or evaluated once the whole bare message has been
 	// constructed or seen (for example message hashes, HMACs, signatures and
 	// encryption details).
 	Footer Annotations
 
+	// SendSettled is retained codec/link metadata, not stream publication confirmation.
 	// Mark the message as settled when LinkSenderSettle is ModeMixed.
 	//
 	// This field is ignored when LinkSenderSettle is not ModeMixed.
@@ -415,14 +466,20 @@ type Message struct {
 // You should avoid to share the same message between multiple go routines and between multi Send/BatchSend calls.
 // Each Send/BatchSend call should use a new message.
 type AMQP10 struct {
-	publishingId          int64
-	hasPublishingId       bool
-	message               *Message
-	Properties            *MessageProperties
-	Annotations           Annotations
+	publishingId    int64
+	hasPublishingId bool
+	message         *Message
+	// Properties borrows mutable metadata copied into the encoded message at marshal time.
+	Properties *MessageProperties
+	// Annotations borrows mutable annotation values; getters return the same map.
+	Annotations Annotations
+	// ApplicationProperties borrows mutable application values; getters return the same map.
 	ApplicationProperties map[string]any
 }
 
+// NewMessage wraps one borrowed data slice without copying. Use a unique
+// mutable AMQP10 per native send; the public adapter copies bytes before this
+// call.
 func NewMessage(data []byte) *AMQP10 {
 	return &AMQP10{
 		message:         newMessage(data),
@@ -431,19 +488,27 @@ func NewMessage(data []byte) *AMQP10 {
 	}
 }
 
+// SetPublishingId mutates this unique message to mark an explicit native wire
+// identity, including zero.
 func (amqp *AMQP10) SetPublishingId(id int64) {
 	amqp.hasPublishingId = true
 	amqp.publishingId = id
 }
 
+// HasPublishingId distinguishes explicit zero from the absence of a native
+// publishing identity.
 func (amqp *AMQP10) HasPublishingId() bool {
 	return amqp.hasPublishingId
 }
 
+// GetPublishingId returns retained signed wire bits; it does not query the
+// broker or recover an uncertain receipt.
 func (amqp *AMQP10) GetPublishingId() int64 {
 	return amqp.publishingId
 }
 
+// MarshalBinary updates the internal message metadata from borrowed fields and
+// encodes fresh bytes; do not race mutation or reuse the message across sends.
 func (amqp *AMQP10) MarshalBinary() ([]byte, error) {
 	amqp.message.Properties = amqp.Properties
 	amqp.message.ApplicationProperties = amqp.ApplicationProperties
@@ -451,6 +516,8 @@ func (amqp *AMQP10) MarshalBinary() ([]byte, error) {
 	return amqp.message.MarshalBinary()
 }
 
+// UnmarshalBinary uses the finite default AMQP decoder policy and updates
+// mutable message/property state; errors need not leave a reusable empty value.
 func (amqp *AMQP10) UnmarshalBinary(data []byte) error {
 	e := amqp.message.UnmarshalBinary(data)
 	if e != nil {
@@ -462,26 +529,37 @@ func (amqp *AMQP10) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+// GetData returns borrowed data-section slices, not owned payload copies.
 func (amqp *AMQP10) GetData() [][]byte {
 	return amqp.message.Data
 }
 
+// GetMessageProperties returns the borrowed property pointer used during
+// encoding/decoding.
 func (amqp *AMQP10) GetMessageProperties() *MessageProperties {
 	return amqp.Properties
 }
 
+// GetMessageAnnotations returns the borrowed native annotation map; mutation
+// must not race encoding.
 func (amqp *AMQP10) GetMessageAnnotations() Annotations {
 	return amqp.Annotations
 }
 
+// GetApplicationProperties returns the borrowed native application-property
+// map.
 func (amqp *AMQP10) GetApplicationProperties() map[string]any {
 	return amqp.ApplicationProperties
 }
 
+// GetMessageHeader returns the borrowed decoded native header, which is not a
+// root policy field.
 func (amqp *AMQP10) GetMessageHeader() *MessageHeader {
 	return amqp.message.Header
 }
 
+// GetAMQPValue returns the borrowed native Value body; root Data mapping does
+// not represent it.
 func (amqp *AMQP10) GetAMQPValue() any {
 	return amqp.message.Value
 }
@@ -762,10 +840,15 @@ func (a *Annotations) unmarshal(r *buffer) error {
 // MessageHeader carries standard delivery details about the transfer
 // of a message.
 type MessageHeader struct {
-	Durable       bool
-	Priority      uint8
-	TTL           time.Duration // from milliseconds
+	// Durable carries the AMQP durability request, not a persistence receipt.
+	Durable bool
+	// Priority is AMQP delivery metadata, not root scheduling policy.
+	Priority uint8
+	// TTL is encoded in milliseconds and does not promise local expiration/deletion.
+	TTL time.Duration // from milliseconds
+	// FirstAcquirer carries AMQP acquisition metadata.
 	FirstAcquirer bool
+	// DeliveryCount carries AMQP redelivery metadata, not trusted effect history.
 	DeliveryCount uint32
 }
 
@@ -810,6 +893,7 @@ func (h *MessageHeader) unmarshal(r *buffer) error {
 
 // MessageProperties is the defined set of properties for AMQP messages.
 type MessageProperties struct {
+	// MessageID accepts the AMQP identifier variants; uniqueness is caller policy.
 	// Message-id, if set, uniquely identifies a message within the message system.
 	// The message producer is usually responsible for setting the message-id in
 	// such a way that it is assured to be globally unique. A broker MAY discard a
@@ -817,24 +901,30 @@ type MessageProperties struct {
 	// previously received message sent to the same node.
 	MessageID any // uint64, UUID, []byte, or string
 
+	// UserID borrows claimed producer identity bytes, not authentication proof.
 	// The identity of the user responsible for producing the message.
 	// The client sets this value, and it MAY be authenticated by intermediaries.
 	UserID []byte
 
+	// To is a message destination field, not a validated network address.
 	// The to field identifies the node that is the intended destination of the message.
 	// On any given transfer this might not be the node at the receiving end of the link.
 	To string
 
+	// Subject is application-supplied summary metadata and may be sensitive.
 	// A common field for summary information about the message content and purpose.
 	Subject string
 
+	// ReplyTo is application reply-routing metadata.
 	// The address of the node to send replies to.
 	ReplyTo string
 
+	// CorrelationID accepts AMQP identifier variants; it does not join an effect transaction.
 	// This is a client-specific id that can be used to mark or identify messages
 	// between clients.
 	CorrelationID any // uint64, UUID, []byte, or string
 
+	// ContentType declares MIME metadata; the codec does not validate payload content.
 	// The RFC-2046 [RFC2046] MIME type for the message's application-data section
 	// (body). As per RFC-2046 [RFC2046] this can contain a charset parameter defining
 	// the character encoding used: e.g., 'text/plain; charset="utf-8"'.
@@ -848,6 +938,7 @@ type MessageProperties struct {
 	// content-type SHOULD NOT be set.
 	ContentType string
 
+	// ContentEncoding declares payload encoding; the codec does not transform the body accordingly.
 	// The content-encoding property is used as a modifier to the content-type.
 	// When present, its value indicates what additional content encodings have been
 	// applied to the application-data, and thus what decoding mechanisms need to be
@@ -873,18 +964,23 @@ type MessageProperties struct {
 	// be compatible with messages originally sent with other protocols, e.g. HTTP or SMTP.
 	ContentEncoding string
 
+	// AbsoluteExpiryTime carries absolute AMQP expiry metadata, not a local timer.
 	// An absolute time when this message is considered to be expired.
 	AbsoluteExpiryTime time.Time
 
+	// CreationTime carries caller-supplied creation metadata, not a trusted clock.
 	// An absolute time when this message was created.
 	CreationTime time.Time
 
+	// GroupID carries message grouping metadata, not root partition placement.
 	// Identifies the group the message belongs to.
 	GroupID string
 
+	// GroupSequence carries raw RFC-1982 sequence metadata; no group ordering is enforced here.
 	// The relative position of this message within its group.
 	GroupSequence uint32 // RFC-1982 sequence number
 
+	// ReplyToGroupID carries application reply-group metadata.
 	// This is a client-specific id that is used so that client can send replies to this
 	// message to a specific group.
 	ReplyToGroupID string
@@ -989,6 +1085,8 @@ func (sa *stateAccepted) unmarshal(r *buffer) error {
 	return unmarshalComposite(r, typeCodeStateAccepted)
 }
 
+// String renders the native AMQP value for diagnosis; peer-supplied fields are
+// not sanitized or redacted.
 func (sa *stateAccepted) String() string {
 	return "Accepted"
 }
@@ -1016,6 +1114,8 @@ func (sr *stateRejected) unmarshal(r *buffer) error {
 	)
 }
 
+// String renders the native AMQP value for diagnosis; peer-supplied fields are
+// not sanitized or redacted.
 func (sr *stateRejected) String() string {
 	return fmt.Sprintf("Rejected{Error: %v}", sr.Error)
 }
@@ -1036,6 +1136,8 @@ func (sr *stateReleased) unmarshal(r *buffer) error {
 	return unmarshalComposite(r, typeCodeStateReleased)
 }
 
+// String renders the native AMQP value for diagnosis; peer-supplied fields are
+// not sanitized or redacted.
 func (sr *stateReleased) String() string {
 	return "Released"
 }
@@ -1088,6 +1190,8 @@ func (sm *stateModified) unmarshal(r *buffer) error {
 	}...)
 }
 
+// String renders the native AMQP value for diagnosis; peer-supplied fields are
+// not sanitized or redacted.
 func (sm *stateModified) String() string {
 	return fmt.Sprintf("Modified{DeliveryFailed: %t, UndeliverableHere: %t, MessageAnnotations: %v}", sm.DeliveryFailed, sm.UndeliverableHere, sm.MessageAnnotations)
 }
@@ -1308,12 +1412,15 @@ func (p *lifetimePolicy) unmarshal(r *buffer) error {
 
 // Sender Settlement Modes
 const (
+	// ModeUnsettled starts deliveries unsettled under AMQP sender settlement.
 	// Sender will send all deliveries initially unsettled to the receiver.
 	ModeUnsettled SenderSettleMode = 0
 
+	// ModeSettled starts deliveries settled under AMQP sender settlement.
 	// Sender will send all deliveries settled to the receiver.
 	ModeSettled SenderSettleMode = 1
 
+	// ModeMixed permits per-delivery sender settlement choice.
 	// Sender MAY send a mixture of settled and unsettled deliveries to the receiver.
 	ModeMixed SenderSettleMode = 2
 )
@@ -1323,6 +1430,7 @@ const nilString = "<nil>"
 // SenderSettleMode specifies how the sender will settle messages.
 type SenderSettleMode uint8
 
+// String reports the sender mode, a nil marker or an unknown numeric value.
 func (m *SenderSettleMode) String() string {
 	if m == nil {
 		return nilString
@@ -1355,9 +1463,11 @@ func (m *SenderSettleMode) unmarshal(r *buffer) error {
 
 // Receiver Settlement Modes
 const (
+	// ModeFirst requests receiver settlement without sender second-phase settlement.
 	// Receiver will spontaneously settle all incoming transfers.
 	ModeFirst ReceiverSettleMode = 0
 
+	// ModeSecond requests receiver settlement after sender settlement.
 	// Receiver will only settle after sending the disposition to the
 	// sender and receiving a disposition indicating settlement of
 	// the delivery from the sender.
@@ -1367,6 +1477,7 @@ const (
 // ReceiverSettleMode specifies how the receiver will settle messages.
 type ReceiverSettleMode uint8
 
+// String reports the receiver mode, a nil marker or an unknown numeric value.
 func (m *ReceiverSettleMode) String() string {
 	if m == nil {
 		return nilString
@@ -1396,13 +1507,16 @@ func (m *ReceiverSettleMode) unmarshal(r *buffer) error {
 
 // Durability Policies
 const (
+	// DurabilityNone requests no durable link-state retention.
 	// No terminus state is retained durably.
 	DurabilityNone Durability = 0
 
+	// DurabilityConfiguration requests durable link configuration retention.
 	// Only the existence and configuration of the terminus is
 	// retained durably.
 	DurabilityConfiguration Durability = 1
 
+	// DurabilityUnsettledState requests durable unsettled-state retention.
 	// In addition to the existence and configuration of the
 	// terminus, the unsettled state for durable messages is
 	// retained durably.
@@ -1412,6 +1526,7 @@ const (
 // Durability specifies the durability of a link.
 type Durability uint32
 
+// String reports the link durability selector, nil or an unknown numeric value; it does not inspect broker state.
 func (d *Durability) String() string {
 	if d == nil {
 		return nilString
@@ -1439,17 +1554,21 @@ func (d *Durability) unmarshal(r *buffer) error {
 
 // Expiry Policies
 const (
+	// ExpiryLinkDetach expires a node when its link detaches.
 	// The expiry timer starts when terminus is detached.
 	ExpiryLinkDetach ExpiryPolicy = "link-detach"
 
+	// ExpirySessionEnd expires a node when its session ends.
 	// The expiry timer starts when the most recently
 	// associated session is ended.
 	ExpirySessionEnd ExpiryPolicy = "session-end"
 
+	// ExpiryConnectionClose expires a node when its connection closes.
 	// The expiry timer starts when most recently associated
 	// connection is closed.
 	ExpiryConnectionClose ExpiryPolicy = "connection-close"
 
+	// ExpiryNever selects no link-lifetime expiry.
 	// The terminus never expires.
 	ExpiryNever ExpiryPolicy = "never"
 )
@@ -1487,6 +1606,7 @@ func (e *ExpiryPolicy) unmarshal(r *buffer) error {
 	return e.validate()
 }
 
+// String returns the raw expiry-policy text or the nil marker; it does not run an expiry timer.
 func (e *ExpiryPolicy) String() string {
 	if e == nil {
 		return nilString
@@ -1525,6 +1645,8 @@ func (t *describedType) unmarshal(r *buffer) error {
 	return unmarshal(r, &t.value)
 }
 
+// String renders the native AMQP value for diagnosis; peer-supplied fields are
+// not sanitized or redacted.
 func (t describedType) String() string {
 	return fmt.Sprintf("describedType{descriptor: %v, value: %v}",
 		t.descriptor,

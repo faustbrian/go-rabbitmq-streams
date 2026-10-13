@@ -11,6 +11,10 @@ import (
 	"github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2/internal/rabbitmqstream/amqp"
 )
 
+// Coordinator owns native producer/consumer lookups and response correlation
+// admission. Correlation IDs are allocated under its mutex without replacing
+// live owners; returned resources/maps are borrowed and zero state requires
+// NewCoordinator.
 type Coordinator struct {
 	counter          uint32
 	producers        *sync.Map
@@ -21,6 +25,8 @@ type Coordinator struct {
 	mutex            *sync.Mutex
 }
 
+// Code is a native protocol-response code delivered through an owned response
+// mailbox.
 type Code struct {
 	id uint16
 }
@@ -36,6 +42,8 @@ type chunkInfo struct {
 	numEntries     uint16
 }
 
+// Response is an operation-owned buffered code/data mailbox. Retirement removes
+// lookup ownership without destroying channels already owned by the reader.
 type Response struct {
 	code               chan Code
 	data               chan any
@@ -43,6 +51,7 @@ type Response struct {
 	correlationid      uint32
 }
 
+// NewCoordinator initializes independent resource maps and response admission state.
 func NewCoordinator() *Coordinator {
 	return &Coordinator{mutex: &sync.Mutex{},
 		producers: &sync.Map{},
@@ -50,6 +59,9 @@ func NewCoordinator() *Coordinator {
 		responses: make(map[any]*Response)}
 }
 
+// NewProducer allocates a native ID, confirmation ticker and pending queues under the
+// coordinator mutex. Options are borrowed and must already be validated; cleanup
+// is retained for resource close, not called while registering.
 // producersEnvironment
 func (coordinator *Coordinator) NewProducer(
 	parameters *ProducerOptions, cleanUp func()) (*Producer, error) {
@@ -87,6 +99,7 @@ func (coordinator *Coordinator) NewProducer(
 	return producer, err
 }
 
+// RemoveConsumerById extracts lookup ownership and requests close without joining dispatch.
 func (coordinator *Coordinator) RemoveConsumerById(id any, reason Event) error {
 	consumer, err := coordinator.ExtractConsumerById(id)
 	if err != nil {
@@ -95,10 +108,13 @@ func (coordinator *Coordinator) RemoveConsumerById(id any, reason Event) error {
 	consumer.close(reason)
 	return nil
 }
+
+// Consumers returns the live borrowed concurrent lookup map, not a snapshot.
 func (coordinator *Coordinator) Consumers() *sync.Map {
 	return coordinator.consumers
 }
 
+// RemoveProducerById extracts lookup ownership and requests close without joining all tasks.
 func (coordinator *Coordinator) RemoveProducerById(id uint8, reason Event) error {
 	producer, err := coordinator.ExtractProducerById(id)
 	if err != nil {
@@ -107,6 +123,7 @@ func (coordinator *Coordinator) RemoveProducerById(id uint8, reason Event) error
 	return producer.close(reason)
 }
 
+// RemoveResponseById retires the formatted numeric lookup key without closing reader-owned mailboxes.
 func (coordinator *Coordinator) RemoveResponseById(id any) error {
 	key := fmt.Sprintf("%d", id)
 	coordinator.mutex.Lock()
@@ -134,6 +151,7 @@ func (coordinator *Coordinator) retireResponse(response *Response) {
 	coordinator.mutex.Unlock()
 }
 
+// ProducersCount counts one traversal of the live producer map, not a quiescent total.
 func (coordinator *Coordinator) ProducersCount() int {
 	return coordinator.countSyncMap(coordinator.producers)
 }
@@ -147,6 +165,8 @@ func newResponse(commandDescription string) *Response {
 	return res
 }
 
+// NewResponseWithName registers a handshake mailbox, replacing an existing named entry.
+// Callers own distinct handshake names; this is not numeric correlation admission.
 func (coordinator *Coordinator) NewResponseWithName(id string) *Response {
 	coordinator.mutex.Lock()
 	res := newResponse(id)
@@ -155,6 +175,8 @@ func (coordinator *Coordinator) NewResponseWithName(id string) *Response {
 	return res
 }
 
+// NewResponse atomically reserves an unused uint32 correlation ID and mailbox.
+// Diagnostic info is retained verbatim; callers must avoid secrets.
 func (coordinator *Coordinator) NewResponse(commandId uint16, info ...string) (*Response, error) {
 	description := lookUpCommand(commandId)
 	if len(info) > 0 {
@@ -187,6 +209,7 @@ func (coordinator *Coordinator) nextCorrelationIDLocked() (uint32, error) {
 	return 0, fmt.Errorf("all protocol correlation IDs are pending")
 }
 
+// GetResponseByName borrows a registered mailbox or returns a diagnostic containing its key.
 func (coordinator *Coordinator) GetResponseByName(id string) (*Response, error) {
 	coordinator.mutex.Lock()
 	defer coordinator.mutex.Unlock()
@@ -198,6 +221,7 @@ func (coordinator *Coordinator) GetResponseByName(id string) (*Response, error) 
 	return c, nil
 }
 
+// RemoveResponseByName retires a named lookup without destroying borrowed mailbox channels.
 func (coordinator *Coordinator) RemoveResponseByName(id string) error {
 	coordinator.mutex.Lock()
 	defer coordinator.mutex.Unlock()
@@ -208,6 +232,8 @@ func (coordinator *Coordinator) RemoveResponseByName(id string) error {
 	return nil
 }
 
+// NewConsumer allocates a native ID and bounded chunk mailbox. Parameters must be
+// non-nil and validated; callback/options are borrowed and may delay dispatch.
 // Consumer functions
 func (coordinator *Coordinator) NewConsumer(
 	messagesHandler MessagesHandler,
@@ -240,6 +266,7 @@ func (coordinator *Coordinator) NewConsumer(
 	return consumer, nil
 }
 
+// GetConsumerById borrows a registered consumer; absence returns a key-bearing diagnostic.
 func (coordinator *Coordinator) GetConsumerById(id any) (*Consumer, error) {
 	if consumer, exists := coordinator.consumers.Load(id); exists {
 		return consumer.(*Consumer), nil
@@ -248,6 +275,7 @@ func (coordinator *Coordinator) GetConsumerById(id any) (*Consumer, error) {
 	return nil, fmt.Errorf("consumer %v not found", id)
 }
 
+// ExtractConsumerById atomically removes and transfers lookup ownership without closing the consumer.
 func (coordinator *Coordinator) ExtractConsumerById(id any) (*Consumer, error) {
 	if consumer, exists := coordinator.consumers.LoadAndDelete(id); exists {
 		return consumer.(*Consumer), nil
@@ -256,6 +284,7 @@ func (coordinator *Coordinator) ExtractConsumerById(id any) (*Consumer, error) {
 	return nil, fmt.Errorf("consumer %v not found", id)
 }
 
+// GetResponseById borrows the live operation mailbox for a numeric correlation ID.
 func (coordinator *Coordinator) GetResponseById(id uint32) (*Response, error) {
 	v, err := coordinator.getById(fmt.Sprintf("%d", id), coordinator.responses)
 	if err != nil {
@@ -264,10 +293,12 @@ func (coordinator *Coordinator) GetResponseById(id uint32) (*Response, error) {
 	return v.(*Response), nil
 }
 
+// ConsumersCount counts one traversal of the live consumer map, not a quiescent total.
 func (coordinator *Coordinator) ConsumersCount() int {
 	return coordinator.countSyncMap(coordinator.consumers)
 }
 
+// GetProducerById borrows a registered producer; absence returns a key-bearing diagnostic.
 func (coordinator *Coordinator) GetProducerById(id any) (*Producer, error) {
 	if producer, exists := coordinator.producers.Load(id); exists {
 		return producer.(*Producer), nil
@@ -276,6 +307,7 @@ func (coordinator *Coordinator) GetProducerById(id any) (*Producer, error) {
 	return nil, fmt.Errorf("producer %v not found", id)
 }
 
+// ExtractProducerById atomically removes and transfers lookup ownership without closing the producer.
 func (coordinator *Coordinator) ExtractProducerById(id any) (*Producer, error) {
 	if producer, exists := coordinator.producers.LoadAndDelete(id); exists {
 		return producer.(*Producer), nil
@@ -332,10 +364,13 @@ func (coordinator *Coordinator) reuseFreeId(refMap *sync.Map) (byte, error) {
 	return 0, fmt.Errorf("no more items available")
 }
 
+// Producers returns the live borrowed concurrent lookup map, not a snapshot.
 func (coordinator *Coordinator) Producers() *sync.Map {
 	return coordinator.producers
 }
 
+// Close requests resource closes and clears response lookups. It is not a task
+// join; callback/native close cooperation is still required.
 func (coordinator *Coordinator) Close() {
 	coordinator.producers.Range(func(_, producer any) bool {
 		_ = producer.(*Producer).Close()

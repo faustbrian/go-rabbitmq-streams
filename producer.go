@@ -48,7 +48,8 @@ const (
 type ProducerPolicy struct {
 	// MaxOutstanding bounds sent messages awaiting confirmation.
 	MaxOutstanding int
-	// ConfirmationTimeout bounds how long a sent message awaits broker certainty.
+	// ConfirmationTimeout starts after Send returns successfully; it bounds the
+	// subsequent confirmation wait, not a blocked custom Send/observer callback.
 	ConfirmationTimeout time.Duration
 	// CloseTimeout bounds each shutdown caller's wait for cleanup.
 	CloseTimeout time.Duration

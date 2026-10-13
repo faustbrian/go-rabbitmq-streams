@@ -34,7 +34,10 @@ func newUnConfirmed(maxSize int) *unConfirmed {
 	return r
 }
 
+// ErrUnconfirmedCapacity rejects a batch larger than native confirmation capacity before ownership admission.
 var ErrUnconfirmedCapacity = errors.New("publication batch exceeds native confirmation capacity")
+
+// ErrPendingPublishingID rejects an identity already owned by a live native confirmation; do not replace that owner.
 var ErrPendingPublishingID = errors.New("publishing ID already owns a pending confirmation")
 
 // Nonzero size guarantees distinct live admission identities.

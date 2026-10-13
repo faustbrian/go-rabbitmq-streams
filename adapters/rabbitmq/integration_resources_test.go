@@ -68,6 +68,7 @@ func TestRepeatedProducerLifecycleReleasesConnectionsGoroutinesAndTimers(t *test
 	}
 }
 
+// BenchmarkIdleProducerResources measures idle opened producer resources using the tagged broker fixture and bounded sampling.
 func BenchmarkIdleProducerResources(b *testing.B) {
 	connection, environment := benchmarkBroker(b, false)
 	b.Cleanup(func() { closeBenchmarkEnvironment(b, environment) })

@@ -7,6 +7,7 @@ import (
 	"github.com/faustbrian/go-rabbitmq-streams/v2"
 )
 
+// FuzzWireMessageRoundTrip checks the selected string/binary public mapping, not every AMQP body form.
 func FuzzWireMessageRoundTrip(f *testing.F) {
 	f.Add("tracking-123", "application/octet-stream", "event-123", "payload")
 	f.Add("", "", "", "")
@@ -30,6 +31,7 @@ func FuzzWireMessageRoundTrip(f *testing.F) {
 	})
 }
 
+// FuzzHashPartition checks empty-topology refusal and nonempty placement over bounded topology counts.
 func FuzzHashPartition(f *testing.F) {
 	f.Add("tracking-123", uint8(3))
 	f.Add("", uint8(0))
@@ -52,6 +54,7 @@ func FuzzHashPartition(f *testing.F) {
 	})
 }
 
+// FuzzConfirmationClassification checks native confirmed/rejected/ambiguous categories never contradict each other.
 func FuzzConfirmationClassification(f *testing.F) {
 	f.Add(true, uint8(0), uint64(1))
 	f.Add(false, uint8(1), uint64(2))

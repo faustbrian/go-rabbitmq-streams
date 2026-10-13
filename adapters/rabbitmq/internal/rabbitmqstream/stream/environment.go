@@ -32,6 +32,10 @@ func newLocator(client *Client) *locator {
 	}
 }
 
+// Environment owns a native locator, client pools and registered reachable
+// tasks. Close/Abort request stop; WaitContext joins, including retired
+// clients. Options and callback/provider state remain borrowed; raw helpers do
+// not enforce public root security.
 type Environment struct {
 	producers    *producersEnvironment
 	consumers    *consumersEnvironment
@@ -43,6 +47,8 @@ type Environment struct {
 	stopLifetime context.CancelFunc
 }
 
+// NewEnvironment opens with a default bounded context and returns an owned
+// native environment; use NewEnvironmentContext for caller cancellation.
 func NewEnvironment(options *EnvironmentOptions) (*Environment, error) {
 	return NewEnvironmentContext(context.Background(), options)
 }
@@ -242,6 +248,8 @@ func (env *Environment) maybeReconnectLocatorContext(ctx context.Context) error 
 	return env.locator.current().connectContext(ctx)
 }
 
+// DeclareStream ensures a locator and delegates native provisioning; this helper
+// uses background operation context and does not validate root application policy.
 func (env *Environment) DeclareStream(streamName string, options *StreamOptions) error {
 	err := env.maybeReconnectLocator()
 	if err != nil {
@@ -253,6 +261,8 @@ func (env *Environment) DeclareStream(streamName string, options *StreamOptions)
 	return nil
 }
 
+// DeleteStream ensures a locator and requests broker deletion. Unknown I/O outcomes
+// must not be interpreted as proof that deletion was unapplied.
 func (env *Environment) DeleteStream(streamName string) error {
 	err := env.maybeReconnectLocator()
 	if err != nil {
@@ -261,6 +271,8 @@ func (env *Environment) DeleteStream(streamName string) error {
 	return env.locator.current().DeleteStream(streamName)
 }
 
+// NewProducer delegates to NewProducerContext with a background operation context.
+// The returned publisher remains owned by this environment and the caller.
 func (env *Environment) NewProducer(streamName string, producerOptions *ProducerOptions) (*Producer, error) {
 	return env.NewProducerContext(context.Background(), streamName, producerOptions)
 }
@@ -279,6 +291,8 @@ func (env *Environment) NewProducerContext(ctx context.Context, streamName strin
 	return env.producers.newProducerContext(ctx, env.locator.current(), streamName, producerOptions, env.options.AddressResolver, env.options.RPCTimeout)
 }
 
+// StreamExists delegates to the error-preserving StreamExistsContext with a
+// background operation context. It is not a health/permission qualification.
 func (env *Environment) StreamExists(streamName string) (bool, error) {
 	return env.StreamExistsContext(context.Background(), streamName)
 }
@@ -303,6 +317,8 @@ func (env *Environment) StreamExistsContext(ctx context.Context, streamName stri
 	return stream.responseCode == responseCodeOk, nil
 }
 
+// QueryOffset delegates to QueryOffsetContext with a background operation context;
+// stored log position is not application-effect completion.
 func (env *Environment) QueryOffset(consumerName string, streamName string) (int64, error) {
 	return env.QueryOffsetContext(context.Background(), consumerName, streamName)
 }
@@ -335,6 +351,8 @@ func (env *Environment) QuerySequenceContext(ctx context.Context, publisherRefer
 	return env.locator.current().queryPublisherSequenceContext(ctx, publisherReference, streamName)
 }
 
+// StreamStats delegates to StreamStatsContext with a background operation context;
+// chunk statistics are not an exact stream-end/message-count snapshot.
 func (env *Environment) StreamStats(streamName string) (*StreamStats, error) {
 	return env.StreamStatsContext(context.Background(), streamName)
 }
@@ -350,6 +368,8 @@ func (env *Environment) StreamStatsContext(ctx context.Context, streamName strin
 	return env.locator.current().StreamStatsContext(ctx, streamName)
 }
 
+// StreamMetaData delegates to StreamMetaDataContext with a background operation context;
+// returned broker pointers are borrowed mutable discovery data.
 func (env *Environment) StreamMetaData(streamName string) (*StreamMetadata, error) {
 	return env.StreamMetaDataContext(context.Background(), streamName)
 }
@@ -406,6 +426,8 @@ func (env *Environment) StreamMetaDataContext(ctx context.Context, streamName st
 	return streamMetadata, nil
 }
 
+// NewConsumer delegates to NewConsumerContext with a background operation context.
+// Borrowed handlers/options must cooperate with resource shutdown.
 func (env *Environment) NewConsumer(streamName string,
 	messagesHandler MessagesHandler,
 	options *ConsumerOptions) (*Consumer, error) {
@@ -427,6 +449,9 @@ func (env *Environment) NewConsumerContext(ctx context.Context, streamName strin
 	return env.consumers.NewSubscriberContext(ctx, env.locator.current(), streamName, messagesHandler, options, env.options.AddressResolver, env.options.RPCTimeout)
 }
 
+// NewSuperStreamProducer constructs the raw convenience fan-out owner with borrowed
+// routing callbacks. Its delayed close helpers are outside the canonical adapter
+// registered-task slice; use its narrower lifetime contract.
 func (env *Environment) NewSuperStreamProducer(superStream string, superStreamProducerOptions *SuperStreamProducerOptions) (*SuperStreamProducer, error) {
 	var p, err = newSuperStreamProducer(env, superStream, superStreamProducerOptions)
 	if err != nil {
@@ -438,21 +463,37 @@ func (env *Environment) NewSuperStreamProducer(superStream string, superStreamPr
 // Close is a nonjoining terminal stop request; external owners use CloseContext.
 func (env *Environment) Close() error { return env.Abort() }
 
+// IsClosed reports the terminal admission fence, not reclaimed sockets/tasks or
+// a completed join.
 func (env *Environment) IsClosed() bool {
 	return env.closed.Load()
 }
 
+// EnvironmentOptions is a mutable native builder. Environment opening shallow-
+// copies its top level/TCP policy but can normalize pointed-to broker records;
+// configure it exclusively and do not race opening. Raw TLS/URI options are not
+// root security policy.
 type EnvironmentOptions struct {
-	ConnectionParameters  []*Broker
-	TCPParameters         *TCPParameters
-	SaslConfiguration     *SaslConfiguration
+	// ConnectionParameters borrows seed Broker pointers, which initialization may normalize/mutate.
+	ConnectionParameters []*Broker
+	// TCPParameters borrows native tuning/security state; TLS internals remain shared.
+	TCPParameters *TCPParameters
+	// SaslConfiguration borrows the raw SASL mechanism selection.
+	SaslConfiguration *SaslConfiguration
+	// MaxProducersPerClient bounds publisher sharing on a connection, not all environment memory.
 	MaxProducersPerClient int
+	// MaxConsumersPerClient bounds subscription sharing on a connection.
 	MaxConsumersPerClient int
-	AddressResolver       *AddressResolver
-	RPCTimeout            time.Duration
-	meterProvider         metric.MeterProvider
+	// AddressResolver borrows explicit discovered-address replacement policy.
+	AddressResolver *AddressResolver
+	// RPCTimeout budgets native RPC waits; cleanup and callbacks are cooperative.
+	RPCTimeout    time.Duration
+	meterProvider metric.MeterProvider
 }
 
+// NewEnvironmentOptions returns raw native defaults and connection credentials.
+// Its nil provider selects the process-global OTel provider at environment opening.
+// The canonical adapter supplies a no-op provider and root-normalized policy.
 func NewEnvironmentOptions() *EnvironmentOptions {
 	return &EnvironmentOptions{
 		MaxProducersPerClient: 1,
@@ -465,6 +506,8 @@ func NewEnvironmentOptions() *EnvironmentOptions {
 	}
 }
 
+// SetAddressResolver copies an endpoint override, not a network allowlist or
+// certificate-verification decision.
 func (envOptions *EnvironmentOptions) SetAddressResolver(addressResolver AddressResolver) *EnvironmentOptions {
 	envOptions.AddressResolver = &AddressResolver{
 		Host: addressResolver.Host,
@@ -473,21 +516,29 @@ func (envOptions *EnvironmentOptions) SetAddressResolver(addressResolver Address
 	return envOptions
 }
 
+// SetMaxProducersPerClient stores a raw sharing count; environment opening
+// admits 1 through 254.
 func (envOptions *EnvironmentOptions) SetMaxProducersPerClient(maxProducersPerClient int) *EnvironmentOptions {
 	envOptions.MaxProducersPerClient = maxProducersPerClient
 	return envOptions
 }
 
+// SetMaxConsumersPerClient stores a raw sharing count; environment opening
+// admits 1 through 254.
 func (envOptions *EnvironmentOptions) SetMaxConsumersPerClient(maxConsumersPerClient int) *EnvironmentOptions {
 	envOptions.MaxConsumersPerClient = maxConsumersPerClient
 	return envOptions
 }
 
+// SetMeterProvider borrows SDK instrumentation/lifetime; nil/default native
+// behavior may use the global provider.
 func (envOptions *EnvironmentOptions) SetMeterProvider(meterProvider metric.MeterProvider) *EnvironmentOptions {
 	envOptions.meterProvider = meterProvider
 	return envOptions
 }
 
+// SetUri stores a credential-bearing raw connection URI and defers
+// normalization; never use it as a redacted diagnostic.
 func (envOptions *EnvironmentOptions) SetUri(uri string) *EnvironmentOptions {
 	if len(envOptions.ConnectionParameters) == 0 {
 		envOptions.ConnectionParameters = append(envOptions.ConnectionParameters, &Broker{Uri: uri})
@@ -498,6 +549,8 @@ func (envOptions *EnvironmentOptions) SetUri(uri string) *EnvironmentOptions {
 	return envOptions
 }
 
+// SetUris stores raw credential-bearing connection URI entries; root endpoint
+// policy is a separate boundary.
 func (envOptions *EnvironmentOptions) SetUris(uris []string) *EnvironmentOptions {
 	for _, s := range uris {
 		envOptions.ConnectionParameters = append(envOptions.ConnectionParameters, &Broker{Uri: s})
@@ -505,6 +558,8 @@ func (envOptions *EnvironmentOptions) SetUris(uris []string) *EnvironmentOptions
 	return envOptions
 }
 
+// SetHost mutates the native primary endpoint before opening; it does not
+// validate DNS or broker discovery policy.
 func (envOptions *EnvironmentOptions) SetHost(host string) *EnvironmentOptions {
 	if len(envOptions.ConnectionParameters) == 0 {
 		envOptions.ConnectionParameters = append(envOptions.ConnectionParameters, &Broker{Host: host})
@@ -514,6 +569,8 @@ func (envOptions *EnvironmentOptions) SetHost(host string) *EnvironmentOptions {
 	return envOptions
 }
 
+// SetVHost mutates the native virtual-host selector; authorization still
+// belongs to the broker.
 func (envOptions *EnvironmentOptions) SetVHost(vhost string) *EnvironmentOptions {
 	if len(envOptions.ConnectionParameters) == 0 {
 		envOptions.ConnectionParameters = append(envOptions.ConnectionParameters, &Broker{Vhost: vhost})
@@ -523,6 +580,8 @@ func (envOptions *EnvironmentOptions) SetVHost(vhost string) *EnvironmentOptions
 	return envOptions
 }
 
+// SetSaslConfiguration borrows mutable native PLAIN/EXTERNAL mechanism
+// configuration, not a refreshing root provider.
 func (envOptions *EnvironmentOptions) SetSaslConfiguration(value string) *EnvironmentOptions {
 	if envOptions.SaslConfiguration == nil {
 		envOptions.SaslConfiguration = newSaslConfigurationDefault()
@@ -531,6 +590,8 @@ func (envOptions *EnvironmentOptions) SetSaslConfiguration(value string) *Enviro
 	return envOptions
 }
 
+// SetTLSConfig borrows the TLS config pointer; this raw setter does not enforce
+// root verified-TLS policy.
 func (envOptions *EnvironmentOptions) SetTLSConfig(config *tls.Config) *EnvironmentOptions {
 	if envOptions.TCPParameters == nil {
 		envOptions.TCPParameters = newTCPParameterDefault()
@@ -539,6 +600,8 @@ func (envOptions *EnvironmentOptions) SetTLSConfig(config *tls.Config) *Environm
 	return envOptions
 }
 
+// IsTLS switches native schemes to TLS only when true; false does not undo an
+// earlier TLS selection.
 func (envOptions *EnvironmentOptions) IsTLS(val bool) *EnvironmentOptions {
 	if val {
 		if len(envOptions.ConnectionParameters) == 0 {
@@ -552,6 +615,8 @@ func (envOptions *EnvironmentOptions) IsTLS(val bool) *EnvironmentOptions {
 	return envOptions
 }
 
+// SetPort stores the raw native primary port as text; endpoint admission
+// happens elsewhere.
 func (envOptions *EnvironmentOptions) SetPort(port int) *EnvironmentOptions {
 	if len(envOptions.ConnectionParameters) == 0 {
 		brokerOptions := newBrokerDefault()
@@ -563,6 +628,8 @@ func (envOptions *EnvironmentOptions) SetPort(port int) *EnvironmentOptions {
 	return envOptions
 }
 
+// SetUser stores a raw authentication identity; do not include it in arbitrary
+// diagnostics.
 func (envOptions *EnvironmentOptions) SetUser(user string) *EnvironmentOptions {
 	if len(envOptions.ConnectionParameters) == 0 {
 		envOptions.ConnectionParameters = append(envOptions.ConnectionParameters, &Broker{User: user})
@@ -572,6 +639,8 @@ func (envOptions *EnvironmentOptions) SetUser(user string) *EnvironmentOptions {
 	return envOptions
 }
 
+// SetPassword stores a credential string without secure erasure or rotation
+// ownership.
 func (envOptions *EnvironmentOptions) SetPassword(password string) *EnvironmentOptions {
 	if len(envOptions.ConnectionParameters) == 0 {
 		envOptions.ConnectionParameters = append(envOptions.ConnectionParameters, &Broker{Password: password})
@@ -581,6 +650,8 @@ func (envOptions *EnvironmentOptions) SetPassword(password string) *EnvironmentO
 	return envOptions
 }
 
+// SetRequestedHeartbeat stores native duration; TUNE admission requires whole
+// seconds in 3..MaxUint32.
 func (envOptions *EnvironmentOptions) SetRequestedHeartbeat(requestedHeartbeat time.Duration) *EnvironmentOptions {
 	if envOptions.TCPParameters == nil {
 		envOptions.TCPParameters = newTCPParameterDefault()
@@ -590,6 +661,8 @@ func (envOptions *EnvironmentOptions) SetRequestedHeartbeat(requestedHeartbeat t
 	return envOptions
 }
 
+// SetRequestedMaxFrameSize stores native requested frame bytes; TUNE rejects
+// values outside 8..MaxUint32.
 func (envOptions *EnvironmentOptions) SetRequestedMaxFrameSize(requestedMaxFrameSize int) *EnvironmentOptions {
 	if envOptions.TCPParameters == nil {
 		envOptions.TCPParameters = newTCPParameterDefault()
@@ -599,6 +672,8 @@ func (envOptions *EnvironmentOptions) SetRequestedMaxFrameSize(requestedMaxFrame
 	return envOptions
 }
 
+// SetWriteBuffer stores the native buffer size for construction; it is not a
+// whole-process memory budget.
 func (envOptions *EnvironmentOptions) SetWriteBuffer(writeBuffer int) *EnvironmentOptions {
 	if envOptions.TCPParameters == nil {
 		envOptions.TCPParameters = newTCPParameterDefault()
@@ -608,6 +683,8 @@ func (envOptions *EnvironmentOptions) SetWriteBuffer(writeBuffer int) *Environme
 	return envOptions
 }
 
+// SetReadBuffer stores the native buffer size for construction; framing has its
+// own independent hard allowance.
 func (envOptions *EnvironmentOptions) SetReadBuffer(readBuffer int) *EnvironmentOptions {
 	if envOptions.TCPParameters == nil {
 		envOptions.TCPParameters = newTCPParameterDefault()
@@ -617,6 +694,7 @@ func (envOptions *EnvironmentOptions) SetReadBuffer(readBuffer int) *Environment
 	return envOptions
 }
 
+// SetNoDelay selects native TCP_NODELAY policy rather than delivery certainty.
 func (envOptions *EnvironmentOptions) SetNoDelay(noDelay bool) *EnvironmentOptions {
 	if envOptions.TCPParameters == nil {
 		envOptions.TCPParameters = newTCPParameterDefault()
@@ -626,6 +704,8 @@ func (envOptions *EnvironmentOptions) SetNoDelay(noDelay bool) *EnvironmentOptio
 	return envOptions
 }
 
+// SetRPCTimeout stores the native per-call timeout; nonpositive environment
+// values default during opening.
 func (envOptions *EnvironmentOptions) SetRPCTimeout(timeout time.Duration) *EnvironmentOptions {
 	envOptions.RPCTimeout = timeout
 	return envOptions
@@ -835,6 +915,7 @@ func (cc *environmentCoordinator) newClientForConnection(connectionName string, 
 	return clientResult
 }
 
+// Close requests all registered client closes; it is not a background-task join.
 func (cc *environmentCoordinator) Close() error {
 	cc.clientsPerContext.Range(func(_, value any) bool {
 		value.(*Client).coordinator.Close()
@@ -937,12 +1018,18 @@ func newConsumersEnvironment(maxItemsForClient int, metrics *streamMetrics) *con
 	return consumersEnv
 }
 
+// NewSubscriber selects/reuses a native client and admits a subscription.
+// Options, callbacks and discovered broker values are borrowed; failed admission
+// retires newly created resources through the environment owner.
 func (ps *consumersEnvironment) NewSubscriber(clientLocator *Client, streamName string,
 	messagesHandler MessagesHandler,
 	consumerOptions *ConsumerOptions, resolver *AddressResolver, rpcTimeout time.Duration) (*Consumer, error) {
 	return ps.NewSubscriberContext(context.Background(), clientLocator, streamName, messagesHandler, consumerOptions, resolver, rpcTimeout)
 }
 
+// NewSubscriberContext selects/reuses a native client and admits a subscription.
+// Options, callbacks and discovered broker values are borrowed; failed admission
+// retires newly created resources through the environment owner.
 func (ps *consumersEnvironment) NewSubscriberContext(ctx context.Context, clientLocator *Client, streamName string,
 	messagesHandler MessagesHandler,
 	consumerOptions *ConsumerOptions, resolver *AddressResolver, rpcTimeout time.Duration) (*Consumer, error) {
@@ -1004,6 +1091,8 @@ func (ps *consumersEnvironment) getCoordinators() map[string]*environmentCoordin
 
 // Super stream
 
+// DeclareSuperStream requests broker provisioning from trusted native options;
+// partial/unknown broker effects after connection failure are not rolled back here.
 func (env *Environment) DeclareSuperStream(superStreamName string, options SuperStreamOptions) error {
 	err := env.maybeReconnectLocator()
 	if err != nil {
@@ -1015,6 +1104,7 @@ func (env *Environment) DeclareSuperStream(superStreamName string, options Super
 	return nil
 }
 
+// DeleteSuperStream requests broker deletion without an application transaction.
 func (env *Environment) DeleteSuperStream(superStreamName string) error {
 	err := env.maybeReconnectLocator()
 	if err != nil {
@@ -1023,6 +1113,8 @@ func (env *Environment) DeleteSuperStream(superStreamName string) error {
 	return env.locator.current().DeleteSuperStream(superStreamName)
 }
 
+// QueryPartitions delegates to QueryPartitionsContext with a background operation
+// context; topology order is only one current broker response.
 func (env *Environment) QueryPartitions(superStreamName string) ([]string, error) {
 	return env.QueryPartitionsContext(context.Background(), superStreamName)
 }
@@ -1061,6 +1153,8 @@ func (env *Environment) StoreOffsetContext(ctx context.Context, consumerName str
 	return env.locator.current().StoreOffsetContext(ctx, consumerName, streamName, offset)
 }
 
+// QueryRoute delegates to QueryRouteContext with a background operation context;
+// route strings are broker input and not an authorization decision.
 func (env *Environment) QueryRoute(superStream string, routingKey string) ([]string, error) {
 	return env.QueryRouteContext(context.Background(), superStream, routingKey)
 }
@@ -1076,6 +1170,8 @@ func (env *Environment) QueryRouteContext(ctx context.Context, superStream strin
 	return env.locator.current().queryRouteContext(ctx, superStream, routingKey)
 }
 
+// NewSuperStreamConsumer constructs the raw fan-out helper with borrowed handlers/options.
+// Callbacks and delayed notification-close helpers are not forcibly preempted.
 func (env *Environment) NewSuperStreamConsumer(superStream string, messagesHandler MessagesHandler, options *SuperStreamConsumerOptions) (*SuperStreamConsumer, error) {
 	s, err := newSuperStreamConsumer(env, superStream, messagesHandler, options)
 	if err != nil {

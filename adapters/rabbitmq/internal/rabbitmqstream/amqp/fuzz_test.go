@@ -2,6 +2,7 @@ package amqp
 
 import "testing"
 
+// FuzzBoundedMessageDecoder compares bounded single/aggregate admission and value-budget accounting.
 func FuzzBoundedMessageDecoder(f *testing.F) {
 	wire, err := NewMessage([]byte("bounded")).MarshalBinary()
 	if err != nil {

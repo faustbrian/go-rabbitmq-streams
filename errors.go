@@ -6,8 +6,9 @@ import (
 	"fmt"
 )
 
-// ErrorCategory is a stable, low-cardinality failure classification. It is
-// safe for branching and diagnostics; it never contains broker or caller data.
+// ErrorCategory is a stable, low-cardinality failure classification. Its
+// defined constants are safe for branching and diagnostics; arbitrary caller
+// conversions to this string type are not validated or redacted.
 type ErrorCategory string
 
 const (
@@ -130,7 +131,8 @@ type OperationError struct {
 	Cause error
 }
 
-// Error renders a bounded operation and category without the underlying cause.
+// Error renders Operation and Category without Cause. Package-generated values
+// use stable constants; caller-constructed fields are not sanitized or bounded.
 func (err *OperationError) Error() string {
 	if err == nil {
 		return "<nil>"

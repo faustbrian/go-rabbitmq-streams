@@ -324,7 +324,10 @@ func retryableConsumerReconnect(err error) bool {
 	return category == rabbitstream.CategoryConnection || category == rabbitstream.CategoryTimeout
 }
 
-// Next restores retryable lost sessions before returning a delivery.
+// Next restores sessions after any uncanceled, non-Closed session read error.
+// Unlike session-opening classification, this path does not restrict retirement
+// to connection categories; a permanently malformed delivery can be encountered
+// again from stored progress until cancellation or opening fails.
 func (transport *consumerTransport) Next(ctx context.Context) (rabbitstream.Message, error) {
 	for {
 		session, err := transport.session(ctx)

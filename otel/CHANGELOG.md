@@ -4,6 +4,10 @@ All notable changes to this module are documented here.
 
 ## Unreleased
 
+### Documentation
+
+- Clarify the legacy root-v1 observation binding and caller-owned SDK lifecycle.
+
 The v1.1.0 facade entry below is release preparation. Canonical adapter
 v1.1.0 selection follows its public release; keep this facade unpublished
 until that dependency selection is complete.

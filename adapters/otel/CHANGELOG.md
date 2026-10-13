@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Documentation
+
+- Clarify published root-v1 type binding, borrowed SDK/provider lifetime,
+  closed telemetry labels and owned trace propagation in source contracts.
+
 ## 1.1.0 - 2026-10-06
 
 ### Changed

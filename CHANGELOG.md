@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Documentation
+
+- Clarify cooperative handler deadlines, one-way offset-storage cadence,
+  replay side-effect flags, shallow TLS ownership and ambiguous attempted writes
+  in source contracts without changing runtime policy.
+
 ### Changed
 
 - Prepare the root v2 module path and release metadata for the documented

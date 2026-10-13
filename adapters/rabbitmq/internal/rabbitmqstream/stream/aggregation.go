@@ -13,39 +13,52 @@ import (
 )
 
 const (
-	None   = byte(0)
-	GZIP   = byte(1)
+	// None selects uncompressed sub-entry wire data.
+	None = byte(0)
+	// GZIP selects gzip sub-entry wire data.
+	GZIP = byte(1)
+	// SNAPPY selects framed Snappy sub-entry wire data.
 	SNAPPY = byte(2)
-	LZ4    = byte(3)
-	ZSTD   = byte(4)
+	// LZ4 selects LZ4 sub-entry wire data.
+	LZ4 = byte(3)
+	// ZSTD selects Zstandard sub-entry wire data.
+	ZSTD = byte(4)
 )
 
+// Compression selects a native sub-entry codec. Its zero value disables
+// aggregation compression; None explicitly enables uncompressed sub-entries.
 type Compression struct {
 	enabled bool
 	value   byte
 }
 
+// String reports codec selection, not a capability negotiation.
 func (compression Compression) String() string {
 	return fmt.Sprintf("value %d (enable: %t)", compression.value,
 		compression.enabled)
 }
 
+// None selects uncompressed sub-entry aggregation.
 func (compression Compression) None() Compression {
 	return Compression{value: None, enabled: true}
 }
 
+// Gzip selects gzip sub-entry aggregation.
 func (compression Compression) Gzip() Compression {
 	return Compression{value: GZIP, enabled: true}
 }
 
+// Snappy selects framed Snappy sub-entry aggregation.
 func (compression Compression) Snappy() Compression {
 	return Compression{value: SNAPPY, enabled: true}
 }
 
+// Zstd selects Zstandard sub-entry aggregation.
 func (compression Compression) Zstd() Compression {
 	return Compression{value: ZSTD, enabled: true}
 }
 
+// Lz4 selects framed LZ4 sub-entry aggregation.
 func (compression Compression) Lz4() Compression {
 	return Compression{value: LZ4, enabled: true}
 }
@@ -85,6 +98,9 @@ func compressByValue(value byte) iCompress {
 
 type compressNONE struct{}
 
+// Compress mutates the owned sub-entry byte buffers and size accounting using
+// uncompressed encoding. Failure may leave earlier entries populated; callers must
+// not reuse a failed aggregation as an untouched batch.
 func (es compressNONE) Compress(subEntries *subEntries) error {
 	for _, entry := range subEntries.items {
 		var tmp bytes.Buffer
@@ -102,6 +118,9 @@ func (es compressNONE) Compress(subEntries *subEntries) error {
 	return nil
 }
 
+// UnCompress reads exactly the declared compressed bytes, applies default finite
+// frame/output limits, and requires actual decoded size to match the declaration.
+// The returned reader owns decoded bytes; codec working buffers are additional.
 func (es compressNONE) UnCompress(source *bufio.Reader, dataSize, uncompressedDataSize uint32) (*bufio.Reader, error) {
 	limits := DefaultDecoderLimits()
 	if int64(dataSize) > int64(limits.MaxFrameBytes) || int64(uncompressedDataSize) > int64(limits.MaxChunkBytes) {
@@ -121,6 +140,9 @@ func (es compressNONE) UnCompress(source *bufio.Reader, dataSize, uncompressedDa
 type compressGZIP struct {
 }
 
+// Compress mutates the owned sub-entry byte buffers and size accounting using
+// gzip encoding. Failure may leave earlier entries populated; callers must
+// not reuse a failed aggregation as an untouched batch.
 func (es compressGZIP) Compress(subEntries *subEntries) error {
 	for _, entry := range subEntries.items {
 		var tmp bytes.Buffer
@@ -152,6 +174,9 @@ func (es compressGZIP) Compress(subEntries *subEntries) error {
 	return nil
 }
 
+// UnCompress reads exactly the declared compressed bytes, applies default finite
+// frame/output limits, and requires actual decoded size to match the declaration.
+// The returned reader owns decoded bytes; codec working buffers are additional.
 func (es compressGZIP) UnCompress(source *bufio.Reader, dataSize, uncompressedDataSize uint32) (*bufio.Reader, error) {
 	limits := DefaultDecoderLimits()
 	if int64(dataSize) > int64(limits.MaxFrameBytes) || int64(uncompressedDataSize) > int64(limits.MaxChunkBytes) {
@@ -170,6 +195,9 @@ func (es compressGZIP) UnCompress(source *bufio.Reader, dataSize, uncompressedDa
 
 type compressSnappy struct{}
 
+// Compress mutates the owned sub-entry byte buffers and size accounting using
+// framed Snappy encoding. Failure may leave earlier entries populated; callers must
+// not reuse a failed aggregation as an untouched batch.
 func (es compressSnappy) Compress(subEntries *subEntries) error {
 	for _, entry := range subEntries.items {
 		var tmp bytes.Buffer
@@ -200,6 +228,9 @@ func (es compressSnappy) Compress(subEntries *subEntries) error {
 	return nil
 }
 
+// UnCompress reads exactly the declared compressed bytes, applies default finite
+// frame/output limits, and requires actual decoded size to match the declaration.
+// The returned reader owns decoded bytes; codec working buffers are additional.
 func (es compressSnappy) UnCompress(source *bufio.Reader, dataSize, uncompressedDataSize uint32) (*bufio.Reader, error) {
 	limits := DefaultDecoderLimits()
 	if int64(dataSize) > int64(limits.MaxFrameBytes) || int64(uncompressedDataSize) > int64(limits.MaxChunkBytes) {
@@ -218,6 +249,9 @@ func (es compressSnappy) UnCompress(source *bufio.Reader, dataSize, uncompressed
 
 type compressLZ4 struct{}
 
+// Compress mutates the owned sub-entry byte buffers and size accounting using
+// framed LZ4 encoding. Failure may leave earlier entries populated; callers must
+// not reuse a failed aggregation as an untouched batch.
 func (es compressLZ4) Compress(subEntries *subEntries) error {
 	for _, entry := range subEntries.items {
 		var tmp bytes.Buffer
@@ -249,6 +283,9 @@ func (es compressLZ4) Compress(subEntries *subEntries) error {
 	return nil
 }
 
+// UnCompress reads exactly the declared compressed bytes, applies default finite
+// frame/output limits, and requires actual decoded size to match the declaration.
+// The returned reader owns decoded bytes; codec working buffers are additional.
 func (es compressLZ4) UnCompress(source *bufio.Reader, dataSize, uncompressedDataSize uint32) (*bufio.Reader, error) {
 	limits := DefaultDecoderLimits()
 	if int64(dataSize) > int64(limits.MaxFrameBytes) || int64(uncompressedDataSize) > int64(limits.MaxChunkBytes) {
@@ -267,6 +304,9 @@ func (es compressLZ4) UnCompress(source *bufio.Reader, dataSize, uncompressedDat
 
 type compressZSTD struct{}
 
+// Compress mutates the owned sub-entry byte buffers and size accounting using
+// Zstandard encoding. Failure may leave earlier entries populated; callers must
+// not reuse a failed aggregation as an untouched batch.
 func (es compressZSTD) Compress(subEntries *subEntries) error {
 	for _, entry := range subEntries.items {
 		var tmp bytes.Buffer
@@ -301,6 +341,9 @@ func (es compressZSTD) Compress(subEntries *subEntries) error {
 	return nil
 }
 
+// UnCompress reads exactly the declared compressed bytes, applies default finite
+// frame/output limits, and requires actual decoded size to match the declaration.
+// The returned reader owns decoded bytes; codec working buffers are additional.
 func (es compressZSTD) UnCompress(source *bufio.Reader, dataSize, uncompressedDataSize uint32) (*bufio.Reader, error) {
 	limits := DefaultDecoderLimits()
 	if int64(dataSize) > int64(limits.MaxFrameBytes) || int64(uncompressedDataSize) > int64(limits.MaxChunkBytes) {

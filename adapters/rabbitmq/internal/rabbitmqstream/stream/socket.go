@@ -26,9 +26,16 @@ const defaultSocketWriteTimeout = 10 * time.Second
 // WriteAdmittedError means native Write was attempted, so the broker may have
 // received part or all of a publication. It must not be classified as not sent.
 // Unwrap preserves cancellation and network error classification.
-type WriteAdmittedError struct{ Err error }
+type WriteAdmittedError struct {
+	// Err preserves the original write cause; wrapper text does not redact it.
+	Err error
+}
 
+// Error returns a stable uncertainty diagnostic without formatting Err.
 func (e *WriteAdmittedError) Error() string { return "native write outcome is uncertain" }
+
+// Unwrap exposes original write/cancellation identity for reconciliation, not
+// a log-safe diagnostic or proof that no bytes reached the broker.
 func (e *WriteAdmittedError) Unwrap() error { return e.Err }
 
 type socketAttemptWriter struct {
@@ -36,6 +43,8 @@ type socketAttemptWriter struct {
 	attempted  *bool
 }
 
+// Write marks admission as attempted immediately before calling the wrapped
+// writer. The flag means bytes may have escaped even when Write returns an error.
 func (w socketAttemptWriter) Write(p []byte) (int, error) {
 	*w.attempted = true
 	return w.connection.Write(p)

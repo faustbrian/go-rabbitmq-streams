@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Documentation
+
+- Clarify reconnect read-error handling, the actual incoming AMQP projection,
+  owned native task joins and private-fork decoder/resource/privacy boundaries
+  without changing protocol behavior or qualification.
+
 ### Changed
 
 - Use the adapter-v2 module path with root-v2 policy types and Go 1.27.2.

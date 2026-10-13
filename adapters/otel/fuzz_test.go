@@ -12,6 +12,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+// FuzzPropagationOwnershipAndBounds checks propagation does not mutate the borrowed input and admitted output extracts.
 func FuzzPropagationOwnershipAndBounds(f *testing.F) {
 	f.Add("application", []byte("value"), []byte("payload"))
 	f.Add("traceparent", []byte("malformed"), []byte(nil))
@@ -48,6 +49,7 @@ func FuzzPropagationOwnershipAndBounds(f *testing.F) {
 	})
 }
 
+// FuzzObservationIsolation feeds open enum/numeric inputs to closed telemetry admission; it is a robustness target, not a privacy proof.
 func FuzzObservationIsolation(f *testing.F) {
 	f.Add("publish_attempt", uint64(1), uint64(128), int64(1))
 	f.Add("customer-secret", ^uint64(0), ^uint64(0), int64(-1))

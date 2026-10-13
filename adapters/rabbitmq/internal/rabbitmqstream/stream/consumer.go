@@ -10,11 +10,17 @@ import (
 	logs "github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2/internal/rabbitmqstream/logs"
 )
 
+// Consumer owns one native subscription, chunk dispatch and local offset state.
+// Close stops rather than joins callback work; an external owner uses
+// WaitContext. Getter offsets are local observations, not durable broker
+// receipts.
 type Consumer struct {
 	terminalEvent Event
 	tasks         taskOwner
 	offsetGate    contextGate
 	client        *Client
+	// ID is the native subscription identifier. Prefer GetID; direct mutation can break lookup ownership.
+	//
 	// Deprecated: ConsumerID is deprecated. Use GetID() instead.
 	ID               uint8 // also the SubscriptionId
 	response         *Response
@@ -25,7 +31,8 @@ type Consumer struct {
 	// closeCh is closed when the consumer is shutting down.
 	closeCh chan struct{}
 	// closeOnce ensures close() is idempotent even if called concurrently.
-	closeOnce       sync.Once
+	closeOnce sync.Once
+	// MessagesHandler is borrowed synchronous dispatch code; blocked work delays external joins.
 	MessagesHandler MessagesHandler
 	// different form ConsumerOptions.offset. ConsumerOptions.offset is just the configuration
 	// and won't change. currentOffset is the status of the offset
@@ -64,6 +71,8 @@ func (consumer *Consumer) isZombie() bool {
 	return consumer.status == open && !consumer.client.socket.isOpen()
 }
 
+// GetStreamName observes the configured native stream name under its mutex, not
+// a topology snapshot.
 func (consumer *Consumer) GetStreamName() string {
 	if consumer.options == nil {
 		return ""
@@ -71,6 +80,8 @@ func (consumer *Consumer) GetStreamName() string {
 	return consumer.options.streamName
 }
 
+// GetName observes the configured broker offset-tracking reference; it is not a
+// principal or durable checkpoint.
 func (consumer *Consumer) GetName() string {
 	if consumer.options == nil {
 		return ""
@@ -84,12 +95,16 @@ func (consumer *Consumer) setCurrentOffset(offset int64) {
 	consumer.currentOffset = offset
 }
 
+// GetOffset returns the locally observed current delivery offset; it is not
+// broker-stored progress.
 func (consumer *Consumer) GetOffset() int64 {
 	consumer.mutex.Lock()
 	defer consumer.mutex.Unlock()
 	return consumer.currentOffset
 }
 
+// GetID returns the native subscription ID, not a delivery offset or
+// application fence.
 func (consumer *Consumer) GetID() uint8 {
 	consumer.mutex.RLock()
 	defer consumer.mutex.RUnlock()
@@ -116,6 +131,9 @@ func (consumer *Consumer) setPromotedAsActive(promoted bool) {
 	consumer.isPromotedAsActive = promoted
 }
 
+// GetLastStoredOffset returns the locally accepted store offset, not a
+// confirmed durable broker checkpoint.
+//
 // Deprecated: The method name may be misleading.
 // The method does not indicate the last message stored, but the last stored in memory.
 // The method was added to avoid to query the offset from the server, but it created confusion.
@@ -131,19 +149,22 @@ func (consumer *Consumer) setPromotedAsActive(promoted bool) {
 // There is an edge case in which multiple clients use the same consumer name,
 // and the last stored offset in memory is not the one the user expects.
 // So, to avoid confusion, it is better to use QueryOffset, which always gets the value from the server.
-
 func (consumer *Consumer) GetLastStoredOffset() int64 {
 	consumer.mutex.Lock()
 	defer consumer.mutex.Unlock()
 	return consumer.lastStoredOffset
 }
 
+// GetCloseHandler returns a borrowed native-owned terminal channel; callers
+// must not close or replace its ownership.
 func (consumer *Consumer) GetCloseHandler() chan Event {
 	consumer.mutex.Lock()
 	defer consumer.mutex.Unlock()
 	return consumer.closeHandler
 }
 
+// NotifyClose returns a native-owned single terminal event channel, including
+// an already closed terminal snapshot.
 func (consumer *Consumer) NotifyClose() ChannelClose {
 	consumer.mutex.Lock()
 	defer consumer.mutex.Unlock()
@@ -160,6 +181,8 @@ func (consumer *Consumer) NotifyClose() ChannelClose {
 	return ch
 }
 
+// Credit requests positive manual chunk credits only in manual mode; nil return
+// is local command submission, not a delivery acknowledgement.
 func (consumer *Consumer) Credit(credits int16) error {
 	if consumer.options.CreditStrategy != ManualCreditStrategy {
 		return fmt.Errorf("credit can only be called when CreditStrategy is ManualCreditStrategy")
@@ -171,11 +194,16 @@ func (consumer *Consumer) Credit(credits int16) error {
 	return nil
 }
 
+// ConsumerContext exposes a borrowed native subscription and current chunk
+// metadata during its callback, not a durable replay checkpoint.
 type ConsumerContext struct {
+	// Consumer borrows the dispatching owner; do not wait for its own task from a callback.
 	Consumer  *Consumer
 	chunkInfo *chunkInfo
 }
 
+// GetEntriesCount returns the current chunk entry count; subentries can contain
+// multiple messages, so it is not a general record-count oracle.
 func (cc ConsumerContext) GetEntriesCount() uint16 {
 	return cc.chunkInfo.numEntries
 }
@@ -187,20 +215,30 @@ func (cc ConsumerContext) GetEntriesCount() uint16 {
 // When manual credit strategy is used, the consumer context allows to send credits to the broker.
 type MessagesHandler func(consumerContext ConsumerContext, message *amqp.Message)
 
+// AutoCommitStrategy controls native local offset-store count/time cadence, not
+// transactional or acknowledged broker storage. Configure it before
+// subscription.
 type AutoCommitStrategy struct {
 	messageCountBeforeStorage int
 	flushInterval             time.Duration
 }
 
+// SetCountBeforeStorage stores native local offset-command cadence; this does
+// not bound durable crash redelivery.
 func (ac *AutoCommitStrategy) SetCountBeforeStorage(messageCountBeforeStorage int) *AutoCommitStrategy {
 	ac.messageCountBeforeStorage = messageCountBeforeStorage
 	return ac
 }
+
+// SetFlushInterval stores the native auto-store interval; configure before
+// consuming and do not treat it as an acknowledged receipt.
 func (ac *AutoCommitStrategy) SetFlushInterval(flushInterval time.Duration) *AutoCommitStrategy {
 	ac.flushInterval = flushInterval
 	return ac
 }
 
+// NewAutoCommitStrategy returns native defaults of 10000 messages and five
+// seconds; the public adapter selects manual offset storage.
 func NewAutoCommitStrategy() *AutoCommitStrategy {
 	return &AutoCommitStrategy{
 		messageCountBeforeStorage: 10_000,
@@ -208,14 +246,23 @@ func NewAutoCommitStrategy() *AutoCommitStrategy {
 	}
 }
 
+// PostFilter is an inline borrowed decoded-message predicate; callers own
+// prompt completion and synchronization.
 type PostFilter func(message *amqp.Message) bool
 
+// ConsumerFilter borrows filter values and a post-filter callback. Broker
+// filtering reduces deliveries but is not authentication or authorization.
 type ConsumerFilter struct {
-	Values          []string
+	// Values borrows broker filtering values; initialization validates native limits.
+	Values []string
+	// MatchUnfiltered requests records without a broker filter value too.
 	MatchUnfiltered bool
-	PostFilter      PostFilter
+	// PostFilter is an optional borrowed local predicate, not broker authorization.
+	PostFilter PostFilter
 }
 
+// NewConsumerFilter borrows values and predicate without copying; configure
+// exclusively before opening.
 func NewConsumerFilter(values []string, matchUnfiltered bool, postFilter PostFilter) *ConsumerFilter {
 	return &ConsumerFilter{
 		Values:          values,
@@ -224,13 +271,18 @@ func NewConsumerFilter(values []string, matchUnfiltered bool, postFilter PostFil
 	}
 }
 
+// ConsumerUpdate is an inline native promotion callback returning the requested
+// subscription offset; it is not an application-effect fence.
 type ConsumerUpdate func(streamName string, isActive bool) OffsetSpecification
 
+// SingleActiveConsumer holds native activation/offset policy; callbacks remain
+// borrowed and must not join their own subscription.
 type SingleActiveConsumer struct {
+	// Enabled requests broker promotion coordination, not application fencing.
 	Enabled bool
-	// ConsumerUpdate is the function that will be called when the consumer is promoted
-	// that is when the consumer is active. The function will receive a boolean that is true
-	// the user can decide to return a new offset to start from.
+	// ConsumerUpdate is borrowed inline code invoked for both active and inactive
+	// broker notifications. The boolean reports current promotion and the result
+	// chooses a requested subscription offset, not an external-effect fence.
 	ConsumerUpdate ConsumerUpdate
 	// This offset is the one form the user that decides from the ConsumerUpdate function
 	// nothing to do with: ConsumerOptions.Offset
@@ -244,6 +296,8 @@ type SingleActiveConsumer struct {
 	superStream string
 }
 
+// NewSingleActiveConsumer enables native promotion handling with a borrowed
+// callback; it is not an application-effect fence.
 func NewSingleActiveConsumer(consumerUpdate ConsumerUpdate) *SingleActiveConsumer {
 	return &SingleActiveConsumer{
 		Enabled:        true,
@@ -260,31 +314,44 @@ func newSingleActiveConsumerWithAllParameters(
 	}
 }
 
+// SetEnabled mutates native single-active-consumer policy before opening, not
+// application effect fencing.
 func (s *SingleActiveConsumer) SetEnabled(enabled bool) *SingleActiveConsumer {
 	s.Enabled = enabled
 	return s
 }
 
+// CreditStrategy selects native chunk flow-control ownership, not a per-message
+// acknowledgement.
 type CreditStrategy int
 
 const (
+	// AutomaticCreditStrategy replenishes one native chunk credit during dispatch, not a per-message acknowledgment.
 	AutomaticCreditStrategy CreditStrategy = iota // Default, sends 1 credit per chunk
-	ManualCreditStrategy                          // User manages credits
+	// ManualCreditStrategy leaves chunk credit replenishment to the caller.
+	ManualCreditStrategy // User manages credits
 )
 
 // ConsumerOptions for a consumer
 type ConsumerOptions struct {
-	ConsumerName         string
-	streamName           string
-	autocommit           bool
-	autoCommitStrategy   *AutoCommitStrategy
-	Offset               OffsetSpecification
-	CRCCheck             bool
-	initialCredits       int16
-	ClientProvidedName   string
-	Filter               *ConsumerFilter
+	// ConsumerName selects named offset storage; reuse shares a broker progress reference.
+	ConsumerName       string
+	streamName         string
+	autocommit         bool
+	autoCommitStrategy *AutoCommitStrategy
+	// Offset selects native starting position and does not itself store progress.
+	Offset OffsetSpecification
+	// CRCCheck checks chunk corruption; it is not authenticity verification.
+	CRCCheck       bool
+	initialCredits int16
+	// ClientProvidedName is a broker-visible diagnostic identifier.
+	ClientProvidedName string
+	// Filter borrows optional native broker/local filtering configuration.
+	Filter *ConsumerFilter
+	// SingleActiveConsumer borrows promotion policy; external effects still need fencing.
 	SingleActiveConsumer *SingleActiveConsumer
-	CreditStrategy       CreditStrategy
+	// CreditStrategy selects chunk credit replenishment, not per-message acknowledgment.
+	CreditStrategy CreditStrategy
 }
 
 // NewConsumerOptions returns a new ConsumerOptions instance
@@ -301,21 +368,29 @@ func NewConsumerOptions() *ConsumerOptions {
 	}
 }
 
+// SetConsumerName sets the broker offset-tracking identity; using the same name
+// from concurrent owners can change restart progress.
 func (c *ConsumerOptions) SetConsumerName(consumerName string) *ConsumerOptions {
 	c.ConsumerName = consumerName
 	return c
 }
 
+// SetCRCCheck selects native chunk integrity checking, not sender
+// authentication.
 func (c *ConsumerOptions) SetCRCCheck(crcCheck bool) *ConsumerOptions {
 	c.CRCCheck = crcCheck
 	return c
 }
 
+// SetInitialCredits stores raw chunk credits; opening validates native credit
+// policy, not this setter.
 func (c *ConsumerOptions) SetInitialCredits(initialCredits int16) *ConsumerOptions {
 	c.initialCredits = initialCredits
 	return c
 }
 
+// SetAutoCommit enables native count/time-driven offset submission; a nil
+// strategy selects defaults and storage is not atomic with effects.
 func (c *ConsumerOptions) SetAutoCommit(autoCommitStrategy *AutoCommitStrategy) *ConsumerOptions {
 	c.autocommit = true
 	if autoCommitStrategy == nil {
@@ -326,20 +401,30 @@ func (c *ConsumerOptions) SetAutoCommit(autoCommitStrategy *AutoCommitStrategy) 
 	return c
 }
 
+// SetManualCommit disables native automatic stores so the caller owns progress
+// after handling.
 func (c *ConsumerOptions) SetManualCommit() *ConsumerOptions {
 	c.autocommit = false
 	return c
 }
+
+// SetOffset stores the native starting selector without querying retained
+// availability.
 func (c *ConsumerOptions) SetOffset(offset OffsetSpecification) *ConsumerOptions {
 	c.Offset = offset
 	return c
 }
 
+// SetClientProvidedName stores a broker-visible diagnostic name that may be
+// sensitive; it is not authentication.
 func (c *ConsumerOptions) SetClientProvidedName(clientProvidedName string) *ConsumerOptions {
 	c.ClientProvidedName = clientProvidedName
 	return c
 }
 
+// GetClientProvidedName selects the fallback only for a nil options pointer;
+// a present empty name is returned unchanged.
+// The result can be displayed by broker management tooling.
 func (c *ConsumerOptions) GetClientProvidedName(defaultClientProvidedName string) string {
 	if c == nil {
 		return defaultClientProvidedName
@@ -347,11 +432,15 @@ func (c *ConsumerOptions) GetClientProvidedName(defaultClientProvidedName string
 	return c.ClientProvidedName
 }
 
+// SetFilter borrows the filter object/callback; configure it before
+// publication/subscription.
 func (c *ConsumerOptions) SetFilter(filter *ConsumerFilter) *ConsumerOptions {
 	c.Filter = filter
 	return c
 }
 
+// SetSingleActiveConsumer borrows promotion policy/callbacks; do not mutate
+// them during a subscription.
 func (c *ConsumerOptions) SetSingleActiveConsumer(singleActiveConsumer *SingleActiveConsumer) *ConsumerOptions {
 	c.SingleActiveConsumer = singleActiveConsumer
 	return c
@@ -372,10 +461,13 @@ func (c *ConsumerOptions) SetCreditStrategy(creditStrategy CreditStrategy) *Cons
 	return c
 }
 
+// IsSingleActiveConsumerEnabled reports the borrowed option flag, not current
+// broker promotion or an external-effect fencing token.
 func (c *ConsumerOptions) IsSingleActiveConsumerEnabled() bool {
 	return c.SingleActiveConsumer != nil && c.SingleActiveConsumer.Enabled
 }
 
+// IsFilterEnabled reports whether filter options are present, not broker support.
 func (c *ConsumerOptions) IsFilterEnabled() bool {
 	return c.Filter != nil
 }
@@ -399,6 +491,8 @@ func (c *Client) credit(subscriptionId byte, credit int16) {
 	}
 }
 
+// Close requests terminal native stop/cleanup without joining its message
+// callback. External owners release backpressure and then use WaitContext.
 func (consumer *Consumer) Close() error {
 	if consumer.getStatus() == closed {
 		return AlreadyClosed
@@ -649,36 +743,48 @@ const (
 	typeNext      = int16(3)
 	typeOffset    = int16(4)
 	typeTimestamp = int16(5)
+	//
 	// Deprecated: see LastConsumed()
 	typeLastConsumed = int16(6)
 )
 
+// OffsetSpecification is a by-value native subscription selector. Last is the
+// last chunk, Next is live intake; neither is an exact retained end-offset
+// query.
 type OffsetSpecification struct {
 	typeOfs int16
 	offset  int64
 }
 
+// First returns a retained-beginning selector without querying current
+// retention.
 func (o OffsetSpecification) First() OffsetSpecification {
 	o.typeOfs = typeFirst
 	return o
 }
 
+// Last returns a last-chunk selector, not the last exact message offset.
 func (o OffsetSpecification) Last() OffsetSpecification {
 	o.typeOfs = typeLast
 	return o
 }
 
+// Next returns a live-tail selector for messages arriving after attachment.
 func (o OffsetSpecification) Next() OffsetSpecification {
 	o.typeOfs = typeNext
 	return o
 }
 
+// Offset returns an exact signed native selector; raw values need validation
+// before wire use.
 func (o OffsetSpecification) Offset(offset int64) OffsetSpecification {
 	o.typeOfs = typeOffset
 	o.offset = offset
 	return o
 }
 
+// Timestamp returns a timestamp selector in Unix milliseconds without
+// rounding/validation.
 func (o OffsetSpecification) Timestamp(offset int64) OffsetSpecification {
 	o.typeOfs = typeTimestamp
 	o.offset = offset
@@ -697,6 +803,9 @@ func (o OffsetSpecification) isTimestamp() bool {
 	return o.typeOfs == typeTimestamp
 }
 
+// LastConsumed selects the legacy named-offset resume marker; it is not proof
+// of application effects and is not root replay checkpoint authority.
+//
 // Deprecated: The method name may be misleading.
 // The method does not indicate the last message consumed of the stream but the last stored offset.
 // The method was added to help the user, but it created confusion.
@@ -714,6 +823,8 @@ func (o OffsetSpecification) LastConsumed() OffsetSpecification {
 	return o
 }
 
+// String renders the native selection for diagnosis, without querying broker
+// state.
 func (o OffsetSpecification) String() string {
 	switch o.typeOfs {
 	case typeFirst:
