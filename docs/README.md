@@ -1,5 +1,8 @@
 # Documentation
 
+[Documentation map](index.md) · [Repository README](../README.md)
+[Next: Documentation map](index.md)
+
 `rabbitstream` provides vendor-neutral policy for RabbitMQ Streams and Super
 Streams, with separate RabbitMQ and OpenTelemetry adapter modules.
 

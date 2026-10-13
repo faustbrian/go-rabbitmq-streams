@@ -1,5 +1,8 @@
 # Language-neutral interoperability
 
+[Documentation map](index.md) · [Repository README](../README.md)
+[Next: Operations and capacity runbook](operations.md)
+
 ## Current Laravel/PHP status
 
 The pinned RabbitMQ source baseline does not list a supported PHP Streams

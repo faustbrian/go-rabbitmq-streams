@@ -1,5 +1,8 @@
 # Operations and capacity runbook
 
+[Documentation map](index.md) · [Repository README](../README.md)
+[Next: Guarantees and responsibility boundaries](guarantees.md)
+
 This guide covers application use of `rabbitstream`. RabbitMQ topology and
 cluster operation remain operator responsibilities.
 

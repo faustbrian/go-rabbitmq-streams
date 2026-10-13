@@ -1,5 +1,8 @@
 # Lifecycle and adapter-path migration
 
+[Documentation map](index.md) · [Repository README](../README.md)
+[Next: Guarantees and responsibility boundaries](guarantees.md)
+
 ## Root v2
 
 Change root imports to `github.com/faustbrian/go-rabbitmq-streams/v2` and use
@@ -61,7 +64,7 @@ and returns the same terminal cleanup result to every caller that observes
 completion. The existing `Close(ctx)` method delegates to `Shutdown(ctx)` and
 remains supported for compatibility.
 
-The next major release changes timeout handling: context and `CloseTimeout`
+Root v2 changes timeout handling: context and `CloseTimeout`
 bound each caller's entire wait, including producer draining. A timeout does
 not mean transport cleanup completed and is not cached as its terminal result.
 One owner continues cleanup; a later call on the same value can observe the

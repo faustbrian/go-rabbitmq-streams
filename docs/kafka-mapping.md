@@ -1,5 +1,8 @@
 # Kafka to RabbitMQ Streams mapping
 
+[Documentation map](index.md) · [Repository README](../README.md)
+[Next: Operations and capacity runbook](operations.md)
+
 This report is the design input for `rabbitstream`; it is not a claim that
 Kafka and RabbitMQ Streams are interchangeable. It was checked against the
 pinned sources in `adapters/rabbitmq/specification/sources.lock.json`.

@@ -1,5 +1,8 @@
 # Guarantees and responsibility boundaries
 
+[Documentation map](index.md) · [Repository README](../README.md)
+[Next: Operations and capacity runbook](operations.md)
+
 This document separates facts that are often collapsed into a misleading
 "delivery guarantee". The pinned source baseline is recorded in
 [`../adapters/rabbitmq/specification/sources.lock.json`](../adapters/rabbitmq/specification/sources.lock.json).
@@ -42,7 +45,7 @@ metadata and backing stream/partition identity before routing, copying or
 calling handlers. Configured limits apply even to custom transports and replay
 sources. Invalid records do not reach retry/dead-letter publication or offset
 storage. An explicit offset is required, including zero. This stricter root
-admission is an unreleased next-major change; it cannot bound allocations that
+admission is published in root v2.0.0; it cannot bound allocations that
 a native protocol client already performed before returning the delivery.
 
 The default consumer is at least once. It invokes a handler before storing that
@@ -110,7 +113,7 @@ context and `CloseTimeout` bound each caller's wait, not resource reclamation.
 A wait timeout does not publish completion or abandon transport cleanup.
 Later callers can join the same owner and observe the actual close result.
 Trusted handlers, sends and contextless supplier close operations must return;
-the library cannot preempt them. This is the unreleased next-major contract.
+the library cannot preempt them. This contract is published in root v2.0.0.
 Applications must stop admission, cancel consumers, wait for handlers, close
 producers and consumers, then flush caller-owned telemetry.
 

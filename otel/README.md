@@ -1,5 +1,8 @@
 # Rabbitstream OpenTelemetry compatibility facade
 
+[Documentation map](../docs/index.md) · [Repository README](../README.md)
+[Next: Documentation map](../docs/index.md)
+
 > Deprecated: use
 > `github.com/faustbrian/go-rabbitmq-streams/adapters/otel`.
 

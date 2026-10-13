@@ -1,5 +1,8 @@
 # Documentation
 
+[Documentation map](../../docs/index.md) · [Repository README](../../README.md)
+[Next: Documentation map](../../docs/index.md)
+
 ## Getting started
 
 - [Package overview](../README.md)

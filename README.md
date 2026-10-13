@@ -1,10 +1,7 @@
 # rabbitstream
 
 [![CI](https://github.com/faustbrian/go-rabbitmq-streams/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/faustbrian/go-rabbitmq-streams/actions/workflows/ci.yml)
-[![CodeQL](https://img.shields.io/badge/CodeQL-required-blue)](https://github.com/faustbrian/go-rabbitmq-streams/actions/workflows/ci.yml)
-[![Coverage](https://img.shields.io/badge/coverage-full_qualification-blue)](CONTRIBUTING.md#verification)
-[![Mutation](https://img.shields.io/badge/mutation-full_qualification-blue)](CONTRIBUTING.md#verification)
-[![Documentation](https://img.shields.io/badge/docs-checked_in_CI-blue)](docs/)
+[![Documentation](https://img.shields.io/badge/docs-adoption_and_API-blue)](docs/index.md)
 [![Go Reference](https://pkg.go.dev/badge/github.com/faustbrian/go-rabbitmq-streams/v2.svg)](https://pkg.go.dev/github.com/faustbrian/go-rabbitmq-streams/v2)
 [![Release](https://img.shields.io/github/v/release/faustbrian/go-rabbitmq-streams?sort=semver)](https://github.com/faustbrian/go-rabbitmq-streams/releases)
 [![Go](https://img.shields.io/badge/go-1.27.2-00ADD8?logo=go)](https://go.dev/)
@@ -21,9 +18,9 @@ they cannot be mixed with root-v2 configurations, producers, or consumers.
 See the [migration guide](docs/migration.md) for the supported cohorts.
 
 For the shared construction, ownership, lifecycle, and integration vocabulary,
-see the versioned [v1.4.0 Golib ecosystem
-index](https://github.com/faustbrian/go-library-tools/blob/v1.4.0/docs/ecosystem/README.md)
-and its [Integration and data movement family](https://github.com/faustbrian/go-library-tools/blob/v1.4.0/docs/ecosystem/design-language.md#package-families-and-selection).
+see the versioned [v1.8.4 Golib ecosystem
+index](https://github.com/faustbrian/go-library-tools/blob/v1.8.4/docs/ecosystem/README.md)
+and its [Integration and data movement family](https://github.com/faustbrian/go-library-tools/blob/v1.8.4/docs/ecosystem/design-language.md#package-families-and-selection).
 
 | Use `rabbitstream` | Use [`queue`](https://github.com/faustbrian/go-queue) |
 | --- | --- |
@@ -31,6 +28,17 @@ and its [Integration and data movement family](https://github.com/faustbrian/go-
 | independent consumer progress | competing workers |
 | replay and backlog catch-up | process-and-remove delivery |
 | partitioned event ingestion | delayed or retried work |
+
+## Adoption entry points
+
+The root module is `github.com/faustbrian/go-rabbitmq-streams/v2` (stable).
+It requires Go 1.27.2. Pin the published `v2.0.0` root tag
+with `go get github.com/faustbrian/go-rabbitmq-streams/v2@v2.0.0`.
+Install only the modules your application imports; nested module status and
+migration boundaries remain documented separately.
+
+Start with the [documentation map](docs/index.md) for package selection,
+examples, operational constraints, and contributor references.
 
 ## Install
 
@@ -146,9 +154,9 @@ construction and require a bounded `Shutdown` call. Each caller independently
 bounds its wait with context and `CloseTimeout`. Wait expiry is not cleanup
 completion: one owner continues joining admitted work and closing transport,
 and later callers can observe the actual shared result. The deprecated
-context-taking `Close` method delegates to the same contract. This unreleased
-change requires the next major release; trusted callbacks and contextless
-supplier operations must still return. Stop new publications, cancel
+context-taking `Close` method delegates to the same contract. This shutdown
+contract is published in root v2.0.0; trusted callbacks and contextless supplier
+operations must still return. Stop new publications, cancel
 and join consumer runs, close consumers, then close producers. The RabbitMQ
 adapter owns the protocol connections and sessions it opens. The OpenTelemetry
 adapter starts no goroutines, owns no provider or exporter, and exposes no

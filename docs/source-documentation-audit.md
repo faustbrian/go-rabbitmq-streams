@@ -1,5 +1,8 @@
 # Source documentation audit
 
+[Documentation map](index.md) · [Repository README](../README.md)
+[Next: Operations and capacity runbook](operations.md)
+
 ## Acceptance, ownership, consumers and smallest checks
 
 Base ec03fcaf353a63a39a220f2c3f6913aa6fae3396, freshly fetched remote main in a clean detached external

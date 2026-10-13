@@ -1,5 +1,8 @@
 # Rabbitstream OpenTelemetry adapter
 
+[Documentation map](../../docs/index.md) · [Repository README](../../README.md)
+[Next: Documentation map](../../docs/index.md)
+
 `rabbitstreamotel` converts the root module's bounded `rabbitstream.Observation`
 values into caller-owned OpenTelemetry metrics and propagates W3C Trace Context
 through `rabbitstream.Message` headers. The root module remains telemetry-vendor
@@ -7,8 +10,8 @@ neutral.
 
 This adapter belongs to Golib's integration and data movement family. See the
 versioned [v1.4.0 ecosystem
-index](https://github.com/faustbrian/go-library-tools/blob/v1.4.0/docs/ecosystem/README.md)
-and its [Integration and data movement family](https://github.com/faustbrian/go-library-tools/blob/v1.4.0/docs/ecosystem/design-language.md#package-families-and-selection)
+index](https://github.com/faustbrian/go-library-tools/blob/v1.8.4/docs/ecosystem/README.md)
+and its [Integration and data movement family](https://github.com/faustbrian/go-library-tools/blob/v1.8.4/docs/ecosystem/design-language.md#package-families-and-selection)
 for package selection and shared ownership conventions.
 
 ## Install

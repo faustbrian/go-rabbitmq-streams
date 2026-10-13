@@ -1,5 +1,8 @@
 # Rabbitstream RabbitMQ adapter
 
+[Documentation map](../../docs/index.md) · [Repository README](../../README.md)
+[Next: Documentation map](../../docs/index.md)
+
 This nested module adapts the pinned RabbitMQ-supported Go Streams client to the
 stable policy types in the root
 [`rabbitstream`](https://pkg.go.dev/github.com/faustbrian/go-rabbitmq-streams/v2)
@@ -15,8 +18,8 @@ of the root policy module.
 
 This adapter belongs to Golib's integration and data movement family. See the
 versioned [v1.4.0 ecosystem
-index](https://github.com/faustbrian/go-library-tools/blob/v1.4.0/docs/ecosystem/README.md)
-and its [Integration and data movement family](https://github.com/faustbrian/go-library-tools/blob/v1.4.0/docs/ecosystem/design-language.md#package-families-and-selection)
+index](https://github.com/faustbrian/go-library-tools/blob/v1.8.4/docs/ecosystem/README.md)
+and its [Integration and data movement family](https://github.com/faustbrian/go-library-tools/blob/v1.8.4/docs/ecosystem/design-language.md#package-families-and-selection)
 for package selection and shared lifecycle conventions.
 
 ## Install

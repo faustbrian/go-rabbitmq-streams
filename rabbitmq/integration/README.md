@@ -1,5 +1,8 @@
 # RabbitMQ Streams integration fixture
 
+[Documentation map](../../docs/index.md) · [Repository README](../../README.md)
+[Next: Documentation map](../../docs/index.md)
+
 The standalone fixture routes `localhost:15552` through a pinned Toxiproxy
 container to a single RabbitMQ node. Direct standalone setup exposes its
 control API at `127.0.0.1:18474`; the shared repository runner instead assigns

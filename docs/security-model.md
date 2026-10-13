@@ -1,5 +1,8 @@
 # Security model
 
+[Documentation map](index.md) · [Repository README](../README.md)
+[Next: Operations and capacity runbook](operations.md)
+
 Version: 2.0. Scope: root-v2 and RabbitMQ adapter-v2.
 
 ## Scope and trust boundaries

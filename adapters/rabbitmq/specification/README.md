@@ -1,5 +1,8 @@
 # RabbitMQ Streams specification conformance
 
+[Documentation map](../../../docs/index.md) · [Repository README](../../../README.md)
+[Next: Documentation map](../../../docs/index.md)
+
 The adapter owns a bounded policy around the RabbitMQ Streams protocol and the
 pinned RabbitMQ-supported Go client. It does not reimplement every protocol
 command, claim every RabbitMQ feature, or claim independent non-Go client
