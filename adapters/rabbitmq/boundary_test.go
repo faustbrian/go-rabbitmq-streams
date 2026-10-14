@@ -616,6 +616,9 @@ func TestWireDeliveryRejectsUnsupportedMetadataWithoutLeakingIt(t *testing.T) {
 	}
 	for name, wire := range tests {
 		wire := wire
+		if mapped, ok := wire.(*amqp.Message); ok && mapped.Data == nil {
+			mapped.Data = [][]byte{nil}
+		}
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			_, err := fromWireMessage(rabbitstream.DefaultLimits(), "", "tracking.events", 1, wire)
@@ -630,6 +633,7 @@ func TestWireDeliveryAcceptsStringAndByteMetadataRepresentations(t *testing.T) {
 	t.Parallel()
 
 	delivery, err := fromWireMessage(rabbitstream.DefaultLimits(), "", "tracking.events", 1, &amqp.Message{
+		Data:                  [][]byte{nil},
 		Properties:            &amqp.MessageProperties{MessageID: []byte("event"), CorrelationID: "correlation"},
 		Annotations:           amqp.Annotations{"bytes": []byte("header"), "string": "header"},
 		ApplicationProperties: map[string]any{"bytes": []byte("property"), "string": "property"},
@@ -1150,30 +1154,39 @@ func TestInspectorStoredOffsetRejectsInvalidInputsAndClassifiesBrokerResults(t *
 
 func TestStreamStatisticsInspectionIncludesOnlyAvailableNonNegativeChunkIDs(t *testing.T) {
 	base := rabbitstream.StreamInspection{Stream: "tracking.events"}
+	queryFailure := errors.New("committed chunk unavailable")
 	for name, test := range map[string]struct {
 		stats         fakeStreamStatistics
 		want          uint64
 		wantAvailable bool
+		wantErr       error
 	}{
 		"available": {
-			stats:         fakeStreamStatistics{firstErr: errors.New("first offset unavailable"), committed: 7},
+			stats:         fakeStreamStatistics{firstErr: stream.ErrEmptyStreamStatistic, committed: 7},
 			want:          7,
 			wantAvailable: true,
 		},
 		"query failure": {
+			wantErr: queryFailure,
 			stats: fakeStreamStatistics{
-				firstErr: errors.New("first offset unavailable"), committed: 7,
-				committedErr: errors.New("committed chunk unavailable"),
+				firstErr: stream.ErrEmptyStreamStatistic, committed: 7,
+				committedErr: queryFailure,
 			},
 		},
 		"negative": {
-			stats: fakeStreamStatistics{firstErr: errors.New("first offset unavailable"), committed: -1},
+			stats: fakeStreamStatistics{firstErr: stream.ErrEmptyStreamStatistic, committed: -1},
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			inspection, err := inspectStreamStats(
 				context.Background(), &fakeRabbitEnvironment{}, base, "", test.stats,
 			)
+			if test.wantErr != nil {
+				if !errors.Is(err, test.wantErr) || inspection.Stream != "" {
+					t.Fatalf("query failure lost cause or published partial facts: %v", err)
+				}
+				return
+			}
 			if err != nil {
 				t.Fatalf("inspectStreamStats() error = %v", err)
 			}
@@ -1193,7 +1206,7 @@ func TestStreamStatisticsInspectionIncludesOnlyAvailableNonNegativeChunkIDs(t *t
 func TestRetainedStartDistinguishesEmptyInvalidAndAvailableHistory(t *testing.T) {
 	t.Parallel()
 
-	if first, empty, err := retainedStart(0, errors.New("empty stream")); err != nil || !empty || first != 0 {
+	if first, empty, err := retainedStart(0, stream.ErrEmptyStreamStatistic); err != nil || !empty || first != 0 {
 		t.Fatalf("empty retained start = %d, %t, %v", first, empty, err)
 	}
 	if _, empty, err := retainedStart(-1, nil); !errors.Is(err, rabbitstream.ErrReplayRange) || empty {
@@ -1204,7 +1217,7 @@ func TestRetainedStartDistinguishesEmptyInvalidAndAvailableHistory(t *testing.T)
 	}
 	if retained, err := retainedRangeFromStats(
 		context.Background(), &fakeRabbitEnvironment{}, "tracking.events",
-		fakeStreamStatistics{firstErr: errors.New("empty")},
+		fakeStreamStatistics{firstErr: stream.ErrEmptyStreamStatistic},
 	); err != nil || !retained.Empty {
 		t.Fatalf("empty retained range = %#v, %v", retained, err)
 	}
@@ -1308,7 +1321,7 @@ func TestInspectorHandlesTopologyAndDependencyBoundaries(t *testing.T) {
 		&fakeRabbitEnvironment{queryOffsetErr: offsetFailure},
 		rabbitstream.StreamInspection{Stream: "tracking.events", Exists: true},
 		"tracking-indexer",
-		fakeStreamStatistics{firstErr: errors.New("empty"), committedErr: errors.New("empty")},
+		fakeStreamStatistics{firstErr: stream.ErrEmptyStreamStatistic, committedErr: stream.ErrEmptyStreamStatistic},
 	); !errors.Is(err, offsetFailure) {
 		t.Fatalf("stored-offset inspection error = %v", err)
 	}

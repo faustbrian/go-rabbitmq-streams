@@ -40,6 +40,7 @@ type offsetMessages = []*offsetMessage
 type chunkInfo struct {
 	offsetMessages offsetMessages
 	numEntries     uint16
+	numRecords     uint32
 }
 
 // Response is an operation-owned buffered code/data mailbox. Retirement removes

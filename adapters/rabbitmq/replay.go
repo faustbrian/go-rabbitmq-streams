@@ -122,7 +122,10 @@ func retainedRangeFromStats(
 
 func retainedStart(first int64, firstErr error) (uint64, bool, error) {
 	if firstErr != nil {
-		return 0, true, nil
+		if errors.Is(firstErr, stream.ErrEmptyStreamStatistic) {
+			return 0, true, nil
+		}
+		return 0, false, firstErr
 	}
 	if first < 0 {
 		return 0, false, rabbitstream.ErrReplayRange
@@ -148,7 +151,7 @@ func snapshotLastOffset(
 			once.Do(func() {
 				last, rangeErr := snapshotChunkLastOffset(
 					consumerContext.Consumer.GetOffset(),
-					consumerContext.GetEntriesCount(),
+					consumerContext.GetRecordsCount(),
 				)
 				results <- result{last: last, err: rangeErr}
 			})
@@ -175,18 +178,18 @@ func snapshotLastOffset(
 	}
 }
 
-func snapshotChunkLastOffset(first int64, entries uint16) (uint64, error) {
+func snapshotChunkLastOffset(first int64, records uint32) (uint64, error) {
 	if first < 0 {
 		return 0, rabbitstream.ErrReplayRange
 	}
-	return chunkLastOffset(uint64(first), entries)
+	return chunkLastOffset(uint64(first), records)
 }
 
-func chunkLastOffset(first uint64, entries uint16) (uint64, error) {
-	if entries == 0 || first > math.MaxUint64-uint64(entries-1) {
+func chunkLastOffset(first uint64, records uint32) (uint64, error) {
+	if records == 0 || first > math.MaxUint64-uint64(records-1) {
 		return 0, rabbitstream.ErrReplayRange
 	}
-	return first + uint64(entries-1), nil
+	return first + uint64(records-1), nil
 }
 
 // Open creates an isolated consumer cursor without broker offset storage.

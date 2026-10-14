@@ -20,6 +20,7 @@ func TestWireDeliveryRejectsInvalidIdentifiersAfterByteAdmission(t *testing.T) {
 		"whitespace routing key": {Annotations: amqp.Annotations{routingKeyAnnotation: " key"}},
 	}
 	for name, wire := range tests {
+		wire.Data = [][]byte{nil}
 		t.Run(name, func(t *testing.T) {
 			if err := admitWireSizes(limits, wire.Data, wire.Properties, wire.Annotations, wire.ApplicationProperties); err != nil {
 				t.Fatalf("fixture must pass byte admission: %v", err)
@@ -30,7 +31,7 @@ func TestWireDeliveryRejectsInvalidIdentifiersAfterByteAdmission(t *testing.T) {
 			}
 		})
 	}
-	wire := &amqp.Message{Annotations: amqp.Annotations{"key": "value"}}
+	wire := &amqp.Message{Data: [][]byte{nil}, Annotations: amqp.Annotations{"key": "value"}}
 	delivery, err := fromWireMessage(limits, "", "tracking.events", 1, wire)
 	if err != nil || len(delivery.Headers) != 1 || delivery.Headers[0].Key != "key" || string(delivery.Headers[0].Value) != "value" {
 		t.Fatal("valid identifier must retain the admitted header")

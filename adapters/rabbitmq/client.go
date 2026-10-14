@@ -673,11 +673,9 @@ func toWireMessage(outbound rabbitstream.Message) *amqp.AMQP10 {
 	return wireMessage
 }
 
-// fromWireMessage projects Data and selected metadata into owned root bytes.
-// It does not inspect Value, Header, DeliveryAnnotations, Footer or SendSettled;
-// decoded presence of those fields is not independently rejected here. A wider
-// message-semantics admission requires an explicit policy/fixture change, not an
-// assumption that the structural codec already enforces the public subset.
+// fromWireMessage projects exactly one Data section and selected metadata into
+// owned root bytes. Unsupported decoded sections are rejected independently of
+// their value, including NULL Value bodies and empty footer/annotation maps.
 func fromWireMessage(
 	limits rabbitstream.Limits,
 	superStream string,
@@ -695,11 +693,20 @@ func fromWireMessage(
 	var applicationProperties map[string]any
 	switch typed := wireMessage.(type) {
 	case message.StreamMessage:
+		if profile, ok := typed.(interface{ HasUnsupportedSections() bool }); ok && profile.HasUnsupportedSections() {
+			return rabbitstream.Message{}, unsupportedWireMetadata()
+		}
+		if typed.GetMessageHeader() != nil || typed.GetAMQPValue() != nil {
+			return rabbitstream.Message{}, unsupportedWireMetadata()
+		}
 		data = typed.GetData()
 		properties = typed.GetMessageProperties()
 		annotations = typed.GetMessageAnnotations()
 		applicationProperties = typed.GetApplicationProperties()
 	case *amqp.Message:
+		if typed.HasUnsupportedSections() {
+			return rabbitstream.Message{}, unsupportedWireMetadata()
+		}
 		data = typed.Data
 		properties = typed.Properties
 		annotations = typed.Annotations
@@ -707,7 +714,7 @@ func fromWireMessage(
 	default:
 		return rabbitstream.Message{}, unsupportedWireMetadata()
 	}
-	if len(data) > 1 {
+	if len(data) != 1 {
 		return rabbitstream.Message{}, &rabbitstream.OperationError{
 			Operation: rabbitstream.OperationConsume,
 			Category:  rabbitstream.CategoryValidation,

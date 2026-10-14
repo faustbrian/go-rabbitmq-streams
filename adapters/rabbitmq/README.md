@@ -98,11 +98,11 @@ The adapter never creates, changes, or deletes production topology.
 The adapter uses one AMQP 1.0 data section, standard message properties,
 application properties, and the reserved
 `x-rabbitstream-routing-key` annotation. Only string and binary annotation or
-application-property values are accepted. The current input projection inspects
-zero or one data section and selected metadata. It does not reject every other
-decoded AMQP section: Value, header, delivery annotations and footer are not
-projected or independently rejected here. Do not infer whole-message conformance
-validation. See the root
+application-property values are accepted. Inbound messages must contain exactly
+one Data section; an empty or NULL Data payload is accepted. Value (including
+NULL), header, delivery annotations and footer sections are rejected even when
+their decoded contents are empty. This is the selected bounded projection, not
+whole-message AMQP conformance validation. See the root
 [interoperability contract](https://github.com/faustbrian/go-rabbitmq-streams/blob/main/docs/interoperability.md).
 
 ## Failure and lifecycle behavior
@@ -207,3 +207,10 @@ operations, and interoperability guidance.
 For compatibility and upgrade policy, see [COMPATIBILITY.md](COMPATIBILITY.md).
 For adoption help, use the
 [parent support policy](https://github.com/faustbrian/go-rabbitmq-streams/blob/main/SUPPORT.md).
+
+Inspection and replay distinguish physical chunk entries from logical records.
+A compressed subentry can contain multiple records; exact last offsets use the
+logical record count, while the native entry-count accessor remains physical.
+Missing broker statistic keys and query failures return errors, not offset zero
+or a successful empty-stream result. An explicit broker no-value statistic
+remains distinct from a valid statistic of zero.

@@ -64,6 +64,25 @@
 - Cancel and join reconnect opening during producer and consumer transport
   shutdown, closing any late resource before shutdown returns.
 
+## 2.0.2 - 2026-10-14
+
+### Fixed
+
+- Enforce the selected inbound wire profile by admitting exactly one Data
+  section and rejecting Header, DeliveryAnnotations, Footer and Value section
+  presence, including empty or null values. Replace reused decode state while
+  preserving supported nil and empty Data payloads.
+- Report the logical last offset of compressed subentry batches for inspection
+  and exact-range replay without changing physical-entry count semantics.
+- Preserve missing-statistic and broker-query failures instead of presenting
+  them as an empty stream or a valid zero offset.
+
+### Documentation
+
+- Explain the selected AMQP projection, compressed record counts and statistics
+  outcomes without adding durability, lossless AMQP or forced-cancellation
+  guarantees. The root-v2 policy module and public adapter API remain unchanged.
+
 ## 1.1.0 - 2026-10-06
 
 ### Changed

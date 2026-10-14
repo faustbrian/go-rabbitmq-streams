@@ -351,6 +351,9 @@ func (e *Error) Error() string {
 
 // Message is an AMQP message.
 type Message struct {
+	// unsupportedSections preserves decoded section presence even for NULL values.
+	unsupportedSections bool
+
 	// Format is the raw AMQP message format code.
 	// Message format code.
 	//
@@ -519,14 +522,27 @@ func (amqp *AMQP10) MarshalBinary() ([]byte, error) {
 // UnmarshalBinary uses the finite default AMQP decoder policy and updates
 // mutable message/property state; errors need not leave a reusable empty value.
 func (amqp *AMQP10) UnmarshalBinary(data []byte) error {
-	e := amqp.message.UnmarshalBinary(data)
+	decoded := &Message{}
+	e := decoded.UnmarshalBinary(data)
 	if e != nil {
 		return e
 	}
+	amqp.message = decoded
 	amqp.Properties = amqp.message.Properties
 	amqp.Annotations = amqp.message.Annotations
 	amqp.ApplicationProperties = amqp.message.ApplicationProperties
 	return nil
+}
+
+// HasUnsupportedSections reports sections outside the public adapter's Data profile.
+// Decoded presence is retained even when an AMQP Value is NULL or a map is empty.
+func (m *Message) HasUnsupportedSections() bool {
+	return m == nil || m.unsupportedSections || m.Header != nil || m.DeliveryAnnotations != nil || m.Footer != nil || m.Value != nil
+}
+
+// HasUnsupportedSections exposes the underlying decoded profile without coercion.
+func (amqp *AMQP10) HasUnsupportedSections() bool {
+	return amqp == nil || amqp.message.HasUnsupportedSections()
 }
 
 // GetData returns borrowed data-section slices, not owned payload copies.
@@ -679,10 +695,12 @@ func (m *Message) unmarshal(r *buffer) error {
 		)
 		switch amqpType(type_) {
 		case typeCodeMessageHeader:
+			m.unsupportedSections = true
 			discardHeader = false
 			section = &m.Header
 
 		case typeCodeDeliveryAnnotations:
+			m.unsupportedSections = true
 			section = &m.DeliveryAnnotations
 
 		case typeCodeMessageAnnotations:
@@ -710,9 +728,11 @@ func (m *Message) unmarshal(r *buffer) error {
 			continue
 
 		case typeCodeFooter:
+			m.unsupportedSections = true
 			section = &m.Footer
 
 		case typeCodeAMQPValue:
+			m.unsupportedSections = true
 			section = &m.Value
 
 		default:

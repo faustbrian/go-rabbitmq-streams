@@ -22,6 +22,11 @@ New consumers should use:
 go get github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2@v2
 ```
 
+For the adapter fixes in `v2.0.2`, existing facade consumers must also select
+`github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2@v2.0.2`.
+The facade's dependency minimum does not automatically select new patches;
+no root-v2 upgrade is required for these fixes.
+
 Migrate root and adapter or facade imports together. V2 adds bounded native
 decoding and cooperative transport shutdown and rejects wire shapes outside
 those bounds; this is not merely an import alias for the v1 release. See the

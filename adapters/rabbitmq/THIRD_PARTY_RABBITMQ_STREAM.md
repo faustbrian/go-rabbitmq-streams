@@ -191,3 +191,11 @@ limits; adapter payload/metadata limits must be converted to encoded-wire limits
 with checked overhead, not reused as aggregate limits. Codec working buffers are
 also finite: Snappy uses its fixed framed block budget, LZ4 at most two 4 MiB block
 buffers, and zstd a configured window/memory budget (at least 1 MiB).
+
+The local admission repair retains decoded unsupported AMQP section presence
+(including NULL/empty contents) and gives AMQP10 replacement decode semantics
+without the outbound constructor's initial Data section. Native chunk metadata
+now carries the original logical record count separately from physical entries;
+inspection/replay use logical records for terminal offsets. Missing statistics
+are classified separately from the broker's explicit -1 no-value sentinel.
+The inherited upstream file checksums remain historical and unchanged.

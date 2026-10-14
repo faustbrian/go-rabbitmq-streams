@@ -208,6 +208,12 @@ func (cc ConsumerContext) GetEntriesCount() uint16 {
 	return cc.chunkInfo.numEntries
 }
 
+// GetRecordsCount returns the original logical record count of the delivered
+// chunk, including records preceding an explicit subscription offset.
+func (cc ConsumerContext) GetRecordsCount() uint32 {
+	return cc.chunkInfo.numRecords
+}
+
 // MessagesHandler is the function that will be called when a message is received. This function
 // is used to process incoming messages. The consumer context allows access to the consumer handling
 // the message and some chunk information.

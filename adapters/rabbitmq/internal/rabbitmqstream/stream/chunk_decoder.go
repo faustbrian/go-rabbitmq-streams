@@ -68,6 +68,7 @@ func decodeDelivery(body []byte, limits DecoderLimits) (byte, chunkInfo, uint32,
 		return fail(fmt.Errorf("chunk offset overflow"))
 	}
 	chunk.numEntries = entries
+	chunk.numRecords = records
 	// Capacity is admitted by MaxRecords, independently of compressed byte size.
 	chunk.offsetMessages = make(offsetMessages, 0, int(records))
 	d := frameCursor{b: data, limits: limits}
