@@ -5,7 +5,7 @@ go 1.27.2
 require (
 	github.com/faustbrian/go-rabbitmq-streams/v2 v2.0.0
 	github.com/golang/snappy v1.0.0
-	github.com/klauspost/compress v1.19.1
+	github.com/klauspost/compress v1.20.3
 	github.com/pierrec/lz4 v2.6.1+incompatible
 	github.com/pkg/errors v0.9.1
 	github.com/spaolacci/murmur3 v1.1.0
