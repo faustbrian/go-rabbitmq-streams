@@ -41,6 +41,17 @@
 - Align the shared verification workflow and tooling source while retaining
   the checksum-verified v1.8.4 CLI.
 
+## 2.0.1 - 2026-10-22
+
+### Changed
+
+- Publish the current source and documentation with a fresh immutable tag.
+- Publish independently versioned modules from the same source snapshot:
+  - `otel/v1.2.0`.
+  - `rabbitmq/v2.1.0`.
+  - `adapters/otel/v1.2.0`.
+  - `adapters/rabbitmq/v2.0.3`.
+
 ## 1.2.0 - 2026-10-06
 
 ### Changed
