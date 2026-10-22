@@ -3,7 +3,7 @@ module github.com/faustbrian/go-rabbitmq-streams/adapters/otel
 go 1.27.0
 
 require (
-	github.com/faustbrian/go-rabbitmq-streams v1.0.0
+	github.com/faustbrian/go-rabbitmq-streams v1.2.0
 	go.opentelemetry.io/otel v1.47.0
 	go.opentelemetry.io/otel/metric v1.47.0
 	go.opentelemetry.io/otel/sdk/metric v1.47.0
