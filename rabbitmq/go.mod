@@ -3,7 +3,7 @@ module github.com/faustbrian/go-rabbitmq-streams/rabbitmq/v2
 go 1.27.2
 
 require (
-	github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2 v2.0.1
+	github.com/faustbrian/go-rabbitmq-streams/adapters/rabbitmq/v2 v2.0.2
 	github.com/faustbrian/go-rabbitmq-streams/v2 v2.0.0
 )
 
