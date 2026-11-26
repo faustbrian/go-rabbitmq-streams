@@ -1,10 +1,12 @@
 # Changelog
 
-## Unreleased
+## 2.1.1 - 2026-11-26
 
 ### Security
 
 - Require klauspost/compress v1.20.2 to address GO-2026-6865.
+
+## Unreleased
 
 ### Documentation
 
