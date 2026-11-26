@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Security
+
+- Require klauspost/compress v1.20.2 in the `rabbitmq` module and adapter to
+  address GO-2026-6865.
+
 ### Documentation
 
 - Clarify cooperative handler deadlines, one-way offset-storage cadence,
